@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+  margin: 0;
+}
+
+#root { min-height: 100vh; }
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
