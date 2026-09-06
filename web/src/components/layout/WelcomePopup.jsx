@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { announcementApi } from '../../api';
 
-const LS_KEY = 'velora_popup_last_shown';
+const LS_KEY = 'dundu_popup_last_shown';
 
 export default function WelcomePopup() {
   const [visible, setVisible] = useState(false);

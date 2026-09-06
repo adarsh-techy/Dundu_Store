@@ -1,12 +1,24 @@
 import { create } from 'zustand';
 import { cartApi } from '../api/index';
+import useFreeShippingStore from './freeShipping.store';
 
 function computeTotals(items) {
   if (!Array.isArray(items)) return { total: 0, count: 0 };
   const total = items.reduce((sum, item) => {
-    const price = parseFloat(item.offer_price || item.price || 0);
+    let validPrice = 0;
+    if (item.combo_id) {
+      // Combo item — use combo pricing
+      const comboOffer = item.combo_offer_price ? parseFloat(item.combo_offer_price) : 0;
+      const comboReg   = item.combo_price ? parseFloat(item.combo_price) : 0;
+      validPrice = comboOffer > 0 ? comboOffer : comboReg;
+    } else {
+      // Regular product item
+      const oPrice = item.offer_price ? parseFloat(item.offer_price) : 0;
+      const rPrice = item.price ? parseFloat(item.price) : (item.product_price ? parseFloat(item.product_price) : 0);
+      validPrice = oPrice > 0 ? oPrice : rPrice;
+    }
     const qty = parseInt(item.quantity || 1, 10);
-    return sum + price * qty;
+    return sum + (validPrice * qty);
   }, 0);
   const count = items.reduce((sum, item) => sum + parseInt(item.quantity || 1, 10), 0);
   return { total, count };
@@ -34,6 +46,11 @@ const useCartStore = create((set) => ({
     const items = res.cart || res.items || [];
     const { total, count } = computeTotals(items);
     set({ items, total, count });
+    if (total > 0 && total < 500) {
+      setTimeout(() => {
+        useFreeShippingStore.getState().openModal(total);
+      }, 300);
+    }
   },
 
   updateItem: async (id, qty) => {
@@ -42,6 +59,11 @@ const useCartStore = create((set) => ({
     const items = res.cart || res.items || [];
     const { total, count } = computeTotals(items);
     set({ items, total, count });
+    if (total > 0 && total < 500) {
+      setTimeout(() => {
+        useFreeShippingStore.getState().openModal(total);
+      }, 300);
+    }
   },
 
   removeItem: async (id) => {

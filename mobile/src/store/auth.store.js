@@ -13,7 +13,7 @@ const useAuthStore = create((set) => ({
   initAuth: async () => {
     set({ isLoading: true });
     try {
-      const token = await AsyncStorage.getItem('velora_token');
+      const token = (await AsyncStorage.getItem('dundu_token')) || (await AsyncStorage.getItem('velora_token'));
       if (token) {
         const res = await authApi.me();
         const user = res.user || res;
@@ -22,6 +22,7 @@ const useAuthStore = create((set) => ({
         set({ isLoading: false });
       }
     } catch (error) {
+      await AsyncStorage.removeItem('dundu_token');
       await AsyncStorage.removeItem('velora_token');
       set({ user: null, token: null, isAuthenticated: false, isLoading: false });
     }
@@ -31,7 +32,7 @@ const useAuthStore = create((set) => ({
     const res = await authApi.login(data);
     const token = res.token || res.data?.token;
     const user = res.user || res.data?.user;
-    await AsyncStorage.setItem('velora_token', token);
+    await AsyncStorage.setItem('dundu_token', token);
     set({ user, token, isAuthenticated: true });
     return res;
   },
@@ -40,13 +41,14 @@ const useAuthStore = create((set) => ({
     const res = await authApi.signup(data);
     const token = res.token || res.data?.token;
     const user = res.user || res.data?.user;
-    await AsyncStorage.setItem('velora_token', token);
+    await AsyncStorage.setItem('dundu_token', token);
     set({ user, token, isAuthenticated: true });
     return res;
   },
 
   logout: async () => {
     try {
+      await AsyncStorage.removeItem('dundu_token');
       await AsyncStorage.removeItem('velora_token');
     } catch (e) {
       // ignore

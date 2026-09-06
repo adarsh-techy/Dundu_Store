@@ -7,7 +7,7 @@ exports.up = (pgm) => {
     total_spent: { type: 'decimal(12,2)', notNull: true, default: 0 },
     created_at: { type: 'timestamp', notNull: true, default: pgm.func('now()') },
     updated_at: { type: 'timestamp', notNull: true, default: pgm.func('now()') },
-  });
+  }, { ifNotExists: true });
 };
 
 exports.down = (pgm) => {

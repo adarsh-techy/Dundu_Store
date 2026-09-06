@@ -5,7 +5,7 @@ const client = axios.create({ baseURL: apiBase ? `${apiBase}/api` : '/api' });
 
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('velora_admin_token');
+  const token = localStorage.getItem('dundu_admin_token') || localStorage.getItem('velora_admin_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -17,6 +17,7 @@ client.interceptors.response.use(
       const isAuthEndpoint = err.config?.url?.includes('/auth/');
       if (!isAuthEndpoint) {
         // Expired session — clear token and redirect
+        localStorage.removeItem('dundu_admin_token');
         localStorage.removeItem('velora_admin_token');
         window.location.href = '/login';
       }

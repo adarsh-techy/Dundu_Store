@@ -1,0 +1,345 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+.sc-container {
+  padding: 32px 40px;
+  background: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+}
+
+.sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.sc-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.8px;
+}
+
+.sc-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+  max-width: 680px;
+}
+
+/* Tabs Bar */
+.sc-tabs-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 28px;
+}
+
+.sc-tab-btn {
+  padding: 12px 20px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #64748b;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+}
+
+.sc-tab-btn:hover {
+  color: #0f172a;
+}
+
+.sc-tab-btn.active {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
+}
+
+/* Layout */
+.sc-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 28px;
+  align-items: start;
+}
+
+.sc-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e2e8f0;
+}
+
+.sc-card-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.sc-card-sub {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+.sc-setting-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 22px;
+}
+
+.sc-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.sc-toggle-label input {
+  accent-color: #7c3aed;
+  width: 20px;
+  height: 20px;
+}
+
+.sc-help-text {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 6px 0 0 34px;
+  line-height: 1.4;
+}
+
+.sc-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.sc-field-group {
+  margin-bottom: 20px;
+}
+
+.sc-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.sc-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+.sc-input:focus {
+  outline: none;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.12);
+}
+
+.sc-save-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border: none;
+  padding: 13px 28px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35);
+  transition: all 0.2s ease;
+}
+
+.sc-save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.45);
+}
+
+/* Prize Card Grid */
+.sc-prize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.sc-prize-card {
+  border-radius: 18px;
+  padding: 18px;
+  color: #ffffff;
+  position: relative;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+}
+
+.sc-prize-type {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.9;
+  background: rgba(0,0,0,0.2);
+  padding: 3px 8px;
+  border-radius: 12px;
+  align-self: flex-start;
+}
+
+.sc-prize-title {
+  font-size: 16px;
+  font-weight: 900;
+  margin: 10px 0 4px 0;
+}
+
+.sc-prize-code {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.9;
+  font-family: monospace;
+}
+
+.sc-prize-prob {
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Phone Simulator */
+.sc-phone-wrap {
+  background: #09090b;
+  border-radius: 40px;
+  padding: 14px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+  border: 3px solid #27272a;
+}
+
+.sc-phone-notch {
+  width: 64px;
+  height: 14px;
+  background: #27272a;
+  border-radius: 10px;
+  margin: 0 auto 10px;
+}
+
+.sc-phone-screen {
+  background: #0f172a;
+  border-radius: 28px;
+  overflow: hidden;
+  position: relative;
+  min-height: 480px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-align: center;
+}
+
+.sc-scratch-box {
+  width: 240px;
+  height: 240px;
+  border-radius: 28px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16px 36px rgba(100, 116, 139, 0.3);
+  margin: 18px 0;
+  cursor: pointer;
+  border: 1.5px solid #94a3b8;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sc-scratch-box:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 42px rgba(148, 163, 184, 0.35);
+}
+
+.sc-scratch-foil {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 30%, #e2e8f0 65%, #cbd5e1 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 2;
+  transition: opacity 0.4s ease;
+  border: 2px solid #cbd5e1;
+  box-sizing: border-box;
+}
+
+.sc-curiosity-tag {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1.5px solid #10b981;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #047857;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.sc-scratch-revealed {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  border: 2px solid #10b981;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1;
+  color: #ffffff;
+}
+
+/* Styled Table */
+.sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.sc-table th {
+  text-align: left;
+  padding: 12px 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 800;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.sc-table td {
+  padding: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}

@@ -1,0 +1,196 @@
+/* ═══════════════════════════════════════════════
+   NotificationModal — Blocking Confirm Dialog
+   For transient feedback, use ToastNotification
+═══════════════════════════════════════════════ */
+
+.notif-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  animation: notif-fade-in 0.2s ease-out;
+  padding: 20px;
+}
+
+.notif-modal-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 24px;
+  padding: 32px 28px 28px;
+  box-shadow:
+    0 20px 60px -10px rgba(0, 0, 0, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  animation: notif-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Type-specific top border stripe */
+.notif-modal-card.confirm { border-top: 4px solid #7c3aed; }
+.notif-modal-card.warning { border-top: 4px solid #d97706; }
+.notif-modal-card.info    { border-top: 4px solid #0284c7; }
+
+/* ── Close Button ─────────────────────────── */
+.notif-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  border: none;
+  background: #f1f5f9;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+}
+
+.notif-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ── Icon Circle ──────────────────────────── */
+.notif-icon-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.notif-icon-circle svg {
+  width: 30px;
+  height: 30px;
+}
+
+.notif-icon-circle.confirm {
+  background: #f3e8ff;
+  color: #7c3aed;
+  box-shadow: 0 0 0 10px #faf5ff;
+}
+
+.notif-icon-circle.warning {
+  background: #fef3c7;
+  color: #d97706;
+  box-shadow: 0 0 0 10px #fffbeb;
+}
+
+.notif-icon-circle.info {
+  background: #e0f2fe;
+  color: #0284c7;
+  box-shadow: 0 0 0 10px #f0f9ff;
+}
+
+/* ── Text ─────────────────────────────────── */
+.notif-title {
+  margin: 0 0 10px 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  line-height: 1.3;
+}
+
+.notif-message {
+  margin: 0 0 28px 0;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+/* ── Actions ──────────────────────────────── */
+.notif-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.notif-confirm-btn {
+  flex: 1;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  color: #ffffff;
+  transition: all 0.2s ease;
+  letter-spacing: 0.1px;
+}
+
+.notif-confirm-btn.confirm {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+.notif-confirm-btn.confirm:hover {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+}
+
+.notif-confirm-btn.warning {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+}
+.notif-confirm-btn.warning:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.05);
+}
+
+.notif-confirm-btn.info {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+.notif-confirm-btn.info:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.05);
+}
+
+.notif-cancel-btn {
+  flex: 1;
+  padding: 13px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  background: #ffffff;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.notif-cancel-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* ── Animations ───────────────────────────── */
+@keyframes notif-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes notif-slide-up {
+  from { opacity: 0; transform: translateY(24px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}

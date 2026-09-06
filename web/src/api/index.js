@@ -69,6 +69,12 @@ export const loyaltyApi = {
   getMyCard: () => client.get('/loyalty/my-card'),
 };
 
+// Wallet
+export const walletApi = {
+  get:              ()       => client.get('/wallet'),
+  getTransactions:  (params) => client.get('/wallet/transactions', { params }),
+};
+
 // Referral
 export const referralApi = {
   getInfo: () => client.get('/users/referral'),
@@ -91,4 +97,10 @@ export const userApi = {
   toggleWishlist: (product_id) => client.post('/users/wishlist', { product_id }),
   getNotifications: () => client.get('/users/notifications'),
   markNotificationsRead: () => client.post('/users/notifications/read'),
+};
+
+export const spinWheelApi = {
+  getConfig: (params) => client.get('/spin-wheel/config', { params }),
+  getActiveReward: (params) => client.get('/spin-wheel/active-reward', { params }),
+  spin: (data) => client.post('/spin-wheel/spin', data),
 };

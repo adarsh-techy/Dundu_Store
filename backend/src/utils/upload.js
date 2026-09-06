@@ -1,5 +1,6 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
@@ -25,9 +26,19 @@ if (isCloudinaryConfigured) {
   const storage = multer.memoryStorage();
   uploadMiddleware = multer({ storage, fileFilter, limits });
 } else {
-  // Use local disk storage
+  // Use local disk storage - automatically ensure destination directory exists
+  const uploadDir = path.resolve(process.cwd(), process.env.UPLOAD_DIR || 'uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
   const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, process.env.UPLOAD_DIR || 'uploads'),
+    destination: (_req, _file, cb) => {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname);
       cb(null, `${uuidv4()}${ext}`);
@@ -39,8 +50,7 @@ if (isCloudinaryConfigured) {
 // Helper to upload buffer to Cloudinary
 const uploadToCloudinary = (buffer, originalname) => {
   return new Promise((resolve, reject) => {
-    const folder = 'velora';
-    // Remove extension for public_id prefix
+    const folder = 'dundu';
     const publicId = path.parse(originalname).name.replace(/[^a-zA-Z0-9]/g, '_') + '_' + uuidv4().substring(0, 8);
     
     const stream = cloudinary.uploader.upload_stream(

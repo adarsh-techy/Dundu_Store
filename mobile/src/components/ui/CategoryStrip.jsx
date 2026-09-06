@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { COLORS, UPLOADS_URL } from '../../config';
+import useSettingsStore from '../../store/settings.store';
 
 function getImageUri(src) {
   if (!src) return null;
@@ -21,11 +22,18 @@ export default function CategoryStrip({
   onPressOffers,
   filterCount = 0,
   onPressFilter,
+  onPressCombo,
   themeColor,
 }) {
-  const activeColor = themeColor || COLORS.primary;
+  const festEnabled = useSettingsStore((s) => s.festivalEnabled);
+  const festNavBg   = useSettingsStore((s) => s.festivalNavbarColor);
+  const festNavText = useSettingsStore((s) => s.festivalNavbarTextColor);
+
+  const activeColor = themeColor || (festEnabled ? festNavText : COLORS.primary);
+  const bgColor     = festEnabled ? festNavBg : '#0d0d0d';
+
   return (
-    <View style={[styles.wrapper, themeColor && { borderBottomColor: themeColor }]}>
+    <View style={[styles.wrapper, { backgroundColor: bgColor }, themeColor && { borderBottomColor: themeColor }, festEnabled && { borderBottomColor: festNavBg }]}>
       {/* Scrollable category circles */}
       <ScrollView
         horizontal
@@ -33,6 +41,20 @@ export default function CategoryStrip({
         contentContainerStyle={styles.scroll}
         style={{ flex: 1 }}
       >
+        {/* ── Combo circle — always first ── */}
+        {onPressCombo && (
+          <TouchableOpacity
+            style={styles.item}
+            onPress={onPressCombo}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.comboCircle, { borderColor: activeColor }]}>
+              <Text style={styles.comboCircleIcon}>🎀</Text>
+            </View>
+            <Text style={[styles.label, { color: '#fff' }]} numberOfLines={1}>Combos</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Dynamic categories */}
         {categories.map((cat) => {
           const isActive = cat.slug === activeSlug;
@@ -52,7 +74,7 @@ export default function CategoryStrip({
                     </View>
                 }
               </View>
-              <Text style={[styles.label, isActive && { color: activeColor, fontWeight: '700' }]} numberOfLines={1}>
+              <Text style={[styles.label, { color: '#d1cacaff' }, isActive && { color: activeColor, fontWeight: '800' }]} numberOfLines={1}>
                 {cat.name}
               </Text>
             </TouchableOpacity>
@@ -64,7 +86,7 @@ export default function CategoryStrip({
           <View style={[styles.offerCircle, { backgroundColor: activeColor }, isOfferActive && { borderColor: activeColor }]}>
             <Text style={styles.offerIcon}>🏷</Text>
           </View>
-          <Text style={[styles.label, isOfferActive && { color: activeColor, fontWeight: '700' }]}>Offers</Text>
+          <Text style={[styles.label, { color: '#ffffff' }, isOfferActive && { color: activeColor, fontWeight: '800' }]}>Offers</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -94,41 +116,52 @@ export default function CategoryStrip({
 
 const styles = StyleSheet.create({
   wrapper: {
+    paddingVertical: 10,
+    backgroundColor: '#040d04',
+    borderBottomWidth: 1,
+    borderBottomColor: '#163016',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0d0d0d',
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.primary,
   },
   scroll: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 4,
+    paddingHorizontal: 12,
+    alignItems: 'center',
   },
   item: {
     alignItems: 'center',
-    width: 68,
-    marginRight: 4,
+    marginRight: 14,
+    width: 62,
   },
 
   /* Offers circle */
   offerCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
-    borderColor: 'transparent',
+    backgroundColor: '#10b981',
   },
   offerIcon: { fontSize: 24 },
 
+  /* Combo circle */
+  comboCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3a0a2a',
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  comboCircleIcon: { fontSize: 26 },
+
   /* Category circle */
   circle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     overflow: 'hidden',
     backgroundColor: '#1a1a1a',
     borderWidth: 2,
@@ -160,11 +193,11 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    fontSize: 10,
-    color: '#ddd',
+    fontSize: 11,
+    color: '#ffffff',
     marginTop: 4,
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   labelActive: {
     color: ACTIVE_COLOR,

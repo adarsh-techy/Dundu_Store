@@ -1,10 +1,14 @@
 const { Pool } = require('pg');
+const env = require('./env');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const connectionString = env.databaseUrl || 'postgresql://postgres:1234@localhost:5432/dundu';
+
+const pool = new Pool({
+  connectionString,
+});
 
 pool.on('error', (err) => {
   console.error('Unexpected DB error', err);
-  process.exit(-1);
 });
 
 module.exports = {

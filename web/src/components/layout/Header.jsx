@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, Star, Tag } from 'lucide-react';
+import { ShoppingBag, Heart, User, Search, Star, Tag, Wallet } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import useAuthStore from '../../store/auth.store';
@@ -72,6 +72,9 @@ export default function Header() {
                     <Link to="/wishlist" className="block px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 hover:text-white transition-colors">Wishlist</Link>
                     <Link to="/loyalty-card" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors" style={{ color: '#e91e8c' }}>
                       <Star className="h-3.5 w-3.5" /> My Loyalty Card
+                    </Link>
+                    <Link to="/wallet" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors" style={{ color: '#e91e8c' }}>
+                      <Wallet className="h-3.5 w-3.5" /> My Wallet
                     </Link>
                     <hr style={{ borderColor: '#2e2e2e', margin: '4px 0' }} />
                     <button onClick={logout} className="block w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5" style={{ color: '#e91e8c' }}>

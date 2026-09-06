@@ -48,6 +48,16 @@ export const categoryApi = {
   saveMeta: (id, data) => client.patch(`/admin/categories/${id}/meta`, data),
 };
 
+export const comboApi = {
+  list:   ()         => client.get('/admin/combos'),
+  getOne: (id)       => client.get(`/admin/combos/${id}`),
+  create: (data)     => client.post('/admin/combos', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id, data) => client.put(`/admin/combos/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  toggle: (id)       => client.patch(`/admin/combos/${id}/toggle`),
+  remove: (id)       => client.delete(`/admin/combos/${id}`),
+};
+
+
 export const materialApi = {
   list: () => client.get('/admin/product-materials'),
   create: (data) => client.post('/admin/product-materials', data),
@@ -94,6 +104,7 @@ export const userApi = {
   list: (params) => client.get('/admin/users', { params }),
   getOne: (id) => client.get(`/admin/users/${id}`),
   toggleBlock: (id) => client.patch(`/admin/users/${id}/block`),
+  toggleCodBlock: (id) => client.patch(`/admin/users/${id}/cod-block`),
   remove: (id) => client.delete(`/admin/users/${id}`),
   getCart: (id) => client.get(`/admin/users/${id}/cart`),
   clearCart: (id) => client.delete(`/admin/users/${id}/cart`),
@@ -107,6 +118,12 @@ export const userApi = {
   updateAdminPermissions: (id, permissions) => client.patch(`/admin/admins/${id}/permissions`, { permissions }),
   blockAdmin: (id) => client.patch(`/admin/admins/${id}/block`),
   deleteAdmin: (id) => client.delete(`/admin/admins/${id}`),
+};
+
+export const walletApi = {
+  list:            (params)        => client.get('/admin/wallets', { params }),
+  getTransactions: (userId, params) => client.get(`/admin/wallets/${userId}/transactions`, { params }),
+  adjust:          (userId, data)  => client.post(`/admin/wallets/${userId}/adjust`, data),
 };
 
 export const couponApi = {
@@ -143,6 +160,8 @@ export const loyaltyApi = {
 
 export const reportsApi = {
   daily: (date, branch_id) => client.get('/admin/reports/daily', { params: { date, branch_id } }),
+  finance: (params) => client.get('/admin/reports/finance', { params }),
+  updateCostPrice: (id, cost_price) => client.patch(`/admin/reports/products/${id}/cost-price`, { cost_price }),
 };
 
 export const announcementApi = {
@@ -197,5 +216,42 @@ export const splashApi = {
   removeImage: (id) => client.delete(`/admin/splash/${id}/image`),
 };
 
+export const spinWheelApi = {
+  getConfig:                    () => client.get('/admin/spin-wheel/config'),
+  updateSettings:               (data) => client.put('/admin/spin-wheel/settings', data),
+  updatePermissionRules:        (data) => client.put('/admin/spin-wheel/permission-rules', data),
+  createSegment:                (data) => client.post('/admin/spin-wheel/segments', data),
+  updateSegment:                (id, data) => client.put(`/admin/spin-wheel/segments/${id}`, data),
+  deleteSegment:                (id) => client.delete(`/admin/spin-wheel/segments/${id}`),
+  createUserTarget:             (data) => client.post('/admin/spin-wheel/user-targets', data),
+  deleteUserTarget:             (id) => client.delete(`/admin/spin-wheel/user-targets/${id}`),
+  getUsersPermissions:          (params) => client.get('/admin/spin-wheel/users-permissions', { params }),
+  toggleUserSpinPermission:     (id, enabled) => client.patch(`/admin/spin-wheel/users-permissions/${id}/toggle`, { enabled }),
+  bulkToggleUserSpinPermission: (user_ids, enabled) => client.post('/admin/spin-wheel/users-permissions/bulk', { user_ids, enabled }),
+  forceUserSpinPopup:           (user_id, user_ids) => client.post('/admin/spin-wheel/force-user', { user_id, user_ids }),
+  cancelForceUserSpinPopup:     (user_ids) => client.post('/admin/spin-wheel/cancel-force', { user_ids }),
+  forceAllUsersSpinPopup:       () => client.post('/admin/spin-wheel/force-all'),
+  getLogs:                      (params) => client.get('/admin/spin-wheel/logs', { params }),
+};
 
+export const festivalApi = {
+  get:    () => client.get('/admin/festival'),
+  update: (data) => client.put('/admin/festival', data),
+};
 
+export const firstPurchaseApi = {
+  get:    () => client.get('/admin/first-purchase'),
+  update: (data) => client.put('/admin/first-purchase', data),
+};
+
+export const scratchCardApi = {
+  getConfig:            () => client.get('/admin/scratch-card/config'),
+  updateSettings:       (data) => client.put('/admin/scratch-card/settings', data),
+  updatePermissionRules: (data) => client.put('/admin/scratch-card/permission-rules', data),
+  createPrize:          (data) => client.post('/admin/scratch-card/prizes', data),
+  updatePrize:          (id, data) => client.put(`/admin/scratch-card/prizes/${id}`, data),
+  deletePrize:          (id) => client.delete(`/admin/scratch-card/prizes/${id}`),
+  getUsersPermissions:  (params) => client.get('/admin/scratch-card/users-permissions', { params }),
+  forceUserScratchPopup: (user_id, user_ids) => client.post('/admin/scratch-card/force-user', { user_id, user_ids }),
+  getLogs:              (params) => client.get('/admin/scratch-card/logs', { params }),
+};

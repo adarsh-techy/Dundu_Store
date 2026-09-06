@@ -2,16 +2,19 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users, Ticket,
   Image, BarChart2, UserCog, LogOut, ShoppingCart,
-  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike,
+  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet,
 } from 'lucide-react';
 import useAuthStore from '../../store/auth.store';
+import dunduLogo from '../../assets/dundulogo.png';
 
 const allNavGroups = [
   {
     label: 'Online',
     items: [
       { to: '/',                    icon: LayoutDashboard, label: 'Dashboard',       superOnly: true  },
+      { to: '/finance',             icon: Wallet,          label: 'Finance & Profit',superOnly: false, permission: 'reports' },
       { to: '/loyalty',       icon: CreditCard,      label: 'Loyalty Cards',superOnly: false, permission: 'loyalty' },
+      { to: '/wallets',       icon: Wallet,          label: 'Wallets',      superOnly: false, permission: 'wallet' },
       { to: '/reports/daily', icon: TrendingUp,      label: 'Sales Report', superOnly: false, permission: 'reports' },
     ],
   },
@@ -19,9 +22,10 @@ const allNavGroups = [
     label: 'Catalog',
     superOnly: true,
     items: [
-      { to: '/inventory',    icon: BarChart2, label: 'Inventory',    superOnly: true },
-      { to: '/products',     icon: Package,  label: 'Products',     superOnly: true },
-      { to: '/categories',   icon: Tag,      label: 'Categories',   superOnly: true },
+      { to: '/inventory',    icon: BarChart2,    label: 'Inventory',       superOnly: true },
+      { to: '/products',     icon: Package,     label: 'Products',        superOnly: true },
+      { to: '/categories',   icon: Tag,         label: 'Categories',      superOnly: true },
+      { to: '/combos',       icon: PackagePlus, label: 'Combos',          superOnly: true },
       { to: '/new-arrivals',       icon: Sparkles,       label: 'New Arrivals',      superOnly: true },
       { to: '/insights/products',  icon: FlameKindling,  label: 'Product Insights',  superOnly: true },
     ],
@@ -55,6 +59,10 @@ const allNavGroups = [
       { to: '/announcements', icon: Megaphone,     label: 'Announcements', superOnly: true },
       { to: '/whatsapp',      icon: MessageCircle, label: 'WhatsApp',      superOnly: true },
       { to: '/birthdays',     icon: Cake,          label: 'Birthdays',     superOnly: true },
+      { to: '/spin-wheel',    icon: Gift,          label: 'Spin & Win',    superOnly: true },
+      { to: '/festival',      icon: PartyPopper,   label: 'Festival',      superOnly: true },
+      { to: '/first-purchase', icon: Sparkles,     label: '1st Purchase Offer', superOnly: true },
+      { to: '/scratch-card',   icon: Ticket,       label: 'Scratch & Win', superOnly: true },
     ],
   },
   {
@@ -69,8 +77,11 @@ const allNavGroups = [
     label: 'System',
     superOnly: true,
     items: [
-      { to: '/settings',    icon: Settings2,  label: 'Settings',   superOnly: true },
-      { to: '/app-update',  icon: Smartphone, label: 'App Update', superOnly: true },
+      { to: '/settings',          icon: Settings2,  label: 'Settings',         superOnly: true },
+      { to: '/payment-methods',   icon: CreditCard, label: 'Payment Methods',  superOnly: true },
+      { to: '/delivery-settings', icon: Truck,      label: 'Delivery',         superOnly: true },
+      { to: '/return-settings',   icon: RotateCcw,  label: 'Returns',          superOnly: true },
+      { to: '/app-update',        icon: Smartphone, label: 'App Update',       superOnly: true },
     ],
   },
 ];
@@ -80,11 +91,11 @@ export default function Sidebar() {
   const super_admin = isSuperAdmin();
 
   return (
-    <aside className="w-60 shrink-0 bg-black text-gray-300 flex flex-col h-screen sticky top-0">
+    <aside className="w-60 shrink-0 bg-black text-gray-300 flex flex-col h-screen sticky top-0 border-r border-white/20 shadow-2xl z-20">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-gray-800 shrink-0">
-        <p className="text-xl font-bold text-pink-500">Dundu</p>
-        <p className="text-xs text-gray-500 mt-0.5">Admin Panel · Online Store</p>
+      <div className="px-5 py-4 border-b border-white/10 shrink-0 flex flex-col justify-center">
+        <img src={dunduLogo} alt="Dundu Logo" className="h-9 w-auto max-w-[150px] object-contain object-left" />
+        <p className="text-xs text-gray-500 mt-1">Admin Panel · Online Store</p>
       </div>
 
       {/* Nav */}
@@ -99,7 +110,9 @@ export default function Sidebar() {
           if (!items.length) return null;
           return (
             <div key={group.label}>
-              <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-pink-600">
+              <p className={`px-3 mb-1 text-[10px] font-bold uppercase tracking-widest ${
+                group.label === 'Marketing' ? 'text-emerald-500 font-extrabold' : 'text-pink-600'
+              }`}>
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -109,7 +122,7 @@ export default function Sidebar() {
                     to={to}
                     end={to === '/'}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${isActive ? 'bg-blue-800 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`
+                      `flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${isActive ? 'text-blue-500 font-bold' : 'text-gray-400 hover:text-white font-medium'}`
                     }
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -123,7 +136,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User */}
-      <div className="px-4 py-4 border-t border-gray-800">
+      <div className="px-4 py-4 border-t border-white/10">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
             {user?.name?.[0]?.toUpperCase()}

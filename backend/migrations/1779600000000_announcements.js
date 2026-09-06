@@ -7,7 +7,7 @@ exports.up = (pgm) => {
     is_active:  { type: 'boolean', default: true },
     sort_order: { type: 'integer', default: 0 },
     created_at: { type: 'timestamptz', default: pgm.func('now()') },
-  });
+  }, { ifNotExists: true });
 };
 
 exports.down = (pgm) => {

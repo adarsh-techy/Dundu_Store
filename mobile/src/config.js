@@ -1,5 +1,5 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:5000/api';
-export const UPLOADS_URL = process.env.EXPO_PUBLIC_UPLOADS_URL || 'http://10.0.2.2:5000';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.31.134:5000/api';
+export const UPLOADS_URL = process.env.EXPO_PUBLIC_UPLOADS_URL || 'http://192.168.31.134:5000';
 
 export const COLORS = {
   primary: '#E91E8C',

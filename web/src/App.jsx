@@ -10,19 +10,20 @@ import useAuthStore from './store/auth.store';
 import useCartStore from './store/cart.store';
 import useSettingsStore from './store/settings.store';
 
-import Home from './pages/Home';
-import Products from './pages/Products';
-import ProductDetail from './pages/ProductDetail';
-import Orders from './pages/Orders';
-import OrderDetail from './pages/OrderDetail';
-import ReturnRequest from './pages/ReturnRequest';
-import Checkout from './pages/Checkout';
-import Profile from './pages/Profile';
-import Wishlist from './pages/Wishlist';
-import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import LoyaltyCard from './pages/LoyaltyCard';
+import Home from './pages/home/home/Home';
+import Products from './pages/products/product-list/Products';
+import ProductDetail from './pages/products/product-detail/ProductDetail';
+import Orders from './pages/orders/order-list/Orders';
+import OrderDetail from './pages/orders/order-detail/OrderDetail';
+import ReturnRequest from './pages/orders/return-request/ReturnRequest';
+import Checkout from './pages/checkout/checkout/Checkout';
+import Profile from './pages/account/profile/Profile';
+import Wishlist from './pages/account/wishlist/Wishlist';
+import Login from './pages/auth/login/Login';
+import Signup from './pages/auth/signup/Signup';
+import ForgotPassword from './pages/auth/forgot-password/ForgotPassword';
+import LoyaltyCard from './pages/account/loyalty-card/LoyaltyCard';
+import Wallet from './pages/account/wallet/Wallet';
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
 
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
         <Route path="/loyalty-card" element={<LoyaltyCard />} />
+        <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
 
         <Route path="*" element={
           <div className="text-center py-32" style={{ color: '#555' }}>

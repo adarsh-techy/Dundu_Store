@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Platform,
@@ -12,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../config';
 import useCartStore from '../../store/cart.store';
 import useAuthStore from '../../store/auth.store';
+import useSettingsStore from '../../store/settings.store';
 
 export default function AppHeader({
   title,
@@ -27,6 +29,18 @@ export default function AppHeader({
   const cartCount = useCartStore((s) => s.count);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
+  // Festival theme
+  const festEnabled      = useSettingsStore((s) => s.festivalEnabled);
+  const festNavBg        = useSettingsStore((s) => s.festivalNavbarColor);
+  const festNavText      = useSettingsStore((s) => s.festivalNavbarTextColor);
+  const festLogoUrl      = useSettingsStore((s) => s.festivalLogoUrl);
+  const festEmoji        = useSettingsStore((s) => s.festivalEmoji);
+  const festName         = useSettingsStore((s) => s.festivalName);
+  const festBannerText   = useSettingsStore((s) => s.festivalBannerText);
+
+  const headerBg    = festEnabled ? festNavBg    : '#040d04';
+  const textColor   = festEnabled ? festNavText  : COLORS.white;
+
   const paddingTop =
     insets.top > 0
       ? insets.top
@@ -35,7 +49,15 @@ export default function AppHeader({
       : 20;
 
   return (
-    <View style={[styles.wrapper, { paddingTop }]}>
+    <View style={[styles.wrapper, { paddingTop, backgroundColor: headerBg }]}>
+      {/* Festival banner strip */}
+      {festEnabled && festBannerText ? (
+        <View style={[styles.festBanner, { backgroundColor: festNavBg }]}>
+          <Text style={[styles.festBannerText, { color: textColor }]} numberOfLines={1}>
+            {festEmoji} {festBannerText}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.bar}>
 
         {/* Left */}
@@ -47,22 +69,39 @@ export default function AppHeader({
               style={styles.backBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={styles.backIcon}>‹</Text>
+              <Text style={[styles.backIcon, { color: textColor }]}>‹</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.logoCentered}
               onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={[styles.logo, logoColor && { color: logoColor }]}>DUNDU</Text>
+              {festEnabled && festLogoUrl ? (
+                <Image source={{ uri: festLogoUrl }} style={styles.festLogo} resizeMode="contain" />
+              ) : (
+                <Image
+                  source={require('../../../assets/dundulogo.png')}
+                  style={styles.logoHeaderImage}
+                  resizeMode="contain"
+                />
+              )}
             </TouchableOpacity>
           </>
         ) : logo ? (
           <TouchableOpacity
+            style={styles.logoLeftBtn}
             onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[styles.logo, logoColor && { color: logoColor }]}>DUNDU</Text>
+            {festEnabled && festLogoUrl ? (
+              <Image source={{ uri: festLogoUrl }} style={styles.festLogo} resizeMode="contain" />
+            ) : (
+              <Image
+                source={require('../../../assets/dundulogo.png')}
+                style={styles.logoHeaderImage}
+                resizeMode="contain"
+              />
+            )}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -73,17 +112,18 @@ export default function AppHeader({
             disabled={!showBack}
           >
             {showBack && (
-              <Text style={styles.backIcon}>‹</Text>
+              <Text style={[styles.backIcon, { color: textColor }]}>‹</Text>
             )}
-            <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>{title}</Text>
           </TouchableOpacity>
         )}
 
         {/* Right icons */}
         <View style={styles.rightGroup}>
           {logo && title && (
-            <Text style={styles.pageTitle}>{title}</Text>
+            <Text style={[styles.pageTitle, { color: textColor }]}>{title}</Text>
           )}
+
           {/* Wishlist icon — only for logged-in users */}
           {showWishlist && isAuthenticated && (
             <TouchableOpacity
@@ -135,15 +175,42 @@ export default function AppHeader({
 const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: '#040d04',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomWidth: 0,
+  },
+  festBanner: {
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  festBannerText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  festLogo: {
+    height: 32,
+    width: 100,
+  },
+  logoLeftBtn: {
+    marginLeft: -10,
+    paddingLeft: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  logoHeaderImage: {
+    height: 38,
+    width: 145,
+    alignSelf: 'flex-start',
+    marginLeft: -8,
   },
   bar: {
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    paddingLeft: 4,
+    paddingRight: 12,
   },
   // Logo-left (home) / logo-center (back screens)
   logo: {

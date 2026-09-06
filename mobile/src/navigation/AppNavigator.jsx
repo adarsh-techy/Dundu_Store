@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, AppState } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,34 +10,37 @@ import useSettingsStore from '../store/settings.store';
 import { COLORS, API_URL, UPLOADS_URL } from '../config';
 
 // Auth screens
-import LoginScreen from '../screens/auth/LoginScreen';
-import SignupScreen from '../screens/auth/SignupScreen';
-import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import LoginScreen from '../screens/auth/login/LoginScreen';
+import SignupScreen from '../screens/auth/signup/SignupScreen';
+import ForgotPasswordScreen from '../screens/auth/forgot-password/ForgotPasswordScreen';
 
 // Main screens
-import HomeScreen from '../screens/HomeScreen';
-import ProductsScreen from '../screens/ProductsScreen';
-import CartScreen from '../screens/CartScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import ProductDetailScreen from '../screens/ProductDetailScreen';
-import CheckoutScreen from '../screens/CheckoutScreen';
-import OrdersScreen from '../screens/OrdersScreen';
-import OrderDetailScreen from '../screens/OrderDetailScreen';
-import WishlistScreen from '../screens/WishlistScreen';
-import ReferralScreen from '../screens/ReferralScreen';
-import OrderSuccessScreen from '../screens/OrderSuccessScreen';
-import HelpScreen from '../screens/HelpScreen';
-import LoyaltyCardScreen from '../screens/LoyaltyCardScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
-import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
-import ReturnRefundPolicyScreen from '../screens/ReturnRefundPolicyScreen';
-import ShippingPolicyScreen from '../screens/ShippingPolicyScreen';
-import CancellationPolicyScreen from '../screens/CancellationPolicyScreen';
-import TermsConditionsScreen from '../screens/TermsConditionsScreen';
-import PaymentScreen from '../screens/PaymentScreen';
+import HomeScreen from '../screens/home/home/HomeScreen';
+import ProductsScreen from '../screens/products/products/ProductsScreen';
+import CartScreen from '../screens/checkout/cart/CartScreen';
+import ProfileScreen from '../screens/profile/profile/ProfileScreen';
+import ProductDetailScreen from '../screens/products/product-detail/ProductDetailScreen';
+import CheckoutScreen from '../screens/checkout/checkout/CheckoutScreen';
+import OrdersScreen from '../screens/orders/orders/OrdersScreen';
+import OrderDetailScreen from '../screens/orders/order-detail/OrderDetailScreen';
+import WishlistScreen from '../screens/profile/wishlist/WishlistScreen';
+import ReferralScreen from '../screens/profile/referral/ReferralScreen';
+import OrderSuccessScreen from '../screens/checkout/order-success/OrderSuccessScreen';
+import HelpScreen from '../screens/policy/help/HelpScreen';
+import LoyaltyCardScreen from '../screens/profile/loyalty-card/LoyaltyCardScreen';
+import WalletScreen from '../screens/profile/wallet/WalletScreen';
+import NotificationsScreen from '../screens/profile/notifications/NotificationsScreen';
+import PrivacyPolicyScreen from '../screens/policy/privacy/PrivacyPolicyScreen';
+import ReturnRefundPolicyScreen from '../screens/policy/return-refund/ReturnRefundPolicyScreen';
+import ShippingPolicyScreen from '../screens/policy/shipping/ShippingPolicyScreen';
+import CancellationPolicyScreen from '../screens/policy/cancellation/CancellationPolicyScreen';
+import TermsConditionsScreen from '../screens/policy/terms/TermsConditionsScreen';
+import PaymentScreen from '../screens/checkout/payment/PaymentScreen';
+import ComboListScreen from '../screens/combos/ComboListScreen';
+import ComboDetailScreen from '../screens/combos/ComboDetailScreen';
 
 // Splash screen
-import SplashScreen from '../screens/SplashScreen';
+import SplashScreen from '../screens/home/splash/SplashScreen';
 
 // Delivery staff role — separate app entirely (own navigator, no tabs)
 import DeliveryNavigator from './DeliveryNavigator';
@@ -45,6 +48,11 @@ import DeliveryNavigator from './DeliveryNavigator';
 // Global auth prompt modal
 import LoginPromptModal from '../components/ui/LoginPromptModal';
 import BirthdayPopupModal from '../components/ui/BirthdayPopupModal';
+import SpinWheelModal from '../components/ui/SpinWheelModal';
+import FestivalPopupModal from '../components/ui/FestivalPopupModal';
+import FestivalFallingGifts from '../components/ui/FestivalFallingGifts';
+import ScratchCardModal from '../components/ui/ScratchCardModal';
+import FreeShippingModal from '../components/ui/FreeShippingModal';
 import { navigationRef } from './navigationRef';
 
 const Stack = createNativeStackNavigator();
@@ -73,12 +81,22 @@ function CartTabIcon({ focused }) {
 }
 
 function MainTabs() {
+  const festEnabled     = useSettingsStore((s) => s.festivalEnabled);
+  const festNavbarColor = useSettingsStore((s) => s.festivalNavbarColor);
+  const festBgColor     = useSettingsStore((s) => s.festivalBgColor);
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: COLORS.primary,
+        tabBarStyle: [
+          styles.tabBar,
+          festEnabled && {
+            backgroundColor: festBgColor || COLORS.white,
+            shadowColor: festNavbarColor || COLORS.primary,
+          },
+        ],
+        tabBarActiveTintColor: festEnabled ? (festNavbarColor || COLORS.primary) : COLORS.primary,
         tabBarInactiveTintColor: COLORS.textSecondary,
         tabBarLabelStyle: styles.tabLabel,
       }}
@@ -132,6 +150,7 @@ function AppStack() {
       <Stack.Screen name="Wishlist" component={WishlistScreen} />
       <Stack.Screen name="Referral" component={ReferralScreen} />
       <Stack.Screen name="LoyaltyCard" component={LoyaltyCardScreen} />
+      <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="Help" component={HelpScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
 
@@ -142,6 +161,8 @@ function AppStack() {
       <Stack.Screen name="CancellationPolicy" component={CancellationPolicyScreen} />
       <Stack.Screen name="TermsConditions" component={TermsConditionsScreen} />
       <Stack.Screen name="Payment" component={PaymentScreen} />
+      <Stack.Screen name="ComboList" component={ComboListScreen} />
+      <Stack.Screen name="ComboDetail" component={ComboDetailScreen} />
     </Stack.Navigator>
   );
 }
@@ -152,6 +173,8 @@ export default function AppNavigator() {
   const initAuth = useAuthStore((state) => state.initAuth);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
+  const festivalEnabled = useSettingsStore((state) => state.festivalEnabled);
+  const festivalBgColor = useSettingsStore((state) => state.festivalBgColor);
 
   // Splash state — waits for BOTH splash animation AND auth to complete
   const [showSplash, setShowSplash] = useState(true);
@@ -213,7 +236,18 @@ export default function AppNavigator() {
       setShowSplash(false);
     }, 8000);
 
-    return () => clearTimeout(safetyTimeout);
+    // Re-fetch settings every time the app comes to foreground so that
+    // festival mode changes in admin take effect without a full app restart.
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        fetchSettings();
+      }
+    });
+
+    return () => {
+      clearTimeout(safetyTimeout);
+      appStateSub.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -248,7 +282,10 @@ export default function AppNavigator() {
 
   const navTheme = {
     ...DefaultTheme,
-    colors: { ...DefaultTheme.colors, background: COLORS.white },
+    colors: {
+      ...DefaultTheme.colors,
+      background: festivalEnabled ? (festivalBgColor || COLORS.white) : COLORS.white,
+    },
   };
 
   // Delivery staff get a completely separate app (no shopping tabs, no cart) —
@@ -268,6 +305,16 @@ export default function AppNavigator() {
           <LoginPromptModal />
           {/* Birthday popup — shown on user's birthday if enabled */}
           <BirthdayPopupModal />
+          {/* Spin & Win Wheel popup — configurable in Admin Panel */}
+          <SpinWheelModal />
+          {/* Festival Offer popup — configurable in Admin Panel */}
+          <FestivalPopupModal />
+          {/* Scratch & Win Card popup */}
+          <ScratchCardModal />
+          {/* Free Shipping Goal popup */}
+          <FreeShippingModal />
+          {/* Festival Opening Falling Gifts & Items Shower */}
+          <FestivalFallingGifts />
         </>
       )}
     </NavigationContainer>

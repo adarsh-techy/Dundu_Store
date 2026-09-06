@@ -3,11 +3,11 @@ import { authApi } from '../api';
 
 const useAuthStore = create((set, get) => ({
   user: null,
-  token: localStorage.getItem('velora_admin_token'),
+  token: localStorage.getItem('dundu_admin_token') || localStorage.getItem('velora_admin_token'),
   isLoading: true,
 
   setToken: (token) => {
-    localStorage.setItem('velora_admin_token', token);
+    localStorage.setItem('dundu_admin_token', token);
     set({ token });
   },
 
@@ -17,12 +17,14 @@ const useAuthStore = create((set, get) => ({
       const res = await authApi.me();
       const user = res.data.user;
       if (!['admin', 'super_admin'].includes(user.role)) {
+        localStorage.removeItem('dundu_admin_token');
         localStorage.removeItem('velora_admin_token');
         set({ token: null, user: null, isLoading: false });
         return;
       }
       set({ user, isLoading: false });
     } catch {
+      localStorage.removeItem('dundu_admin_token');
       localStorage.removeItem('velora_admin_token');
       set({ token: null, user: null, isLoading: false });
     }

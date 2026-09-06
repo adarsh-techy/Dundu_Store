@@ -1,9 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import DeliveryHomeScreen from '../screens/delivery/DeliveryHomeScreen';
-import DeliveryScanScreen from '../screens/delivery/DeliveryScanScreen';
-import DeliveryOrderScreen from '../screens/delivery/DeliveryOrderScreen';
+import DeliveryHomeScreen from '../screens/delivery/home/DeliveryHomeScreen';
+import DeliveryScanScreen from '../screens/delivery/scan/DeliveryScanScreen';
+import DeliveryOrderScreen from '../screens/delivery/order/DeliveryOrderScreen';
 
 const Stack = createNativeStackNavigator();
 

@@ -39,6 +39,13 @@ export const categoryApi = {
   getSizeChart: (id) => client.get(`/categories/${id}/size-chart`),
 };
 
+export const comboApi = {
+  list:   ()   => client.get('/combos'),
+  getOne: (id) => client.get(`/combos/${id}`),
+};
+
+
+
 export const cartApi = {
   get: () => client.get('/cart'),
   add: (data) => client.post('/cart', data),
@@ -70,6 +77,11 @@ export const referralApi = {
   getInfo: () => client.get('/users/referral'),
 };
 
+export const walletApi = {
+  get:             ()       => client.get('/wallet'),
+  getTransactions: (params) => client.get('/wallet/transactions', { params }),
+};
+
 export const userApi = {
   getProfile: () => client.get('/users/profile'),
   updateProfile: (data) => client.put('/users/profile', data),
@@ -94,4 +106,8 @@ export const deliveryApi = {
   pickup: (token) => client.post('/delivery/pickup', { token }),
   resendOtp: (orderId) => client.post('/delivery/resend-otp', { orderId }),
   complete: (orderId, otp) => client.post('/delivery/complete', { orderId, otp }),
+};
+
+export const festivalApi = {
+  getConfig: () => client.get('/festival/config'),
 };

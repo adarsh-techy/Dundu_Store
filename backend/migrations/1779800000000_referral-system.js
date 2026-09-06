@@ -11,7 +11,7 @@ exports.up = (pgm) => {
     is_used: { type: 'boolean', notNull: true, default: false },
     order_id: { type: 'uuid', references: '"orders"', onDelete: 'SET NULL' },
     created_at: { type: 'timestamptz', notNull: true, default: pgm.func('now()') },
-  });
+  }, { ifNotExists: true });
   pgm.sql(`
     INSERT INTO settings (key, value) VALUES
       ('referrer_discount_percent', '20'),
