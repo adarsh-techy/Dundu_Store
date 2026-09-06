@@ -188,6 +188,7 @@ export default function LoyaltyCards() {
           <table className="w-full text-sm">
             <thead className="bg-pink-100 text-xs text-pink-500 uppercase tracking-wide">
               <tr>
+                <th className="px-4 py-3 text-left w-12">#</th>
                 <th className="px-4 py-3 text-left">Customer</th>
                 <th className="px-4 py-3 text-center">Points</th>
                 <th className="px-4 py-3 text-right">Total Spent</th>
@@ -197,11 +198,14 @@ export default function LoyaltyCards() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {cards.map((card) => {
+              {cards.map((card, idx) => {
                 const redeemable = Math.floor(card.points / 200);
                 const remaining  = 200 - (card.points % 200);
                 return (
                   <tr key={card.id} className="hover:bg-gray-50/70 transition-colors">
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                      {idx + 1}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${card.has_account ? 'bg-indigo-50' : 'bg-amber-50'}`}>

@@ -108,20 +108,23 @@ export default function UserActivity() {
           <table className="w-full text-sm">
             <thead className="bg-pink-100 text-xs text-pink-500 uppercase tracking-wide">
               <tr>
-                {['User', 'Logins', 'Last Login', 'Most Active Hour', 'Products Viewed'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                {['#', 'User', 'Logins', 'Last Login', 'Most Active Hour', 'Products Viewed'].map((h) => (
+                  <th key={h} className={`px-4 py-3 text-left font-medium ${h === '#' ? 'w-12' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-12 text-gray-400">No users found</td></tr>
-              ) : users.map((u) => (
+                <tr><td colSpan={6} className="text-center py-12 text-gray-400">No users found</td></tr>
+              ) : users.map((u, idx) => (
                 <tr
                   key={u.id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => navigate(`/users/${u.id}`)}
                 >
+                  <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                    {idx + 1}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-indigo-600">{u.name}</div>
                     <div className="text-xs text-gray-400">{u.email || u.phone || ''}</div>

@@ -96,15 +96,18 @@ export default function CartMonitor() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-pink-100 text-xs text-pink-500 uppercase tracking-wide">
-              <tr>{['Customer', 'Phone', 'Items in Cart', 'Last Active'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+              <tr>{['#', 'Customer', 'Phone', 'Items in Cart', 'Last Active'].map((h) => (
+                <th key={h} className={`px-4 py-3 text-left font-medium ${h === '#' ? 'w-12' : ''}`}>{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {carts.length === 0
-                ? <tr><td colSpan={4} className="text-center py-12 text-gray-400">No {abandoned ? 'abandoned' : 'active'} carts{category ? ' in this category' : ''}</td></tr>
-                : carts.map((c) => (
+                ? <tr><td colSpan={5} className="text-center py-12 text-gray-400">No {abandoned ? 'abandoned' : 'active'} carts{category ? ' in this category' : ''}</td></tr>
+                : carts.map((c, idx) => (
                   <tr key={c.user_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                      {idx + 1}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => navigate(`/users/${c.user_id}`)}

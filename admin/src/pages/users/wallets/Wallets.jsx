@@ -100,14 +100,18 @@ export default function Wallets() {
           <table className="w-full text-sm">
             <thead className="bg-pink-100 text-xs text-pink-500 uppercase tracking-wide">
               <tr>
+                <th className="px-4 py-3 text-left w-12">#</th>
                 <th className="px-4 py-3 text-left">Customer</th>
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {wallets.map((w) => (
+              {wallets.map((w, idx) => (
                 <tr key={w.user_id} className="hover:bg-gray-50/70 transition-colors">
+                  <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                    {idx + 1}
+                  </td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-800">{w.name || <span className="text-gray-400 italic text-xs">No name</span>}</p>
                     <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">

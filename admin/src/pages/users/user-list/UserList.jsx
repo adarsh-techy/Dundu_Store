@@ -220,6 +220,7 @@ export default function UserList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-left text-[11px] font-bold text-indigo-100 uppercase tracking-wider shadow-sm">
+                  <th className="px-5 py-3.5 w-12 text-center">#</th>
                   <th className="px-5 py-3.5">Customer Name</th>
                   <th className="px-5 py-3.5">Contact Details</th>
                   <th className="px-5 py-3.5">Referral Code</th>
@@ -234,16 +235,21 @@ export default function UserList() {
               <tbody className="divide-y divide-slate-100">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-16 text-slate-400 text-xs">
+                    <td colSpan={10} className="text-center py-16 text-slate-400 text-xs">
                       No matching customers found
                     </td>
                   </tr>
                 ) : (
-                  users.map((u) => (
+                  users.map((u, idx) => (
                     <tr
                       key={u.id}
                       className="hover:bg-slate-50/80 transition-colors group"
                     >
+                      {/* Serial Number */}
+                      <td className="px-5 py-4 text-xs font-semibold text-slate-400 text-center">
+                        {idx + 1}
+                      </td>
+
                       {/* Customer Avatar & Name (Click to view details) */}
                       <td className="px-5 py-4">
                         <Link

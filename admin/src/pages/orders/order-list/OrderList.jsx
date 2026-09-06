@@ -137,20 +137,23 @@ export default function OrderList() {
           <table className="w-full text-sm">
             <thead className="bg-pink-100 text-xs text-pink-500 uppercase tracking-wide">
               <tr>
-                {['Order #', 'Customer', 'Date', 'Items', 'Total', 'Payment', 'Status', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                {['#', 'Order #', 'Customer', 'Date', 'Items', 'Total', 'Payment', 'Status', ''].map((h) => (
+                  <th key={h} className={`px-4 py-3 text-left font-medium ${h === '#' ? 'w-12' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {orders.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-400">No orders found</td></tr>
-              ) : orders.map((o) => {
+                <tr><td colSpan={9} className="text-center py-12 text-gray-400">No orders found</td></tr>
+              ) : orders.map((o, idx) => {
                 const items = o.items || [];
                 const preview = items.slice(0, 2);
                 const extra = items.length - preview.length;
                 return (
                   <tr key={o.id} className="hover:bg-indigo-50/40 transition-colors">
+                    <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                      {idx + 1}
+                    </td>
                     <td className="px-4 py-3 font-semibold text-indigo-600 cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)}>
                       #{o.order_number}
                     </td>

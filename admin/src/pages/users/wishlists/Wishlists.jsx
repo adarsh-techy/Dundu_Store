@@ -140,21 +140,24 @@ export default function Wishlists() {
           <table className="w-full text-sm">
             <thead className="bg-pink-50 text-xs text-pink-500 uppercase tracking-wide">
               <tr>
-                {['Product', 'Price', 'User', 'Contact', 'Added', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                {['#', 'Product', 'Price', 'User', 'Contact', 'Added', ''].map((h) => (
+                  <th key={h} className={`px-4 py-3 text-left font-medium ${h === '#' ? 'w-12' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {wishlists.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-14 text-gray-400">
+                  <td colSpan={7} className="text-center py-14 text-gray-400">
                     <Heart className="h-8 w-8 mx-auto mb-2 text-gray-200" />
                     No wishlist items found
                   </td>
                 </tr>
-              ) : wishlists.map((w) => (
+              ) : wishlists.map((w, idx) => (
                 <tr key={w.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-xs font-semibold text-gray-400">
+                    {idx + 1}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {w.image_url
