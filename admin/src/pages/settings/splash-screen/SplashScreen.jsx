@@ -360,7 +360,7 @@ export default function SplashScreenPage() {
 
               {/* Background image */}
               {previewUrl && (
-                <img src={previewUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                <img src={previewUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
               )}
 
               {/* Content */}

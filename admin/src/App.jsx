@@ -12,6 +12,7 @@ import NotFound from './pages/common/not-found/NotFound';
 import Dashboard from './pages/dashboard/dashboard/Dashboard';
 import ProductList from './pages/catalog/products/ProductList';
 import ProductDetail from './pages/catalog/products/ProductDetail';
+import ProductFormPage from './pages/catalog/products/ProductFormPage';
 import OrderList from './pages/orders/order-list/OrderList';
 import OrderDetail from './pages/orders/order-detail/OrderDetail';
 import UserList from './pages/users/user-list/UserList';
@@ -49,6 +50,7 @@ import SpinWheelPage from './pages/marketing/spin-wheel/SpinWheelPage';
 import FestivalPage from './pages/marketing/festival/FestivalPage';
 import FirstPurchasePage from './pages/marketing/first-purchase/FirstPurchasePage';
 import ScratchCardPage from './pages/marketing/scratch-card/ScratchCardPage';
+import MarketingControlPage from './pages/marketing/marketing-control/MarketingControlPage';
 import FinancePage from './pages/reports/finance/FinancePage';
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
@@ -64,6 +66,8 @@ function AppRoutes() {
       <Route path="/" element={<Layout><Dashboard /></Layout>} />
       <Route path="/finance" element={<Layout><FinancePage /></Layout>} />
       <Route path="/products" element={<Layout><ProductList /></Layout>} />
+      <Route path="/products/new" element={<Layout><ProductFormPage /></Layout>} />
+      <Route path="/products/:id/edit" element={<Layout><ProductFormPage /></Layout>} />
       <Route path="/products/:id" element={<Layout><ProductDetail /></Layout>} />
       <Route path="/categories" element={<Layout><Categories /></Layout>} />
       <Route path="/combos" element={<Layout><Combos /></Layout>} />
@@ -76,6 +80,7 @@ function AppRoutes() {
       <Route path="/admins" element={<Layout><Admins /></Layout>} />
       <Route path="/delivery-staff" element={<Layout><DeliveryStaff /></Layout>} />
       <Route path="/coupons" element={<Layout><Coupons /></Layout>} />
+      <Route path="/marketing-control" element={<Layout><MarketingControlPage /></Layout>} />
       <Route path="/banners" element={<Layout><Banners /></Layout>} />
       <Route path="/carts" element={<Layout><CartMonitor /></Layout>} />
       <Route path="/wishlists" element={<Layout><Wishlists /></Layout>} />

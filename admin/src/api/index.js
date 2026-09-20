@@ -121,9 +121,11 @@ export const userApi = {
 };
 
 export const walletApi = {
-  list:            (params)        => client.get('/admin/wallets', { params }),
+  getConfig:       ()               => client.get('/admin/wallets/config'),
+  updateConfig:    (data)           => client.put('/admin/wallets/config', data),
+  list:            (params)         => client.get('/admin/wallets', { params }),
   getTransactions: (userId, params) => client.get(`/admin/wallets/${userId}/transactions`, { params }),
-  adjust:          (userId, data)  => client.post(`/admin/wallets/${userId}/adjust`, data),
+  adjust:          (userId, data)   => client.post(`/admin/wallets/${userId}/adjust`, data),
 };
 
 export const couponApi = {
@@ -151,15 +153,18 @@ export const salesApi = {
 };
 
 export const loyaltyApi = {
-  list:   (params) => client.get('/admin/loyalty', { params }),
-  sync:   ()       => client.post('/admin/loyalty/sync'),
-  create: (data)   => client.post('/admin/loyalty', data),
-  update: (phone, data) => client.patch(`/admin/loyalty/${encodeURIComponent(phone)}`, data),
-  remove: (phone)  => client.delete(`/admin/loyalty/${encodeURIComponent(phone)}`),
+  getConfig:    ()       => client.get('/admin/loyalty/config'),
+  updateConfig: (data)   => client.put('/admin/loyalty/config', data),
+  list:         (params) => client.get('/admin/loyalty', { params }),
+  sync:         ()       => client.post('/admin/loyalty/sync'),
+  create:       (data)   => client.post('/admin/loyalty', data),
+  update:       (phone, data) => client.patch(`/admin/loyalty/${encodeURIComponent(phone)}`, data),
+  adjustPoints: (phone, data) => client.post(`/admin/loyalty/${encodeURIComponent(phone)}/adjust`, data),
+  remove:       (phone)  => client.delete(`/admin/loyalty/${encodeURIComponent(phone)}`),
 };
 
 export const reportsApi = {
-  daily: (date, branch_id) => client.get('/admin/reports/daily', { params: { date, branch_id } }),
+  daily: (date) => client.get('/admin/reports/daily', { params: { date } }),
   finance: (params) => client.get('/admin/reports/finance', { params }),
   updateCostPrice: (id, cost_price) => client.patch(`/admin/reports/products/${id}/cost-price`, { cost_price }),
 };
@@ -255,3 +260,16 @@ export const scratchCardApi = {
   forceUserScratchPopup: (user_id, user_ids) => client.post('/admin/scratch-card/force-user', { user_id, user_ids }),
   getLogs:              (params) => client.get('/admin/scratch-card/logs', { params }),
 };
+
+export const marketingControlApi = {
+  getOverview: () => client.get('/admin/marketing-control'),
+  toggle: (data) => client.put('/admin/marketing-control/toggle', data),
+};
+
+export const referralApi = {
+  getConfig:    ()       => client.get('/admin/referral/config'),
+  updateConfig: (data)   => client.put('/admin/referral/config', data),
+  stats:        ()       => client.get('/admin/referral/stats'),
+  rewards:      (params) => client.get('/admin/referral/rewards', { params }),
+};
+

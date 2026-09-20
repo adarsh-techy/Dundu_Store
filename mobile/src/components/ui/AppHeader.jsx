@@ -14,6 +14,7 @@ import { COLORS } from '../../config';
 import useCartStore from '../../store/cart.store';
 import useAuthStore from '../../store/auth.store';
 import useSettingsStore from '../../store/settings.store';
+import { useTranslation } from '../../store/language.store';
 
 export default function AppHeader({
   title,
@@ -28,6 +29,7 @@ export default function AppHeader({
   const insets = useSafeAreaInsets();
   const cartCount = useCartStore((s) => s.count);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { t } = useTranslation();
 
   // Festival theme
   const festEnabled      = useSettingsStore((s) => s.festivalEnabled);
@@ -159,7 +161,7 @@ export default function AppHeader({
                 style={styles.loginPill}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.loginPillText}>Login</Text>
+                <Text style={styles.loginPillText}>{t('login', 'Login')}</Text>
               </TouchableOpacity>
             )
           )}

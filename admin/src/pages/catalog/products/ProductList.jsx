@@ -7,7 +7,6 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Spinner from '../../../components/ui/Spinner';
 import { formatPrice } from '../../../utils/format';
-import ProductForm from './ProductForm';
 import toast from 'react-hot-toast';
 
 export default function ProductList() {
@@ -15,8 +14,6 @@ export default function ProductList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
-  const [modal, setModal] = useState(null); // null | 'add' | product (full)
-  const [editLoading, setEditLoading] = useState(false);
   const loadMoreRef = useRef(null);
   const limit = 15;
 
@@ -71,15 +68,6 @@ export default function ProductList() {
     } catch { toast.error('Failed'); }
   };
 
-  const openEdit = async (p) => {
-    setEditLoading(p.id);
-    try {
-      const res = await productApi.getOne(p.id);
-      setModal(res.data?.product || p);
-    } catch { setModal(p); }
-    finally { setEditLoading(false); }
-  };
-
   const remove = async (id) => {
     if (!confirm('Delete this product? If it has order history it will be hidden instead.')) return;
     try {
@@ -102,7 +90,7 @@ export default function ProductList() {
         <h1 className="text-xl font-bold text-gray-900">Products</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">{total} product{total !== 1 ? 's' : ''}</span>
-          <Button onClick={() => setModal('add')} size="sm">
+          <Button onClick={() => navigate('/products/new')} size="sm">
             <Plus className="h-4 w-4" /> Add Product
           </Button>
         </div>
@@ -195,8 +183,8 @@ export default function ProductList() {
                         className="p-1.5 hover:bg-purple-50 rounded-lg text-purple-500 transition-colors" title="View Analytics">
                         <BarChart2 className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => openEdit(p)} disabled={editLoading === p.id}
-                        className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors disabled:opacity-50" title="Edit">
+                      <button onClick={() => navigate(`/products/${p.id}/edit`)}
+                        className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors" title="Edit">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => toggle(productApi.toggleHidden, p.id, p.is_hidden ? 'shown' : 'hidden')}
@@ -231,14 +219,6 @@ export default function ProductList() {
       )}
       {!hasNextPage && products.length > 0 && (
         <div className="text-center py-4 text-xs text-gray-300">— End of list — {products.length} of {total}</div>
-      )}
-
-      {modal && (
-        <ProductForm
-          product={modal === 'add' ? null : modal}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); qc.invalidateQueries(['admin-products']); }}
-        />
       )}
     </div>
   );

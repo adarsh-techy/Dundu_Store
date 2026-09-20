@@ -16,12 +16,7 @@ const dailyReport = async (req, res) => {
 
   const [summary, topProducts, hourly, byPayment] = await Promise.all([
     db.query(
-      `SELECT COUNT(*) AS order_count,
-         COALESCE(SUM(total),0) AS revenue,
-         COALESCE(SUM(CASE WHEN payment_method='cash' THEN total ELSE 0 END),0) AS cash_revenue,
-         COALESCE(SUM(CASE WHEN payment_method='upi' THEN total ELSE 0 END),0) AS upi_revenue,
-         COALESCE(SUM(CASE WHEN payment_method='card' THEN total ELSE 0 END),0) AS card_revenue,
-         COALESCE(SUM(CASE WHEN payment_method='online' THEN total ELSE 0 END),0) AS online_revenue
+      `SELECT COUNT(*) AS order_count, COALESCE(SUM(total),0) AS revenue
        FROM orders o WHERE DATE(o.created_at)=$1 AND o.status!='cancelled'`,
       [date]
     ),

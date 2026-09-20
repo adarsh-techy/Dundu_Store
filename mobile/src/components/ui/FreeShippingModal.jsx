@@ -12,6 +12,7 @@ import { formatPrice } from '../../utils/format';
 
 import useCartStore from '../../store/cart.store';
 import useFreeShippingStore from '../../store/freeShipping.store';
+import usePopupCoordinator from '../../store/popupCoordinator.store';
 
 const DEFAULT_THRESHOLD = 500;
 
@@ -25,6 +26,7 @@ export default function FreeShippingModal({
   const storeIsOpen = useFreeShippingStore((s) => s.isOpen);
   const storeCustomTotal = useFreeShippingStore((s) => s.customTotal);
   const storeCloseModal = useFreeShippingStore((s) => s.closeModal);
+  const activePopup = usePopupCoordinator((s) => s.activePopup);
   const cartTotal = useCartStore((s) => s.total);
   const cartItems = useCartStore((s) => s.items);
 
@@ -53,6 +55,7 @@ export default function FreeShippingModal({
   const neededAmount = Math.max(0, threshold - currentTotal);
 
   const handleClose = () => {
+    usePopupCoordinator.getState().releasePopup('free_shipping');
     if (onClose) {
       onClose();
     } else {
@@ -62,6 +65,7 @@ export default function FreeShippingModal({
 
   useEffect(() => {
     if (isVisible) {
+      if (!usePopupCoordinator.getState().requestPopup('free_shipping')) return;
       scaleAnim.setValue(0.92);
       opacityAnim.setValue(0);
       Animated.parallel([
@@ -78,9 +82,14 @@ export default function FreeShippingModal({
         }),
       ]).start();
     }
-  }, [isVisible]);
+    // Re-attempt acquiring the slot whenever it frees up, not just when
+    // isVisible flips — otherwise a modal that lost the race stays stuck
+    // rendering (via the activePopup === null render guard below) without
+    // ever actually holding the slot, letting a second popup claim it too.
+  }, [isVisible, activePopup]);
 
   if (!isVisible) return null;
+  if (activePopup && activePopup !== 'free_shipping') return null;
 
   const handleContinueShopping = () => {
     handleClose();

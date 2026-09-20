@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import useAuthStore from '../store/auth.store';
 import useCartStore from '../store/cart.store';
 import useSettingsStore from '../store/settings.store';
+import useLanguageStore, { useTranslation } from '../store/language.store';
 import { COLORS, API_URL, UPLOADS_URL } from '../config';
 
 // Auth screens
@@ -84,6 +85,7 @@ function MainTabs() {
   const festEnabled     = useSettingsStore((s) => s.festivalEnabled);
   const festNavbarColor = useSettingsStore((s) => s.festivalNavbarColor);
   const festBgColor     = useSettingsStore((s) => s.festivalBgColor);
+  const { t }           = useTranslation();
 
   return (
     <Tab.Navigator
@@ -104,22 +106,34 @@ function MainTabs() {
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} /> }}
+        options={{
+          tabBarLabel: t('home', 'Home'),
+          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="Shop"
         component={ProductsScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon icon="🛍" focused={focused} /> }}
+        options={{
+          tabBarLabel: t('shop', 'Shop'),
+          tabBarIcon: ({ focused }) => <TabIcon icon="🛍" focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="Cart"
         component={CartScreen}
-        options={{ tabBarIcon: ({ focused }) => <CartTabIcon focused={focused} /> }}
+        options={{
+          tabBarLabel: t('cart', 'Cart'),
+          tabBarIcon: ({ focused }) => <CartTabIcon focused={focused} />,
+        }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} /> }}
+        options={{
+          tabBarLabel: t('profile', 'Profile'),
+          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+        }}
       />
     </Tab.Navigator>
   );
@@ -222,7 +236,8 @@ export default function AppNavigator() {
         setConfigReady(true);
       });
 
-    // Initialize auth in parallel; mark done when settled
+    // Initialize language & auth in parallel; mark done when settled
+    useLanguageStore.getState().initLanguage();
     initAuth().finally(() => {
       authDone.current = true;
       maybeExitSplash();

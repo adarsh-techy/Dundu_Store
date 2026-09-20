@@ -7,7 +7,9 @@ router.get('/next-code', ah(product.getNextCode));
 router.get('/', ah(product.list));
 router.get('/:id', ah(product.getOne));
 router.get('/:id/analytics', ah(product.getAnalytics));
-router.post('/', upload.array('images', 10), ah(product.create));
+// upload.any() — this request carries both product images ("images") and,
+// for reviews added while creating the product, review photos ("review_images")
+router.post('/', upload.any(), ah(product.create));
 router.put('/:id', upload.array('images', 10), ah(product.update));
 router.delete('/:id', ah(product.remove));
 router.delete('/:id/images/:imageId', ah(product.deleteImage));

@@ -55,7 +55,9 @@ const list = async (req, res) => {
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );
-  ok(res, { products: rows });
+  // cost_price ("Buy Price") is an internal admin figure — never expose it to customers.
+  const products = rows.map(({ cost_price, ...p }) => p);
+  ok(res, { products });
 };
 
 const getOne = async (req, res) => {
@@ -88,7 +90,9 @@ const getOne = async (req, res) => {
     db.query('SELECT * FROM product_variants WHERE product_id=$1', [req.params.id]),
   ]);
 
-  ok(res, { product: { ...rows[0], images: images.rows, variants: variants.rows } });
+  // cost_price ("Buy Price") is an internal admin figure — never expose it to customers.
+  const { cost_price, ...productRow } = rows[0];
+  ok(res, { product: { ...productRow, images: images.rows, variants: variants.rows } });
 };
 
 const getRelated = async (req, res) => {
@@ -111,7 +115,9 @@ const getRelated = async (req, res) => {
      ORDER BY RANDOM() LIMIT 8`,
     params
   );
-  ok(res, { products: rows });
+  // cost_price ("Buy Price") is an internal admin figure — never expose it to customers.
+  const products = rows.map(({ cost_price, ...p }) => p);
+  ok(res, { products });
 };
 
 const getFilters = async (req, res) => {

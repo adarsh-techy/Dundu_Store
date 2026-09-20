@@ -4,7 +4,23 @@ import {
   ArrowLeft, Bell, ShoppingCart, Heart, ShoppingBag, RotateCcw, Cake, CalendarDays, CheckCircle2,
 } from 'lucide-react';
 import { birthdayApi, orderApi, wishlistApi, cartApi } from '../../api';
+import { allNavGroups } from './Sidebar';
 import './TopBar.css';
+
+/* Flat list of {to, label}, longest path first so a specific route like
+   /reports/daily matches before a generic parent like /. Used to show the
+   current section's name in the topbar when there's no birthday ticker to
+   display, instead of leaving that space empty. */
+const flatNavItems = allNavGroups
+  .flatMap((g) => g.items)
+  .sort((a, b) => b.to.length - a.to.length);
+
+function getPageTitle(pathname) {
+  const match = flatNavItems.find((item) =>
+    item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(`${item.to}/`)
+  );
+  return match?.label || 'Dundu Online Admin';
+}
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 function useClock() {
@@ -77,6 +93,8 @@ function playOrderChime() {
 export default function TopBar() {
   const now = useClock();
   const navigate = useNavigate();
+  const location = useLocation();
+  const pageTitle = getPageTitle(location.pathname);
 
   // Dropdown visibility states
   const [notifOpen, setNotifOpen] = useState(false);
@@ -272,9 +290,10 @@ export default function TopBar() {
             </button>
           )}
 
-          {/* Birthday notifications ticker */}
+          {/* Birthday notifications ticker — falls back to the current section's
+              name so the bar never shows an empty void when there's nothing to alert on */}
           <div className="topbar-ticker-wrap">
-            {doubled.length > 0 && (
+            {doubled.length > 0 ? (
               <div className="topbar-ticker">
                 <div className="topbar-ticker-inner">
                   {doubled.map((msg, i) => (
@@ -289,6 +308,11 @@ export default function TopBar() {
                     </span>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="topbar-page-title">
+                <span className="topbar-page-title-dot" />
+                {pageTitle}
               </div>
             )}
           </div>

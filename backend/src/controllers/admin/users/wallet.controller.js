@@ -103,4 +103,71 @@ const adjust = async (req, res) => {
   ok(res, { balance: Number(wallet.balance) }, `Wallet ${type === 'credit' ? 'credited' : 'debited'}`);
 };
 
-module.exports = { list, getTransactions, adjust };
+const WALLET_KEYS = [
+  'wallet_enabled',
+  'wallet_max_usage_percent',
+  'wallet_min_order_amount',
+  'wallet_max_discount_cap',
+  'wallet_welcome_bonus',
+  'wallet_auto_refund_cancel',
+  'wallet_auto_refund_return',
+  'wallet_terms',
+];
+
+const getConfig = async (_req, res) => {
+  const { rows } = await db.query(
+    `SELECT key, value FROM settings WHERE key = ANY($1)`,
+    [WALLET_KEYS]
+  );
+  const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+  ok(res, {
+    config: {
+      enabled: cfg.wallet_enabled !== 'false',
+      max_usage_percent: parseInt(cfg.wallet_max_usage_percent || '100', 10),
+      min_order_amount: parseFloat(cfg.wallet_min_order_amount || '0'),
+      max_discount_cap: parseFloat(cfg.wallet_max_discount_cap || '0'),
+      welcome_bonus: parseFloat(cfg.wallet_welcome_bonus || '0'),
+      auto_refund_cancel: cfg.wallet_auto_refund_cancel !== 'false',
+      auto_refund_return: cfg.wallet_auto_refund_return !== 'false',
+      terms: cfg.wallet_terms || 'Use Dundu Wallet for fast checkouts, cashback, and automated refunds.',
+    },
+  });
+};
+
+const updateConfig = async (req, res) => {
+  const {
+    enabled,
+    max_usage_percent,
+    min_order_amount,
+    max_discount_cap,
+    welcome_bonus,
+    auto_refund_cancel,
+    auto_refund_return,
+    terms,
+  } = req.body;
+
+  const updates = [
+    ['wallet_enabled', enabled === false ? 'false' : 'true'],
+    ['wallet_max_usage_percent', String(max_usage_percent ?? 100)],
+    ['wallet_min_order_amount', String(min_order_amount ?? 0)],
+    ['wallet_max_discount_cap', String(max_discount_cap ?? 0)],
+    ['wallet_welcome_bonus', String(welcome_bonus ?? 0)],
+    ['wallet_auto_refund_cancel', auto_refund_cancel === false ? 'false' : 'true'],
+    ['wallet_auto_refund_return', auto_refund_return === false ? 'false' : 'true'],
+    ['wallet_terms', String(terms ?? '')],
+  ];
+
+  for (const [key, value] of updates) {
+    await db.query(
+      `INSERT INTO settings (key, value)
+       VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [key, value]
+    );
+  }
+
+  return getConfig(req, res);
+};
+
+module.exports = { list, getTransactions, adjust, getConfig, updateConfig };

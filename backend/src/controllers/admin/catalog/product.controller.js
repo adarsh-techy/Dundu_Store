@@ -42,12 +42,17 @@ const list = async (req, res) => {
 const create = async (req, res) => {
   const {
     category_id, brand_id, name, description, material, type, gender, age_group,
-    price, offer_price, stock, sku, product_code, variants, sub_category, pattern, default_rating,
+    cost_price, price, offer_price, stock, sku, product_code, variants, reviews, sub_category, pattern, default_rating,
   } = req.body;
 
   let imageColors = [];
   try { imageColors = JSON.parse(req.body.image_colors || '[]'); } catch (_) {}
   const primaryIdx = req.body.primary_index !== undefined ? parseInt(req.body.primary_index) : 0;
+
+  // req.files is a flat list from upload.any() — split back out by which
+  // form field each file was attached under (product photos vs. review photos).
+  const productFiles = (req.files || []).filter((f) => f.fieldname === 'images');
+  const reviewFiles = (req.files || []).filter((f) => f.fieldname === 'review_images');
 
   const client = await db.getClient();
   try {
@@ -55,20 +60,20 @@ const create = async (req, res) => {
 
     const { rows } = await client.query(
       `INSERT INTO products (category_id, brand_id, name, description, material, type, gender, age_group,
-                             price, offer_price, stock, sku, product_code, sub_category, pattern, default_rating)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+                             cost_price, price, offer_price, stock, sku, product_code, sub_category, pattern, default_rating)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [category_id, brand_id || null, name, description, material, type, gender, age_group,
-        price, offer_price || null, stock || 0, sku || null, product_code || null,
+        cost_price || null, price, offer_price || null, stock || 0, sku || null, product_code || null,
         sub_category || null, pattern || null, default_rating || null]
     );
     const product = rows[0];
 
-    if (req.files?.length) {
-      for (let i = 0; i < req.files.length; i++) {
+    if (productFiles.length) {
+      for (let i = 0; i < productFiles.length; i++) {
         const color = imageColors[i] || null;
         await client.query(
           'INSERT INTO product_images (product_id, url, is_primary, sort_order, color) VALUES ($1,$2,$3,$4,$5)',
-          [product.id, getFileUrl(req.files[i]), i === primaryIdx, i, color]
+          [product.id, getFileUrl(productFiles[i]), i === primaryIdx, i, color]
         );
       }
     }
@@ -87,6 +92,27 @@ const create = async (req, res) => {
       );
     }
 
+    if (reviews) {
+      const parsedReviews = typeof reviews === 'string' ? JSON.parse(reviews) : reviews;
+      let reviewFileIdx = 0;
+      for (const r of parsedReviews) {
+        // Each review that had a photo attached client-side consumes the next
+        // file in reviewFiles, in the same order the reviews array was built.
+        const reviewImageUrl = r.has_image && reviewFiles[reviewFileIdx]
+          ? getFileUrl(reviewFiles[reviewFileIdx++])
+          : null;
+
+        const reviewerName = (r.reviewer_name || '').trim();
+        const rating = Math.min(5, Math.max(1, parseInt(r.rating, 10) || 0));
+        if (!reviewerName || !rating) continue; // skip incomplete rows rather than fail the whole product save
+        await client.query(
+          `INSERT INTO reviews (product_id, user_id, reviewer_name, rating, review, is_admin_created, image_url)
+           VALUES ($1, NULL, $2, $3, $4, true, $5)`,
+          [product.id, reviewerName, rating, r.review?.trim() || null, reviewImageUrl]
+        );
+      }
+    }
+
     await client.query('COMMIT');
     created(res, { product });
   } catch (err) {
@@ -103,7 +129,7 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   const {
     category_id, brand_id, name, description, material, type, gender, age_group,
-    price, offer_price, stock, sku, product_code, variants, sub_category, pattern, default_rating,
+    cost_price, price, offer_price, stock, sku, product_code, variants, sub_category, pattern, default_rating,
   } = req.body;
 
   let imageColors = [];
@@ -115,15 +141,15 @@ const update = async (req, res) => {
     await client.query('BEGIN');
 
     const updateParams = [category_id, brand_id || null, name, description, material, type, gender, age_group,
-      price, offer_price || null, stock, sku || null, product_code || null,
+      cost_price || null, price, offer_price || null, stock, sku || null, product_code || null,
       sub_category || null, pattern || null, default_rating || null, req.params.id];
 
     const { rows } = await client.query(
       `UPDATE products SET
          category_id=$1, brand_id=$2, name=$3, description=$4, material=$5, type=$6,
-         gender=$7, age_group=$8, price=$9, offer_price=$10, stock=$11, sku=$12, product_code=$13,
-         sub_category=$14, pattern=$15, default_rating=$16, updated_at=now()
-       WHERE id=$17 RETURNING *`,
+         gender=$7, age_group=$8, cost_price=$9, price=$10, offer_price=$11, stock=$12, sku=$13, product_code=$14,
+         sub_category=$15, pattern=$16, default_rating=$17, updated_at=now()
+       WHERE id=$18 RETURNING *`,
       updateParams
     );
     if (!rows.length) { await client.query('ROLLBACK'); return notFound(res); }

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useSettingsStore from '../../store/settings.store';
+import usePopupCoordinator from '../../store/popupCoordinator.store';
 import { navigationRef } from '../../navigation/navigationRef';
 
 const { width } = Dimensions.get('window');
@@ -35,6 +36,7 @@ export default function FestivalPopupModal() {
 
   useEffect(() => {
     if (!festEnabled || !popupEnabled) {
+      if (visible) usePopupCoordinator.getState().releasePopup('festival');
       setVisible(false);
       return;
     }
@@ -42,9 +44,15 @@ export default function FestivalPopupModal() {
     async function checkDismissed() {
       try {
         const d = await AsyncStorage.getItem(dismissKey());
-        if (!d) setVisible(true);
+        if (!d) {
+          if (usePopupCoordinator.getState().requestPopup('festival')) {
+            setVisible(true);
+          }
+        }
       } catch (_) {
-        setVisible(true);
+        if (usePopupCoordinator.getState().requestPopup('festival')) {
+          setVisible(true);
+        }
       }
     }
 
@@ -55,6 +63,7 @@ export default function FestivalPopupModal() {
     try {
       await AsyncStorage.setItem(dismissKey(), '1');
     } catch (_) {}
+    usePopupCoordinator.getState().releasePopup('festival');
     setVisible(false);
   };
 

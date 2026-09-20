@@ -19,6 +19,7 @@ import { formatPrice } from '../../../utils/format';
 import useRequireAuth from '../../../hooks/useRequireAuth';
 import FreeShippingNudgeBanner from '../../../components/ui/FreeShippingNudgeBanner';
 import useFreeShippingStore from '../../../store/freeShipping.store';
+import { useTranslation } from '../../../store/language.store';
 
 function getImageUri(imageStr) {
   if (!imageStr) return null;
@@ -30,6 +31,7 @@ const FREE_SHIPPING_THRESHOLD = 500;
 
 export default function CartScreen() {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { items, total, count, fetchCart, updateItem, removeItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const { requireAuth } = useRequireAuth();
@@ -223,7 +225,7 @@ export default function CartScreen() {
               style={styles.buyNowBtn}
               onPress={() => navigation.navigate('Checkout')}
             >
-              <Text style={styles.buyNowText}>Buy Now</Text>
+              <Text style={styles.buyNowText}>{t('buyNow', 'Buy Now')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.removeButton}
@@ -255,22 +257,22 @@ export default function CartScreen() {
       {!isAuthenticated ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🔐</Text>
-          <Text style={styles.emptyTitle}>Your cart is waiting</Text>
-          <Text style={styles.emptySubtitle}>Sign in to view your saved items and checkout</Text>
+          <Text style={styles.emptyTitle}>{t('emptyCartTitle', 'Your cart is waiting')}</Text>
+          <Text style={styles.emptySubtitle}>{t('cartGuestSubtitle', 'Sign in to view your saved items and checkout')}</Text>
           <TouchableOpacity style={styles.shopNowButton} onPress={() => requireAuth(() => {}, 'Login to view your cart')}>
-            <Text style={styles.shopNowText}>Sign In / Register</Text>
+            <Text style={styles.shopNowText}>{t('login', 'Sign In / Register')}</Text>
           </TouchableOpacity>
         </View>
       ) : items.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🛒</Text>
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Add some products to get started</Text>
+          <Text style={styles.emptyTitle}>{t('emptyCartTitle', 'Your cart is empty')}</Text>
+          <Text style={styles.emptySubtitle}>{t('emptyCartSub', 'Add some products to get started')}</Text>
           <TouchableOpacity
             style={styles.shopNowButton}
             onPress={() => navigation.navigate('Shop')}
           >
-            <Text style={styles.shopNowText}>Shop Now</Text>
+            <Text style={styles.shopNowText}>{t('startShopping', 'Shop Now')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -289,17 +291,17 @@ export default function CartScreen() {
             <FreeShippingNudgeBanner total={total} threshold={FREE_SHIPPING_THRESHOLD} style={{ marginBottom: 12 }} />
 
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryLabel}>{t('subtotal', 'Subtotal')}</Text>
               <Text style={styles.summaryValue}>{formatPrice(total)}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Shipping</Text>
+              <Text style={styles.summaryLabel}>{t('deliveryFee', 'Shipping')}</Text>
               <Text style={[styles.summaryValue, shipping === 0 && styles.freeShipping]}>
-                {shipping === 0 ? 'FREE' : formatPrice(shipping)}
+                {shipping === 0 ? t('freeDelivery', 'FREE') : formatPrice(shipping)}
               </Text>
             </View>
             <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalLabel}>{t('totalAmount', 'Total')}</Text>
               <Text style={styles.totalValue}>{formatPrice(finalTotal)}</Text>
             </View>
 
@@ -307,7 +309,7 @@ export default function CartScreen() {
               style={styles.checkoutButton}
               onPress={() => navigation.navigate('Checkout')}
             >
-              <Text style={styles.checkoutButtonText}>Proceed to Checkout →</Text>
+              <Text style={styles.checkoutButtonText}>{t('checkout', 'Proceed to Checkout')} →</Text>
             </TouchableOpacity>
           </View>
         </View>

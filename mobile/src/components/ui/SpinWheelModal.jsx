@@ -27,6 +27,7 @@ import { API_URL } from '../../config';
 import useAuthStore from '../../store/auth.store';
 
 import useSpinWheelStore from '../../store/spinWheel.store';
+import usePopupCoordinator from '../../store/popupCoordinator.store';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const WHEEL_SIZE = 280;
@@ -235,6 +236,7 @@ export default function SpinWheelModal() {
 
       if (force || cfg.is_forced) {
         if (hasClosedSession.current && !force) return;
+        if (!usePopupCoordinator.getState().requestPopup('spin_wheel')) return;
         await AsyncStorage.removeItem('@spin_wheel_last');
         const todayKey = `@spin_wheel_views_${new Date().toISOString().split('T')[0]}`;
         await AsyncStorage.setItem(todayKey, '0');
@@ -266,15 +268,16 @@ export default function SpinWheelModal() {
         const viewsToday = parseInt((await AsyncStorage.getItem(todayKey)) || '0', 10);
         if (cfg.max_per_day > 0 && viewsToday >= cfg.max_per_day) return;
 
-        setConfig(cfg);
-        setSegments(cfg.segments);
-        await AsyncStorage.setItem(todayKey, String(viewsToday + 1));
-
         if (timerRef.current) clearTimeout(timerRef.current);
         const delayMs = (cfg.delay_seconds ?? 3) * 1000;
-        timerRef.current = setTimeout(() => {
+        timerRef.current = setTimeout(async () => {
           if (!hasClosedSession.current) {
-            setVisible(true);
+            if (usePopupCoordinator.getState().requestPopup('spin_wheel')) {
+              setConfig(cfg);
+              setSegments(cfg.segments);
+              await AsyncStorage.setItem(todayKey, String(viewsToday + 1));
+              setVisible(true);
+            }
           }
         }, delayMs);
       }
@@ -288,34 +291,46 @@ export default function SpinWheelModal() {
     setWinner(null);
 
     try {
+      const phone = user?.phone || '';
+      const userId = user?.id || '';
       const res = await fetch(`${API_URL}/spin-wheel/spin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: user?.phone || '', user_id: user?.id || '' }),
+        body: JSON.stringify({ phone, user_id: userId }),
       });
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!data?.success || !data?.data?.winning_segment) {
         setSpinning(false);
-        Alert.alert('Spin & Win', data.message || 'Unable to spin right now.');
+        Alert.alert('Notice', data?.message || 'Could not complete spin. Please try again.');
         return;
       }
 
-      const { winner_index, winning_segment } = data.data;
-      const numSegs = segments.length;
-      const sliceAngle = 360 / numSegs;
-      const targetAngle = (numSegs - winner_index - 0.5) * sliceAngle;
-      const totalRotation = 360 * 6 + targetAngle;
+      const winSegment = data.data.winning_segment;
 
-      spinAnim.setValue(0);
+      // The backend only tells us which segment won (by id) — it doesn't know
+      // this wheel's on-screen layout, so we compute the landing rotation
+      // ourselves from the active segments actually drawn on the wheel.
+      const activeSegs = segments.filter((s) => s.is_active !== false);
+      const sliceDeg = activeSegs.length > 0 ? 360 / activeSegs.length : 360;
+      let winnerIdx = activeSegs.findIndex((s) => s.id === winSegment.id);
+      if (winnerIdx === -1) winnerIdx = 0;
+
+      // Segment `idx` is centered at (idx*sliceDeg + sliceDeg/2 - 90) in the
+      // wheel's own frame; the pointer reads the top (-90). Rotating by R
+      // moves that center to (angle + R), so solve for R landing it at -90.
+      const normalizedDeg = (((-(winnerIdx * sliceDeg) - sliceDeg / 2) % 360) + 360) % 360;
+      const extraSpins = 6;
+      const targetDeg = extraSpins * 360 + normalizedDeg;
+
       Animated.timing(spinAnim, {
-        toValue: totalRotation,
+        toValue: targetDeg,
         duration: 5000,
         easing: Easing.bezier(0.15, 0.9, 0.25, 1),
         useNativeDriver: true,
       }).start(async () => {
         setSpinning(false);
-        setWinner(winning_segment);
+        setWinner(winSegment);
         setShowWinner(true);
         await AsyncStorage.setItem('@spin_wheel_last', String(Date.now()));
       });
@@ -331,6 +346,7 @@ export default function SpinWheelModal() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+    usePopupCoordinator.getState().releasePopup('spin_wheel');
     setVisible(false);
     setShowWinner(false);
     setWinner(null);

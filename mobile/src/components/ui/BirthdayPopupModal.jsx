@@ -22,6 +22,8 @@ function dismissKey() {
   return `dundu_bday_dismissed_${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
+import usePopupCoordinator from '../../store/popupCoordinator.store';
+
 export default function BirthdayPopupModal() {
   const user = useAuthStore((s) => s.user);
   const [visible, setVisible] = useState(false);
@@ -39,11 +41,19 @@ export default function BirthdayPopupModal() {
         if (d?.birthday_discount) setDiscount(d.birthday_discount);
 
         const dismissed = await AsyncStorage.getItem(dismissKey());
-        if (!dismissed) setVisible(true);
+        if (!dismissed) {
+          if (usePopupCoordinator.getState().requestPopup('birthday')) {
+            setVisible(true);
+          }
+        }
 
         intervalRef.current = setInterval(async () => {
           const isDismissed = await AsyncStorage.getItem(dismissKey());
-          if (!isDismissed) setVisible(true);
+          if (!isDismissed) {
+            if (usePopupCoordinator.getState().requestPopup('birthday')) {
+              setVisible(true);
+            }
+          }
         }, 2 * 60 * 1000);
       } catch (_) {}
     }
@@ -54,10 +64,12 @@ export default function BirthdayPopupModal() {
 
   async function handleDismiss() {
     await AsyncStorage.setItem(dismissKey(), '1').catch(() => {});
+    usePopupCoordinator.getState().releasePopup('birthday');
     setVisible(false);
   }
 
   function handleShopNow() {
+    usePopupCoordinator.getState().releasePopup('birthday');
     setVisible(false);
     navigationRef.current?.navigate('MainTabs', { screen: 'Shop' });
   }

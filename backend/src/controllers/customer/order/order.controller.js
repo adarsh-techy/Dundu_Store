@@ -41,18 +41,31 @@ const getReturnRestrictions = async (req, res) => {
 };
 
 const earnLoyaltyPoints = async (client, phone, name, total) => {
-  const pointsEarned = Math.floor(total / 500) * 20;
-  if (!pointsEarned) return;
+  if (!phone || total <= 0) return 0;
+  const { rows } = await client.query(
+    "SELECT key, value FROM settings WHERE key IN ('loyalty_program_enabled','loyalty_earn_points','loyalty_spend_amount')"
+  );
+  const cfg = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  if (cfg.loyalty_program_enabled === 'false') return 0;
+
+  const earnPts = parseInt(cfg.loyalty_earn_points || '20', 10);
+  const spendAmt = parseFloat(cfg.loyalty_spend_amount || '500');
+  if (spendAmt <= 0 || earnPts <= 0) return 0;
+
+  const pointsEarned = Math.floor(total / spendAmt) * earnPts;
+  if (!pointsEarned) return 0;
+
   await client.query(
     `INSERT INTO loyalty_cards (phone, name, points, total_spent)
      VALUES ($1,$2,$3,$4)
      ON CONFLICT (phone) DO UPDATE SET
        points      = loyalty_cards.points + $3,
        total_spent = loyalty_cards.total_spent + $4,
-       name        = EXCLUDED.name,
+       name        = COALESCE(EXCLUDED.name, loyalty_cards.name),
        updated_at  = now()`,
     [phone, name, pointsEarned, total]
   );
+  return pointsEarned;
 };
 
 const placeOrder = async (req, res) => {
@@ -165,10 +178,17 @@ const placeOrder = async (req, res) => {
     let referralDiscount = 0;
     let appliedReward = null;
 
-    const { rows: rewardRows } = await client.query(
-      `SELECT * FROM referral_rewards WHERE user_id=$1 AND is_used=false ORDER BY created_at ASC LIMIT 1`,
-      [req.user.id]
+    const { rows: referralSettingRows } = await client.query(
+      "SELECT value FROM settings WHERE key='referral_program_enabled'"
     );
+    const referralProgramEnabled = referralSettingRows[0]?.value !== 'false';
+
+    const { rows: rewardRows } = referralProgramEnabled
+      ? await client.query(
+          `SELECT * FROM referral_rewards WHERE user_id=$1 AND is_used=false ORDER BY created_at ASC LIMIT 1`,
+          [req.user.id]
+        )
+      : { rows: [] };
 
     if (rewardRows.length) {
       const reward = rewardRows[0];
@@ -190,13 +210,20 @@ const placeOrder = async (req, res) => {
       }
     }
 
-    const LOYALTY_VALUE = 200;
+    const { rows: loyaltySettings } = await client.query(
+      "SELECT key, value FROM settings WHERE key IN ('loyalty_program_enabled','loyalty_redeem_points','loyalty_redeem_discount')"
+    );
+    const lmap = Object.fromEntries(loyaltySettings.map((r) => [r.key, r.value]));
+    const loyaltyEnabled = lmap.loyalty_program_enabled !== 'false';
+    const reqRedeemPoints = parseInt(lmap.loyalty_redeem_points || '200', 10);
+    const redeemDiscountVal = parseFloat(lmap.loyalty_redeem_discount || '200');
+
     let loyaltyAvailable = false;
-    if (use_loyalty_points && userPhone) {
+    if (loyaltyEnabled && use_loyalty_points && userPhone && reqRedeemPoints > 0) {
       const { rows: cardRows } = await client.query(
         'SELECT points FROM loyalty_cards WHERE phone=$1', [userPhone]
       );
-      if (cardRows.length && cardRows[0].points >= 200) loyaltyAvailable = true;
+      if (cardRows.length && cardRows[0].points >= reqRedeemPoints) loyaltyAvailable = true;
     }
 
     let birthdayDiscount = 0;
@@ -226,7 +253,7 @@ const placeOrder = async (req, res) => {
       { type: 'coupon',   amount: couponDiscount },
       { type: 'referral', amount: referralDiscount },
       { type: 'birthday', amount: birthdayDiscount },
-      { type: 'loyalty',  amount: loyaltyAvailable ? LOYALTY_VALUE : 0 },
+      { type: 'loyalty',  amount: loyaltyAvailable ? redeemDiscountVal : 0 },
     ].reduce((a, b) => (b.amount > a.amount ? b : a));
 
     if (best.amount > 0) {
@@ -241,11 +268,11 @@ const placeOrder = async (req, res) => {
         discount = birthdayDiscount;
         appliedReward = null;
       } else {
-        loyaltyDiscount = LOYALTY_VALUE;
+        loyaltyDiscount = redeemDiscountVal;
         appliedReward = null;
         if (method === 'cod') {
           await client.query(
-            'UPDATE loyalty_cards SET points=points-200, updated_at=now() WHERE phone=$1', [userPhone]
+            'UPDATE loyalty_cards SET points=GREATEST(0, points-$1), updated_at=now() WHERE phone=$2', [reqRedeemPoints, userPhone]
           );
         }
       }
@@ -258,8 +285,23 @@ const placeOrder = async (req, res) => {
     // goes to Razorpay / gets collected on delivery.
     let walletAmount = 0;
     if (use_wallet) {
-      const currentBalance = await walletService.getBalance(client, req.user.id);
-      walletAmount = Math.round(Math.min(currentBalance, total) * 100) / 100;
+      const { rows: wSettings } = await client.query(
+        "SELECT key, value FROM settings WHERE key IN ('wallet_enabled','wallet_min_order_amount','wallet_max_usage_percent','wallet_max_discount_cap')"
+      );
+      const wmap = Object.fromEntries(wSettings.map((r) => [r.key, r.value]));
+      const walletEnabled = wmap.wallet_enabled !== 'false';
+      const minOrderAmount = parseFloat(wmap.wallet_min_order_amount || '0');
+      const maxUsagePercent = parseInt(wmap.wallet_max_usage_percent || '100', 10);
+      const maxDiscountCap = parseFloat(wmap.wallet_max_discount_cap || '0');
+
+      if (walletEnabled && total >= minOrderAmount) {
+        const currentBalance = await walletService.getBalance(client, req.user.id);
+        let maxAllowed = (total * maxUsagePercent) / 100;
+        if (maxDiscountCap > 0) {
+          maxAllowed = Math.min(maxAllowed, maxDiscountCap);
+        }
+        walletAmount = Math.round(Math.min(currentBalance, total, maxAllowed) * 100) / 100;
+      }
     }
     const payableAmount = Math.max(0, Math.round((total - walletAmount) * 100) / 100);
 
@@ -290,8 +332,9 @@ const placeOrder = async (req, res) => {
       await client.query('DELETE FROM cart WHERE user_id=$1', [req.user.id]);
     }
 
+    let codPointsEarned = 0;
     if (method === 'cod' && userPhone) {
-      await earnLoyaltyPoints(client, userPhone, userName, total);
+      codPointsEarned = await earnLoyaltyPoints(client, userPhone, userName, total);
     }
 
     if (appliedReward) {
@@ -363,7 +406,7 @@ const placeOrder = async (req, res) => {
       whatsapp.sendOrderConfirmed?.(userPhone, orderNumber, total, deliveryEstimateText)?.catch(console.error);
     }
 
-    const pointsEarned = method === 'cod' ? Math.floor(total / 500) * 20 : 0;
+    const pointsEarned = codPointsEarned;
     created(res, {
       order: { ...order, loyalty_discount: loyaltyDiscount, wallet_amount: walletAmount, razorpay_order_id: razorpayOrder?.id },
       razorpay: razorpayOrder,
@@ -396,11 +439,17 @@ const verifyPayment = async (req, res) => {
     return badRequest(res, 'Payment verification failed');
   }
 
-  await db.query(
+  // Only transition orders that aren't already marked paid — this both
+  // detects retries/double-taps of this endpoint and stops the one-time
+  // side effects below (loyalty earn/redeem, payment-success WhatsApp)
+  // from running twice for the same order.
+  const { rows: transitionedRows } = await db.query(
     `UPDATE orders SET payment_status='paid', razorpay_payment_id=$1
-     WHERE razorpay_order_id=$2 AND user_id=$3`,
+     WHERE razorpay_order_id=$2 AND user_id=$3 AND payment_status != 'paid'
+     RETURNING id`,
     [razorpay_payment_id, razorpay_order_id, req.user.id]
   );
+  const firstTimePaid = transitionedRows.length > 0;
 
   const { rows } = await db.query('SELECT * FROM orders WHERE razorpay_order_id=$1', [razorpay_order_id]);
   const { rows: userRows } = await db.query('SELECT phone, name FROM users WHERE id=$1', [req.user.id]);
@@ -408,13 +457,17 @@ const verifyPayment = async (req, res) => {
   const userPhone = (userRows[0]?.phone || '').replace(/\D/g, '');
   const userName = userRows[0]?.name || '';
 
-  if (userPhone && order) {
+  if (firstTimePaid && userPhone && order) {
     whatsapp.sendPaymentSuccess?.(userPhone, order.order_number, order.total)?.catch(console.error);
 
     if (parseFloat(order.loyalty_discount) > 0) {
+      const { rows: lRows } = await db.query(
+        "SELECT value FROM settings WHERE key='loyalty_redeem_points'"
+      );
+      const ptsToDeduct = lRows.length ? parseInt(lRows[0].value, 10) : 200;
       db.query(
-        'UPDATE loyalty_cards SET points=GREATEST(0, points-200), updated_at=now() WHERE phone=$1',
-        [userPhone]
+        'UPDATE loyalty_cards SET points=GREATEST(0, points-$1), updated_at=now() WHERE phone=$2',
+        [ptsToDeduct, userPhone]
       ).catch(console.error);
     }
 
@@ -429,12 +482,16 @@ const verifyPayment = async (req, res) => {
     if (debitResult?.success) {
       await db.query('UPDATE orders SET wallet_debited=true WHERE id=$1', [order.id]).catch(console.error);
     }
-    // If this fails (balance changed since checkout, e.g. spent elsewhere), the payment has
-    // already succeeded via Razorpay — we don't block a completed payment on it. wallet_debited
-    // stays false, which flags the order for admin follow-up.
   }
 
-  const pointsEarned = Math.floor(parseFloat(order?.total || 0) / 500) * 20;
+  const { rows: earnRows } = await db.query(
+    "SELECT key, value FROM settings WHERE key IN ('loyalty_program_enabled','loyalty_earn_points','loyalty_spend_amount')"
+  );
+  const emap = Object.fromEntries(earnRows.map((r) => [r.key, r.value]));
+  const loyaltyEnabled = emap.loyalty_program_enabled !== 'false';
+  const earnPts = parseInt(emap.loyalty_earn_points || '20', 10);
+  const spendAmt = parseFloat(emap.loyalty_spend_amount || '500');
+  const pointsEarned = loyaltyEnabled && spendAmt > 0 ? Math.floor(parseFloat(order?.total || 0) / spendAmt) * earnPts : 0;
   ok(res, { order, loyalty: { points_earned: pointsEarned } });
 };
 

@@ -1,29 +1,26 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
   Animated,
   StatusBar,
-  Dimensions,
+  Image,
 } from 'react-native';
 import { UPLOADS_URL } from '../../../config';
 
-const { width, height } = Dimensions.get('window');
-
 export default function SplashScreen({ config, onDone }) {
   // Core animation values
-  const logoScale      = useRef(new Animated.Value(0.6)).current;
+  const logoScale      = useRef(new Animated.Value(0.7)).current;
   const logoOpacity    = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const dotsOpacity    = useRef(new Animated.Value(0)).current;
   const screenOpacity  = useRef(new Animated.Value(1)).current;
-  // Separate value for background image fade-in once it loads
   const imageOpacity   = useRef(new Animated.Value(0)).current;
 
-  const bgColor   = config?.bg_color   || '#0F0F0F';
-  const textColor = config?.text_color || '#FFFFFF';
-  const appName   = config?.app_name   || 'Dundu';
-  const tagline   = config?.tagline    || '';
+  const bgColor    = config?.bg_color   || '#0F0F0F';
+  const textColor  = config?.text_color || '#FFFFFF';
+  const appName    = config?.app_name   || 'Dundu';
+  const tagline    = config?.tagline    || '';
   const durationMs = config?.duration_ms || 2500;
 
   // Build full image URI
@@ -33,88 +30,107 @@ export default function SplashScreen({ config, onDone }) {
         : `${UPLOADS_URL}${config.bg_image.startsWith('/') ? '' : '/'}${config.bg_image}`)
     : null;
 
-  // When image loads, fade it in smoothly over the background color
+  // When image loads, fade it in smoothly
   const handleImageLoad = () => {
     Animated.timing(imageOpacity, {
       toValue: 1,
-      duration: 400,
+      duration: 300,
       useNativeDriver: true,
     }).start();
   };
 
   useEffect(() => {
-    // Phase 1 — logo pops in
+    // If no background image, make sure screen is ready immediately
+    if (!bgImageUri) {
+      imageOpacity.setValue(0);
+    }
+
+    // Phase 1 — Logo springs into view
     Animated.parallel([
-      Animated.spring(logoScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }),
-      Animated.timing(logoOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.spring(logoScale, { toValue: 1, tension: 70, friction: 7, useNativeDriver: true }),
+      Animated.timing(logoOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
     ]).start();
 
-    // Phase 2 — tagline fades in (400ms delay)
+    // Phase 2 — Tagline fades in
     Animated.sequence([
-      Animated.delay(400),
-      Animated.timing(taglineOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.delay(350),
+      Animated.timing(taglineOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
     ]).start();
 
-    // Phase 3 — dots fade in (700ms delay)
+    // Phase 3 — Dots fade in
     Animated.sequence([
-      Animated.delay(700),
+      Animated.delay(600),
       Animated.timing(dotsOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
     ]).start();
 
-    // Phase 4 — fade out whole screen
+    // Phase 4 — Fade out whole screen smoothly at end of duration
     const totalDuration = Math.max(durationMs, 1800);
     const fadeTimer = setTimeout(() => {
       Animated.timing(screenOpacity, {
         toValue: 0,
-        duration: 400,
+        duration: 350,
         useNativeDriver: true,
       }).start(() => { if (onDone) onDone(); });
-    }, totalDuration - 400);
+    }, totalDuration - 350);
 
     return () => clearTimeout(fadeTimer);
-  }, []);
+  }, [durationMs, bgImageUri]);
 
   return (
-    // Outermost wrapper — fade-out animation sits here, background color always visible
-    <Animated.View style={[styles.screen, { backgroundColor: bgColor, opacity: screenOpacity }]}>
-      <StatusBar hidden />
+    <Animated.View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: bgColor,
+          opacity: screenOpacity,
+        },
+      ]}
+    >
+      <StatusBar hidden translucent backgroundColor="transparent" barStyle="light-content" />
 
-      {/* Background image — layered ON TOP of bgColor, fades in when loaded */}
+      {/* Full screen background image — fills the entire screen edge-to-edge */}
       {bgImageUri ? (
         <Animated.Image
           source={{ uri: bgImageUri }}
-          style={[styles.absoluteFill, { opacity: imageOpacity }]}
+          style={[styles.backgroundImage, { opacity: imageOpacity }]}
           resizeMode="cover"
           onLoad={handleImageLoad}
-          onError={() => {/* silently ignore — bgColor shows as fallback */}}
+          onError={() => {/* fallback to bgColor seamlessly */}}
         />
       ) : null}
 
-      {/* Subtle dark overlay so text stays readable over bright images */}
-      {bgImageUri ? (
-        <View style={[styles.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.30)' }]} />
-      ) : null}
-
       {/* Center content */}
-      <View style={styles.centerContent}>
+      <View style={styles.centerContent} pointerEvents="none">
         <Animated.Text
           style={[
             styles.appName,
-            { color: textColor, opacity: logoOpacity, transform: [{ scale: logoScale }] },
+            {
+              color: textColor,
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
           ]}
         >
           {appName}
         </Animated.Text>
 
         {!!tagline && (
-          <Animated.Text style={[styles.tagline, { color: textColor, opacity: taglineOpacity }]}>
+          <Animated.Text
+            style={[
+              styles.tagline,
+              {
+                color: textColor,
+                opacity: taglineOpacity,
+              },
+            ]}
+          >
             {tagline}
           </Animated.Text>
         )}
       </View>
 
-      {/* Loading dots */}
-      <Animated.View style={[styles.dotsRow, { opacity: dotsOpacity }]}>
+      {/* Bottom loading dots */}
+      <Animated.View style={[styles.dotsRow, { opacity: dotsOpacity }]} pointerEvents="none">
         {[0, 1, 2].map((i) => (
           <LoadingDot key={i} color={textColor} delay={i * 150} />
         ))}
@@ -136,53 +152,58 @@ function LoadingDot({ color, delay }) {
     );
     pulse.start();
     return () => pulse.stop();
-  }, []);
+  }, [delay]);
 
   return <Animated.View style={[styles.dot, { backgroundColor: color, opacity }]} />;
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
-    width,
-    height,
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    zIndex: 9999,
   },
-  absoluteFill: {
+  backgroundImage: {
     ...StyleSheet.absoluteFillObject,
-    width,
-    height,
+    width: '100%',
+    height: '100%',
   },
   centerContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    zIndex: 2,
   },
   appName: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: 4,
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 10,
   },
   tagline: {
     fontSize: 14,
-    fontWeight: '400',
+    fontWeight: '500',
     letterSpacing: 1.5,
     textAlign: 'center',
     marginTop: 12,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
   dotsRow: {
+    position: 'absolute',
+    bottom: 50,
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 60,
+    zIndex: 2,
   },
   dot: {
     width: 6,

@@ -18,6 +18,8 @@ import useCartStore from '../../../store/cart.store';
 import { userApi, loyaltyApi } from '../../../api/index';
 import { COLORS } from '../../../config';
 import useLoginPromptStore from '../../../store/loginPrompt.store';
+import { useTranslation } from '../../../store/language.store';
+import LanguageModal from '../../../components/ui/LanguageModal';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -28,6 +30,7 @@ function getInitials(name) {
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
+  const { t, language, languages } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.logout);
@@ -37,6 +40,7 @@ export default function ProfileScreen() {
 
   const [profile, setProfile] = useState(user || null);
   const [loading, setLoading] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -176,12 +180,12 @@ export default function ProfileScreen() {
 
   function confirmLogout() {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      t('logout', 'Logout'),
+      t('logoutConfirm', 'Are you sure you want to logout?'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel', 'Cancel'), style: 'cancel' },
         {
-          text: 'Logout',
+          text: t('logout', 'Logout'),
           style: 'destructive',
           onPress: async () => {
             resetCart();
@@ -192,75 +196,82 @@ export default function ProfileScreen() {
     );
   }
 
+  const currentLangObj = languages.find((l) => l.code === language) || languages[0];
+
   const menuItems = [
     {
+      icon: '🌐',
+      label: `${t('languageSettings', 'Language Settings')} (${currentLangObj?.nativeName || 'English'})`,
+      onPress: () => setShowLanguageModal(true),
+    },
+    {
       icon: '✏️',
-      label: 'Edit Profile',
+      label: t('editProfile', 'Edit Profile'),
       onPress: openEdit,
     },
     {
       icon: '📦',
-      label: 'My Orders',
+      label: t('myOrders', 'My Orders'),
       onPress: () => navigation.navigate('Orders'),
     },
     {
       icon: '📍',
-      label: 'Saved Addresses',
+      label: t('savedAddresses', 'Saved Addresses'),
       onPress: openAddressModal,
     },
     {
       icon: '❤️',
-      label: 'Wishlist',
+      label: t('wishlist', 'Wishlist'),
       onPress: () => navigation.navigate('Wishlist'),
     },
     {
       icon: '🎁',
-      label: 'Refer & Earn',
+      label: t('referAndEarn', 'Refer & Earn'),
       onPress: () => navigation.navigate('Referral'),
     },
     {
       icon: '⭐',
-      label: 'My Loyalty Card',
+      label: t('myLoyaltyCard', 'My Loyalty Card'),
       onPress: () => navigation.navigate('LoyaltyCard'),
     },
     {
       icon: '💳',
-      label: 'My Wallet',
+      label: t('myWallet', 'My Wallet'),
       onPress: () => navigation.navigate('Wallet'),
     },
     {
       icon: '🔔',
-      label: 'Notifications',
+      label: t('notifications', 'Notifications'),
       onPress: () => navigation.navigate('Notifications'),
     },
     {
       icon: '🆘',
-      label: 'Help & Support',
+      label: t('helpAndSupport', 'Help & Support'),
       onPress: () => navigation.navigate('Help'),
     },
-    { sectionHeader: 'Legal' },
+    { sectionHeader: t('legalPolicies', 'Legal & Policies') },
     {
-      label: 'Privacy Policy',
+      label: t('privacyPolicy', 'Privacy Policy'),
       onPress: () => navigation.navigate('PrivacyPolicy'),
     },
     {
-      label: 'Return & Refund Policy',
+      label: t('returnRefundPolicy', 'Return & Refund Policy'),
       onPress: () => navigation.navigate('ReturnRefundPolicy'),
     },
     {
-      label: 'Shipping Policy',
+      label: t('shippingPolicy', 'Shipping Policy'),
       onPress: () => navigation.navigate('ShippingPolicy'),
     },
     {
-      label: 'Cancellation Policy',
+      label: t('cancellationPolicy', 'Cancellation Policy'),
       onPress: () => navigation.navigate('CancellationPolicy'),
     },
     {
-      label: 'Terms & Conditions',
+      label: t('termsConditions', 'Terms & Conditions'),
       onPress: () => navigation.navigate('TermsConditions'),
     },
     {
-      label: 'Logout',
+      label: t('logout', 'Logout'),
       onPress: confirmLogout,
       danger: true,
     },
@@ -270,37 +281,55 @@ export default function ProfileScreen() {
   if (!isAuthenticated) {
     return (
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <AppHeader logo rightComponent={
-        <Text style={styles.headerRightText}>Profile</Text>
-      } />
+        <AppHeader logo rightComponent={
+          <Text style={styles.headerRightText}>{t('profile', 'Profile')}</Text>
+        } />
         <ScrollView contentContainerStyle={styles.guestScroll} showsVerticalScrollIndicator={false}>
+          {/* Language Selector Card */}
+          <TouchableOpacity
+            style={styles.guestLanguageCard}
+            onPress={() => setShowLanguageModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>🌐</Text>
+              <View>
+                <Text style={styles.guestLanguageTitle}>{t('languageSettings', 'Language')}</Text>
+                <Text style={styles.guestLanguageSub}>
+                  {currentLangObj?.nativeName} ({currentLangObj?.name})
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.guestLanguageAction}>Change ›</Text>
+          </TouchableOpacity>
+
           {/* Hero */}
           <View style={styles.guestHero}>
             <View style={styles.guestAvatarWrap}>
               <Text style={styles.guestAvatarIcon}>👤</Text>
             </View>
-            <Text style={styles.guestTitle}>Welcome to Dundu</Text>
+            <Text style={styles.guestTitle}>{t('welcomeGuest', 'Welcome to Dundu')}</Text>
             <Text style={styles.guestSubtitle}>
-              Sign in to access your profile, orders, wishlist and exclusive rewards.
+              {t('guestSubtitle', 'Sign in to access your profile, orders, wishlist and exclusive rewards.')}
             </Text>
           </View>
 
           {/* CTAs */}
           <TouchableOpacity style={styles.guestLoginBtn} onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.guestLoginText}>Login</Text>
+            <Text style={styles.guestLoginText}>{t('login', 'Login')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.guestSignupBtn} onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.guestSignupText}>Create Account — It's Free</Text>
+            <Text style={styles.guestSignupText}>{t('createFreeAccount', "Create Account — It's Free")}</Text>
           </TouchableOpacity>
 
           {/* Feature highlights */}
           <View style={styles.guestFeatures}>
             {[
-              { icon: '📦', label: 'Track your orders' },
-              { icon: '❤️', label: 'Save to wishlist' },
-              { icon: '🎁', label: 'Earn loyalty points' },
-              { icon: '🤝', label: 'Refer friends & earn' },
-              { icon: '⚡', label: 'Faster checkout' },
+              { icon: '📦', label: t('trackYourOrders', 'Track your orders') },
+              { icon: '❤️', label: t('saveToWishlist', 'Save to wishlist') },
+              { icon: '🎁', label: t('earnLoyaltyPoints', 'Earn loyalty points') },
+              { icon: '🤝', label: t('referFriendsEarn', 'Refer friends & earn') },
+              { icon: '⚡', label: t('fasterCheckout', 'Faster checkout') },
             ].map((f) => (
               <View key={f.icon} style={styles.guestFeatureRow}>
                 <Text style={styles.guestFeatureIcon}>{f.icon}</Text>
@@ -311,13 +340,13 @@ export default function ProfileScreen() {
 
           {/* Legal links — accessible without login */}
           <View style={styles.guestLegal}>
-            <Text style={styles.guestLegalTitle}>Policies</Text>
+            <Text style={styles.guestLegalTitle}>{t('legalPolicies', 'Policies')}</Text>
             {[
-              { label: 'Privacy Policy', screen: 'PrivacyPolicy' },
-              { label: 'Return & Refund Policy', screen: 'ReturnRefundPolicy' },
-              { label: 'Shipping Policy', screen: 'ShippingPolicy' },
-              { label: 'Cancellation Policy', screen: 'CancellationPolicy' },
-              { label: 'Terms & Conditions', screen: 'TermsConditions' },
+              { label: t('privacyPolicy', 'Privacy Policy'), screen: 'PrivacyPolicy' },
+              { label: t('returnRefundPolicy', 'Return & Refund Policy'), screen: 'ReturnRefundPolicy' },
+              { label: t('shippingPolicy', 'Shipping Policy'), screen: 'ShippingPolicy' },
+              { label: t('cancellationPolicy', 'Cancellation Policy'), screen: 'CancellationPolicy' },
+              { label: t('termsConditions', 'Terms & Conditions'), screen: 'TermsConditions' },
             ].map((item) => (
               <TouchableOpacity
                 key={item.screen}
@@ -331,6 +360,11 @@ export default function ProfileScreen() {
             ))}
           </View>
         </ScrollView>
+
+        <LanguageModal
+          visible={showLanguageModal}
+          onClose={() => setShowLanguageModal(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -745,6 +779,11 @@ export default function ProfileScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      <LanguageModal
+        visible={showLanguageModal}
+        onClose={() => setShowLanguageModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -1403,10 +1442,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 48,
   },
+  guestLanguageCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  guestLanguageTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  guestLanguageSub: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 1,
+  },
+  guestLanguageAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
   guestHero: {
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 28,
+    paddingTop: 24,
+    paddingBottom: 24,
   },
   guestAvatarWrap: {
     width: 88,

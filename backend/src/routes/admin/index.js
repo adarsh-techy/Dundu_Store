@@ -19,6 +19,7 @@ router.use('/brands',            require('./catalog/brand.routes'));
 router.use('/reviews',           require('./catalog/review.routes'));
 
 // Marketing
+router.use('/marketing-control', require('./marketing/marketingControl.routes'));
 router.use('/announcements',     require('./marketing/announcement.routes'));
 router.use('/banners',           require('./marketing/banner.routes'));
 router.use('/birthdays',         require('./marketing/birthday.routes'));

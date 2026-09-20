@@ -2,12 +2,12 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users, Ticket,
   Image, BarChart2, UserCog, LogOut, ShoppingCart,
-  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet,
+  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders,
 } from 'lucide-react';
 import useAuthStore from '../../store/auth.store';
 import dunduLogo from '../../assets/dundulogo.png';
 
-const allNavGroups = [
+export const allNavGroups = [
   {
     label: 'Online',
     items: [
@@ -53,6 +53,7 @@ const allNavGroups = [
     label: 'Marketing',
     superOnly: true,
     items: [
+      { to: '/marketing-control', icon: Sliders, label: 'Marketing Control Hub', superOnly: true },
       { to: '/coupons',       icon: Ticket,        label: 'Coupons',       superOnly: true },
       { to: '/referral',      icon: Gift,          label: 'Referral',      superOnly: true },
       { to: '/banners',       icon: Image,         label: 'Banners',       superOnly: true },

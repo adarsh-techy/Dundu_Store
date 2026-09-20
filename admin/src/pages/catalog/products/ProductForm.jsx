@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Plus, Trash2, ImagePlus, Camera, Star, Pencil, Crop } from 'lucide-react';
 import { productApi, categoryApi, brandApi, reviewApi } from '../../../api';
-import Modal from '../../../components/ui/Modal';
 import Button from '../../../components/ui/Button';
 import ImageCropperModal from '../../../components/ui/ImageCropperModal';
 import Input, { Select, Textarea } from '../../../components/ui/Input';
@@ -225,14 +224,12 @@ const CODE39_MAP = {
   '$': '100100100101', '/': '100100101001', '+': '100101001001', '%': '101001001001'
 };
 
-function Barcode({ value }) {
+function Barcode({ value, barWidth = 2.5, height = 70 }) {
   const uppercaseVal = (value || '').toUpperCase();
   const safeVal = uppercaseVal.replace(/[^A-Z0-9\-\.\ \$\/\+\%]/g, '');
   const fullVal = `*${safeVal}*`;
 
   let currentX = 0;
-  const barWidth = 1.25;
-  const height = 18;
   const rects = [];
 
   for (let i = 0; i < fullVal.length; i++) {
@@ -263,227 +260,30 @@ function Barcode({ value }) {
       <svg viewBox={`0 0 ${currentX} ${height}`} width="100%" height={height} className="text-current">
         {rects}
       </svg>
-      <span className="text-[9px] font-mono tracking-[3px] mt-0.5 text-center uppercase">{safeVal}</span>
+      <span className="text-xs font-mono font-bold tracking-[3px] mt-2 text-center uppercase text-gray-800">{safeVal}</span>
     </div>
   );
 }
 
-const TAG_THEMES = {
-  'classic-gold': {
-    name: 'Classic Gold & Black Ink',
-    bgClass: 'bg-gradient-to-b from-[#faf6eb] to-[#f5eedc] text-neutral-900 border-[#d4af37]/65',
-    primaryColor: '#111111',
-    accentColor: '#d4af37',
-    textColor: '#111111',
-    metaColor: '#7a6437',
-    priceBg: 'bg-transparent text-neutral-900',
-    badgeClass: 'bg-transparent text-[#5c4a24]',
-    lineClass: 'border-[#d4af37]/45',
-    holeClass: 'bg-[#f5eedc] border-[#d4af37]/50',
-    discountBadgeClass: 'text-gray-500 bg-transparent'
-  },
-  'vibrant-rose': {
-    name: 'Vibrant Rose & Pink',
-    bgClass: 'bg-gradient-to-b from-pink-500 via-pink-600 to-rose-700 text-white border-pink-400/30',
-    primaryColor: '#ffffff',
-    accentColor: '#fbcfe8',
-    textColor: '#ffffff',
-    metaColor: '#fecdd3',
-    priceBg: 'bg-transparent text-white',
-    badgeClass: 'bg-transparent text-white',
-    lineClass: 'border-white/20',
-    holeClass: 'bg-rose-700 border-white/35',
-    discountBadgeClass: 'text-gray-500 bg-transparent'
-  },
-  'modern-teal': {
-    name: 'Modern Teal & Mint',
-    bgClass: 'bg-gradient-to-b from-teal-500 to-emerald-950 text-white border-teal-400/30',
-    primaryColor: '#ffffff',
-    accentColor: '#ccfbf1',
-    textColor: '#ffffff',
-    metaColor: '#99f6e4',
-    priceBg: 'bg-transparent text-white',
-    badgeClass: 'bg-transparent text-white',
-    lineClass: 'border-white/20',
-    holeClass: 'bg-emerald-950 border-white/35',
-    discountBadgeClass: 'text-gray-500 bg-transparent'
-  },
-  'black-pink': {
-    name: 'Chic Black & Hot Pink',
-    bgClass: 'bg-gradient-to-b from-neutral-900 to-neutral-950 text-white border-pink-500/40',
-    primaryColor: '#ec4899',
-    accentColor: '#f472b6',
-    textColor: '#ffffff',
-    metaColor: '#f472b6',
-    priceBg: 'bg-transparent text-pink-300',
-    badgeClass: 'bg-transparent text-white',
-    lineClass: 'border-pink-500/30',
-    holeClass: 'bg-neutral-950 border-pink-500/50',
-    discountBadgeClass: 'text-gray-500 bg-transparent'
-  },
-  'vintage-kraft': {
-    name: 'Vintage Kraft Paper',
-    bgClass: 'bg-gradient-to-b from-[#e7cba8] to-[#d4b896] text-[#3e2723] border-[#a1887f]',
-    primaryColor: '#3e2723',
-    accentColor: '#5d4037',
-    textColor: '#3e2723',
-    metaColor: '#5d4037',
-    priceBg: 'bg-transparent text-[#3e2723]',
-    badgeClass: 'bg-transparent text-[#3e2723]',
-    lineClass: 'border-[#3e2723]/25',
-    holeClass: 'bg-[#d4b896] border-[#3e2723]/30',
-    discountBadgeClass: 'text-gray-500 bg-transparent'
-  }
-};
-
-const getColorValue = (colorStr) => {
-  if (!colorStr) return '#4b5563';
-  const c = colorStr.toLowerCase().trim();
-  
-  const colorMap = {
-    'red': '#ef4444',
-    'blue': '#3b82f6',
-    'green': '#22c55e',
-    'pink': '#ec4899',
-    'yellow': '#eab308',
-    'orange': '#f97316',
-    'purple': '#a855f7',
-    'teal': '#14b8a6',
-    'black': '#000000',
-    'white': '#6b7280',
-    'brown': '#78350f',
-    'gray': '#4b5563',
-    'grey': '#4b5563',
-    'gold': '#d4af37',
-    'indigo': '#6366f1',
-    'violet': '#8b5cf6',
-    'rose': '#f43f5e',
-    'amber': '#f59e0b',
-    'emerald': '#10b981',
-    'cyan': '#06b6d4',
-    'lime': '#84cc16'
-  };
-  
-  for (const [key, val] of Object.entries(colorMap)) {
-    if (c.includes(key)) return val;
-  }
-  
-  if (c.startsWith('#') || c.startsWith('rgb')) return colorStr;
-  return '#4b5563';
-};
-
-function ProductTagPreview({ productData, variant, themeKey, includeBarcode, brandName, imageUrl }) {
-  const theme = TAG_THEMES[themeKey] || TAG_THEMES['classic-gold'];
-  const name = productData.name || 'Product Name';
-  const price = Number(productData.price) || 0;
-  const offerPrice = Number(productData.offer_price) || 0;
-  
-  const discountPercent = price > 0 && offerPrice > 0 && offerPrice < price
-    ? Math.round(((price - offerPrice) / price) * 100)
-    : 0;
-
-  const code = variant?.sku || productData.product_code || 'CODE-PENDING';
-  const size = variant?.size || 'ALL';
-  const color = variant?.color || '';
-
-  return (
-    <div className={`w-[195px] h-[325px] rounded-[18px] border-2 shadow-lg relative flex flex-col justify-between p-4 select-none shrink-0 ${theme.bgClass}`} style={{ boxSizing: 'border-box' }}>
-      
-      {/* Kraft Paper texture overlay */}
-      {themeKey === 'vintage-kraft' && (
-        <div className="absolute inset-0 rounded-[16px] pointer-events-none mix-blend-multiply opacity-25" 
-          style={{ backgroundImage: 'radial-gradient(#ecd5b9 20%, transparent 20%), radial-gradient(#dcbfa0 20%, transparent 20%)', backgroundSize: '4px 4px', backgroundPosition: '0 0, 2px 2px' }} />
-      )}
-
-      {/* Top hanger visual */}
-      <div className="flex flex-col items-center w-full relative">
-        <div className="w-8 h-8 rounded-full border border-dashed flex items-center justify-center relative z-10" style={{ borderColor: theme.textColor + '35' }}>
-          <div className={`w-3.5 h-3.5 rounded-full border-2 shadow-inner z-10 ${theme.holeClass}`} />
-          <div className="absolute top-[-30px] w-0.5 h-9 bg-gray-400/40 z-0" />
-        </div>
-
-        <h2 className="text-center font-bold tracking-[4px] text-[15px] uppercase truncate w-full" style={{ fontFamily: 'Cinzel, Georgia, serif' }}>
-          {brandName || 'DUNDU'}
-        </h2>
-        <div className={`w-12 border-t mt-1.5 ${theme.lineClass}`} />
-      </div>
-
-      <div className="flex flex-col items-center flex-grow justify-center py-1 text-center">
-        <span className="text-[9px] uppercase tracking-[2px] opacity-75 mb-0.5" style={{ color: theme.metaColor }}>
-          {productData.categoryName || 'Apparel'}
-        </span>
-
-        {imageUrl ? (
-          <div className="w-12 h-12 rounded-lg overflow-hidden border my-1 shadow-sm shrink-0 flex items-center justify-center" style={{ borderColor: theme.accentColor + '30' }}>
-            <img src={imageUrl} alt="" className="w-full h-full object-contain p-0.5" />
-          </div>
-        ) : (
-          <div className="w-12 h-12 rounded-lg border-2 border-dashed my-1 flex flex-col items-center justify-center opacity-30 shrink-0" style={{ borderColor: theme.textColor }}>
-            <span className="text-[8px] font-bold">TAG</span>
-          </div>
-        )}
-
-        <div className="flex flex-col items-center gap-1 w-full mt-1.5">
-          <h3 className="font-bold text-[12px] tracking-wide leading-tight line-clamp-2 w-full px-1 max-h-[30px] overflow-hidden">
-            {name}
-          </h3>
-          
-          {color && (
-            <span className="text-[9px] font-bold uppercase text-gray-600" style={{ color: '#4b5563' }}>
-              Colour: <span style={{ color: getColorValue(color) }}>{color}</span>
-            </span>
-          )}
-
-          <div className="text-[9px] font-bold uppercase text-gray-600" style={{ color: '#4b5563' }}>
-            Code: <span style={{ color: '#ffffff' }}>{code}</span>
-          </div>
-
-          <div className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase text-gray-600 ${theme.badgeClass}`} style={{ color: '#4b5563' }}>
-            SIZE: <span style={{ color: '#ffffff' }}>{size}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2.5">
-        <div className={`rounded-xl p-2.5 flex flex-col items-center justify-center ${theme.priceBg}`}>
-          {discountPercent > 0 ? (
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] line-through text-white" style={{ textDecorationColor: '#ef4444', color: '#ffffff' }}>₹{price}</span>
-                <span className={`text-[8px] font-bold px-1 rounded uppercase tracking-wider ${theme.discountBadgeClass}`}>
-                  {discountPercent}% OFF
-                </span>
-              </div>
-              <span className="text-[15px] font-extrabold tracking-wide mt-0.5 text-green-500" style={{ color: '#22c55e' }}>₹{offerPrice}</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              <span className="text-[8px] opacity-70 uppercase tracking-widest">MRP</span>
-              <span className="text-[15px] font-extrabold tracking-wide text-green-500" style={{ color: '#22c55e' }}>₹{price || '---'}</span>
-            </div>
-          )}
-        </div>
-
-        {includeBarcode && (
-          <div className="w-[72%] mx-auto text-current mt-1.5 mb-3 opacity-90">
-            <Barcode value={code} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+// Product Tag Generator has been simplified to a plain Barcode Generator —
+// the decorative hanging-tag themes, colour swatches, and card layout that
+// used to live here (TAG_THEMES, getColorValue, ProductTagPreview) were removed.
 
 
-export default function ProductForm({ product, onClose, onSaved }) {
+export default function ProductForm({ product, onCancel, onSaved }) {
   const isEdit = !!product;
   const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
 
-  // ── Reviews (edit mode only) ───────────────────────────────────────────────
-  const [reviewForm, setReviewForm] = useState({ reviewer_name: '', rating: 4.5, review: '' });
+  // ── Reviews — available in both add & edit mode. In edit mode each action
+  // hits the API immediately; in add mode (no product id yet) reviews are
+  // held locally in `pendingReviews` and sent along with the create request,
+  // then inserted server-side once the new product's id exists. ──────────────
+  const EMPTY_REVIEW_FORM = { reviewer_name: '', rating: 4.5, review: '', imageFile: null, imagePreview: null, existingImageUrl: null };
+  const [reviewForm, setReviewForm] = useState(EMPTY_REVIEW_FORM);
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [editingReview, setEditingReview] = useState(null);
+  const [editingReview, setEditingReview] = useState(null); // API review object, or { isLocal: true, index }
+  const [pendingReviews, setPendingReviews] = useState([]); // add-mode only
 
   const { data: reviewData, refetch: refetchReviews } = useQuery({
     queryKey: ['product-reviews-admin', product?.id],
@@ -492,33 +292,86 @@ export default function ProductForm({ product, onClose, onSaved }) {
   });
   const productReviews = reviewData?.data?.reviews || [];
 
+  const handleReviewImagePick = (file) => {
+    if (!file) return;
+    setReviewForm((p) => ({ ...p, imageFile: file, imagePreview: URL.createObjectURL(file), existingImageUrl: null }));
+  };
+
+  const removeReviewImage = () => {
+    setReviewForm((p) => ({ ...p, imageFile: null, imagePreview: null, existingImageUrl: null }));
+  };
+
   const handleAddReview = async () => {
     if (!reviewForm.reviewer_name.trim()) return toast.error('Enter reviewer name');
+
+    if (!isEdit) {
+      const entry = {
+        reviewer_name: reviewForm.reviewer_name,
+        rating: reviewForm.rating,
+        review: reviewForm.review,
+        imageFile: reviewForm.imageFile,
+        imagePreview: reviewForm.imagePreview,
+      };
+      if (editingReview?.isLocal) {
+        setPendingReviews((prev) => prev.map((r, i) => (i === editingReview.index ? entry : r)));
+        toast.success('Review updated');
+      } else {
+        setPendingReviews((prev) => [...prev, entry]);
+        toast.success('Review will be added once the product is saved');
+      }
+      setReviewForm(EMPTY_REVIEW_FORM);
+      setEditingReview(null);
+      return;
+    }
+
     setReviewLoading(true);
     try {
+      const fd = new FormData();
+      fd.append('reviewer_name', reviewForm.reviewer_name);
+      fd.append('rating', reviewForm.rating);
+      fd.append('review', reviewForm.review || '');
+      if (reviewForm.imageFile) fd.append('images', reviewForm.imageFile);
+
       if (editingReview) {
-        await reviewApi.update(editingReview.id, reviewForm);
+        await reviewApi.update(editingReview.id, fd);
         toast.success('Review updated');
         setEditingReview(null);
       } else {
-        await reviewApi.create({ product_id: product.id, ...reviewForm });
+        fd.append('product_id', product.id);
+        await reviewApi.create(fd);
         toast.success('Review added');
       }
-      setReviewForm({ reviewer_name: '', rating: 4.5, review: '' });
+      setReviewForm(EMPTY_REVIEW_FORM);
       refetchReviews();
       qc.invalidateQueries(['admin-reviews']);
     } catch { toast.error('Failed'); }
     finally { setReviewLoading(false); }
   };
 
-  const startEditReview = (r) => {
-    setEditingReview(r);
-    setReviewForm({ reviewer_name: r.user_name, rating: r.rating, review: r.review || '' });
+  const startEditReview = (r, localIndex) => {
+    if (localIndex !== undefined) {
+      setEditingReview({ isLocal: true, index: localIndex });
+      setReviewForm({
+        reviewer_name: r.reviewer_name, rating: r.rating, review: r.review || '',
+        imageFile: r.imageFile || null, imagePreview: r.imagePreview || null, existingImageUrl: null,
+      });
+    } else {
+      setEditingReview(r);
+      setReviewForm({
+        reviewer_name: r.user_name, rating: r.rating, review: r.review || '',
+        imageFile: null, imagePreview: null, existingImageUrl: r.image_url || null,
+      });
+    }
   };
 
   const cancelEditReview = () => {
     setEditingReview(null);
-    setReviewForm({ reviewer_name: '', rating: 4.5, review: '' });
+    setReviewForm(EMPTY_REVIEW_FORM);
+  };
+
+  const removePendingReview = (index) => {
+    setPendingReviews((prev) => prev.filter((_, i) => i !== index));
+    if (editingReview?.isLocal && editingReview.index === index) cancelEditReview();
   };
 
   const handleDeleteReview = async (id) => {
@@ -553,6 +406,7 @@ export default function ProductForm({ product, onClose, onSaved }) {
 type: product?.type || '',
     gender: product?.gender || '',
     age_group: product?.age_group || '',
+    cost_price: product?.cost_price || '',
     price: product?.price || '',
     offer_price: product?.offer_price || '',
     stock: product?.stock || '',
@@ -570,10 +424,15 @@ type: product?.type || '',
   });
   const toggleFlag = (key) => setFlags((f) => ({ ...f, [key]: !f[key] }));
 
-  // ── Tag Generator States ──
-  const [tagStyle, setTagStyle] = useState('black-pink');
-  const [includeBarcode, setIncludeBarcode] = useState(true);
+  // ── Barcode Generator State ──
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(-1);
+  // How many labels to print per variant, keyed by SKU. Defaults to that
+  // variant's stock count (one barcode per physical unit) until overridden.
+  const [printQty, setPrintQty] = useState({});
+  const getPrintQty = (v) => {
+    const q = printQty[v.sku];
+    return q !== undefined ? q : Number(v.stock) || 0;
+  };
 
   const { data: catData } = useQuery({ queryKey: ['categories-admin'], queryFn: categoryApi.list });
   const { data: brandData } = useQuery({ queryKey: ['brands-admin'], queryFn: brandApi.list });
@@ -734,6 +593,18 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error('Product name is required');
+      return;
+    }
+    if (!form.category_id) {
+      toast.error('Please select a category');
+      return;
+    }
+    if (!form.price) {
+      toast.error('Price is required');
+      return;
+    }
     if (form.offer_price && Number(form.offer_price) >= Number(form.price)) {
       toast.error('Offer price must be less than the regular price');
       return;
@@ -757,6 +628,21 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
       if (images.length) fd.append('primary_index', primaryNewIndex);
       images.forEach(({ file }) => fd.append('images', file));
 
+      // New-product reviews were only kept locally until now — send them
+      // along so the backend can attach them to the product it's about to create.
+      // Review photos go in a separate `review_images` field; `has_image` tells
+      // the backend which reviews (in order) to pull the next file for.
+      if (!isEdit && pendingReviews.length) {
+        const reviewsPayload = pendingReviews.map((r) => ({
+          reviewer_name: r.reviewer_name,
+          rating: r.rating,
+          review: r.review,
+          has_image: !!r.imageFile,
+        }));
+        fd.append('reviews', JSON.stringify(reviewsPayload));
+        pendingReviews.forEach((r) => { if (r.imageFile) fd.append('review_images', r.imageFile); });
+      }
+
       if (isEdit) {
         await productApi.update(product.id, fd);
         toast.success('Product updated');
@@ -775,135 +661,41 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
   const handlePrintTags = (mode) => {
     const printWindow = window.open('', '_blank', 'width=800,height=900');
     if (!printWindow) {
-      toast.error('Please allow popups to print/download tags');
+      toast.error('Please allow popups to print/download barcodes');
       return;
     }
 
+    const allVariants = colorVariants.flatMap((cv) =>
+      cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku, stock: s.stock }))
+    ).filter(v => v.size || v.color);
+
     let variantsToPrint = [];
     if (mode === 'single') {
+      // Single mode prints one test label of just the selected variant, regardless of quantity.
       if (selectedVariantIndex === -1) {
-        variantsToPrint = colorVariants.flatMap((cv) =>
-          cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku }))
-        ).filter(v => v.size || v.color);
-      } else {
-        const flat = colorVariants.flatMap((cv) =>
-          cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku }))
-        ).filter(v => v.size || v.color);
-        if (flat[selectedVariantIndex]) {
-          variantsToPrint = [flat[selectedVariantIndex]];
-        }
+        variantsToPrint = allVariants.slice(0, 1);
+      } else if (allVariants[selectedVariantIndex]) {
+        variantsToPrint = [allVariants[selectedVariantIndex]];
       }
     } else {
-      variantsToPrint = colorVariants.flatMap((cv) =>
-        cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku }))
-      ).filter(v => v.size || v.color);
+      // Bulk sheet: repeat each variant's barcode by its print quantity
+      // (defaults to that variant's stock — one label per physical unit).
+      variantsToPrint = allVariants.flatMap((v) => Array(getPrintQty(v)).fill(v));
     }
 
     if (variantsToPrint.length === 0) {
       variantsToPrint = [{ color: '', size: 'Free Size', sku: form.product_code || 'VL-PENDING' }];
     }
 
-    let tagHtml = '';
-    const selectedBrandObj = brands.find(b => String(b.id) === String(form.brand_id));
-    const brandName = selectedBrandObj?.name || 'DUNDU';
-
-    const selectedCatObj = categories.find(c => String(c.id) === String(form.category_id));
-    const categoryName = selectedCatObj?.name || 'Apparel';
-    const name = form.name || 'Product Name';
-    const price = Number(form.price) || 0;
-    const offerPrice = Number(form.offer_price) || 0;
-    const discountPercent = price > 0 && offerPrice > 0 && offerPrice < price
-      ? Math.round(((price - offerPrice) / price) * 100)
-      : 0;
-
-    const getThemeCss = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose':
-          return 'background: linear-gradient(180deg, #ec4899 0%, #be185d 100%); color: #ffffff; border-color: rgba(255,255,255,0.3);';
-        case 'modern-teal':
-          return 'background: linear-gradient(180deg, #14b8a6 0%, #064e3b 100%); color: #ffffff; border-color: rgba(255,255,255,0.3);';
-        case 'black-pink':
-          return 'background: linear-gradient(180deg, #171717 0%, #0a0a0a 100%); color: #ffffff; border-color: rgba(236, 72, 153, 0.4);';
-        case 'vintage-kraft':
-          return 'background: linear-gradient(180deg, #e7cba8 0%, #d4b896 100%); color: #3e2723; border-color: #a1887f;';
-        case 'classic-gold':
-        default:
-          return 'background: linear-gradient(180deg, #faf6eb 0%, #f5eedc 100%); color: #111111; border-color: rgba(212, 175, 55, 0.65);';
-      }
-    };
-
-    const getHoleCss = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose': return 'background: #be185d; border-color: rgba(255,255,255,0.4);';
-        case 'modern-teal': return 'background: #064e3b; border-color: rgba(255,255,255,0.4);';
-        case 'black-pink': return 'background: #0a0a0a; border-color: rgba(236, 72, 153, 0.5);';
-        case 'vintage-kraft': return 'background: #d4b896; border-color: rgba(62, 39, 35, 0.3);';
-        case 'classic-gold':
-        default:
-          return 'background: #f5eedc; border-color: rgba(212, 175, 55, 0.5);';
-      }
-    };
-
-    const getLineCss = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose': return 'border-top: 1px solid rgba(255,255,255,0.3);';
-        case 'modern-teal': return 'border-top: 1px solid rgba(255,255,255,0.3);';
-        case 'black-pink': return 'border-top: 1px solid rgba(236, 72, 153, 0.3);';
-        case 'vintage-kraft': return 'border-top: 1px solid rgba(62, 39, 35, 0.25);';
-        case 'classic-gold':
-        default:
-          return 'border-top: 1px solid rgba(212, 175, 55, 0.45);';
-      }
-    };
-
-    const getBadgeCss = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose': return 'background: transparent; color: #ffffff;';
-        case 'modern-teal': return 'background: transparent; color: #ffffff;';
-        case 'black-pink': return 'background: transparent; color: #ffffff;';
-        case 'vintage-kraft': return 'background: transparent; color: #3e2723;';
-        case 'classic-gold':
-        default:
-          return 'background: transparent; color: #5c4a24;';
-      }
-    };
-
-    const getPriceBgCss = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose': return 'background: transparent; color: #ffffff;';
-        case 'modern-teal': return 'background: transparent; color: #ffffff;';
-        case 'black-pink': return 'background: transparent; color: #f472b6;';
-        case 'vintage-kraft': return 'background: transparent; color: #3e2723;';
-        case 'classic-gold':
-        default:
-          return 'background: transparent; color: #111111;';
-      }
-    };
-
-    const getMetaColor = (themeKey) => {
-      switch(themeKey) {
-        case 'vibrant-rose': return '#fecdd3';
-        case 'modern-teal': return '#99f6e4';
-        case 'black-pink': return '#f472b6';
-        case 'vintage-kraft': return '#5d4037';
-        case 'classic-gold':
-        default:
-          return '#7a6437';
-      }
-    };
-
-    const getDiscountBadgeCss = (themeKey) => {
-      return 'background: transparent; color: #6b7280;';
-    };
-
+    // Just the barcode + its code text — no product name/price/theme card
     const getBarcodeHtml = (code) => {
       const uppercaseVal = (code || '').toUpperCase();
       const safeVal = uppercaseVal.replace(/[^A-Z0-9\-\.\ \$\/\+\%]/g, '');
       const fullVal = `*${safeVal}*`;
 
       let currentX = 0;
-      const barWidth = 1.25;
-      const height = 18;
+      const barWidth = 2;
+      const height = 50;
       let rectsHtml = '';
 
       for (let i = 0; i < fullVal.length; i++) {
@@ -913,7 +705,7 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
 
         for (let j = 0; j < pattern.length; j++) {
           if (pattern[j] === '1') {
-            rectsHtml += `<rect x="${currentX}" y="0" width="${barWidth}" height="${height}" fill="currentColor" />`;
+            rectsHtml += `<rect x="${currentX}" y="0" width="${barWidth}" height="${height}" fill="#000000" />`;
           }
           currentX += barWidth;
         }
@@ -921,118 +713,26 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
       }
 
       return `
-        <div style="background: transparent; color: inherit; box-sizing: border-box; width: 72%; margin: 8px auto 8px auto; display: flex; flex-direction: column; align-items: center; opacity: 0.9;">
-          <svg viewBox="0 0 ${currentX} ${height}" style="width: 100%; height: ${height}px; color: inherit; fill: currentColor;">
-            ${rectsHtml}
-          </svg>
-          <span style="font-size: 8px; font-family: monospace; letter-spacing: 2px; margin-top: 2px; font-weight: bold; text-transform: uppercase;">${safeVal}</span>
-        </div>
+        <svg viewBox="0 0 ${currentX} ${height}" style="width: 100%; height: ${height}px;">
+          ${rectsHtml}
+        </svg>
       `;
     };
 
+    let tagHtml = '';
     variantsToPrint.forEach((v) => {
       const code = v.sku || form.product_code || 'CODE-PENDING';
-      const size = v.size || 'ALL';
-      const colorText = v.color ? `<span style="font-size: 9px; font-weight: bold; margin-top: 4px; text-transform: uppercase; color: #4b5563;">Colour: <span style="color: ${getColorValue(v.color)};">${v.color}</span></span>` : '';
-      const codeText = `<span style="font-size: 9px; font-weight: bold; margin-top: 4px; text-transform: uppercase; color: #4b5563;">Code: <span style="color: #ffffff;">${code}</span></span>`;
-
-      // Resolve dynamic image URL for this variant
-      const getVariantImageUrl = (varItem) => {
-        if (varItem?.color) {
-          const matchExisting = existingImages.find(img => img.color === varItem.color);
-          if (matchExisting) return matchExisting.url;
-          const matchNew = images.find(img => img.color === varItem.color);
-          if (matchNew) return matchNew.preview;
-        }
-        const primaryImgObj = existingImages.find(img => img.is_primary);
-        if (primaryImgObj) return primaryImgObj.url;
-        return images[primaryNewIndex]?.preview || images[0]?.preview || '';
-      };
-
-      const vImgUrl = getVariantImageUrl(v);
-
-      const getImgBorderCss = (themeKey) => {
-        switch(themeKey) {
-          case 'vintage-kraft': return 'border: 1px solid rgba(62, 39, 35, 0.25);';
-          default: return 'border: 1px solid rgba(255, 255, 255, 0.25);';
-        }
-      };
-
-      const imgHtml = vImgUrl 
-        ? `<div style="width: 48px; height: 48px; border-radius: 8px; ${getImgBorderCss(tagStyle)} margin: 6px 0; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); flex-shrink: 0;">
-            <img src="${vImgUrl}" style="width: 100%; height: 100%; object-fit: contain; padding: 2px;" />
-           </div>`
-        : `<div style="width: 48px; height: 48px; border-radius: 8px; border: 1.5px dashed ${tagStyle === 'vintage-kraft' ? 'rgba(62, 39, 35, 0.3)' : 'rgba(255,255,255,0.3)'}; margin: 6px 0; display: flex; align-items: center; justify-content: center; opacity: 0.4; flex-shrink: 0;">
-            <span style="font-size: 8px; font-weight: bold;">TAG</span>
-           </div>`;
-
-      const priceHtml = discountPercent > 0 
-        ? `
-          <div style="display: flex; flex-direction: column; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 9px; text-decoration: line-through; text-decoration-color: #ef4444; color: #ffffff;">₹${price}</span>
-              <span style="font-size: 8px; font-weight: bold; padding: 1px 4px; border-radius: 3px; ${getDiscountBadgeCss(tagStyle)}">
-                ${discountPercent}% OFF
-              </span>
-            </div>
-            <span style="font-size: 14px; font-weight: 900; letter-spacing: 0.5px; margin-top: 2px; color: #22c55e;">₹${offerPrice}</span>
-          </div>
-        `
-        : `
-          <div style="display: flex; flex-direction: column; align-items: center;">
-            <span style="font-size: 8px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px;">MRP</span>
-            <span style="font-size: 14px; font-weight: 900; letter-spacing: 0.5px; color: #22c55e;">₹${price || '---'}</span>
-          </div>
-        `;
-
-      const barcodeHtml = includeBarcode ? getBarcodeHtml(code) : '';
-
-      tagHtml += `
-        <div class="tag-card" style="${getThemeCss(tagStyle)}">
-          ${tagStyle === 'vintage-kraft' ? '<div class="kraft-texture"></div>' : ''}
-          
-          <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-            <div style="position: relative; width: 100%; display: flex; justify-content: center; padding-top: 4px; margin-bottom: 10px;">
-              <div class="hole" style="${getHoleCss(tagStyle)}"></div>
-              <div class="string"></div>
-            </div>
-            <h2 class="brand-title">${brandName.toUpperCase()}</h2>
-            <div class="divider" style="${getLineCss(tagStyle)}"></div>
-          </div>
-
-          <div class="tag-details">
-            <span style="font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: ${getMetaColor(tagStyle)}; margin-bottom: 2px;">
-              ${categoryName}
-            </span>
-            ${imgHtml}
-            <h3 class="product-name">${name}</h3>
-            ${colorText}
-            ${codeText}
-            <div class="badge" style="color: #4b5563; ${getBadgeCss(tagStyle)}">
-              SIZE: <span style="color: #ffffff;">${size}</span>
-            </div>
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-            <div class="price-box" style="${getPriceBgCss(tagStyle)}">
-              ${priceHtml}
-            </div>
-            ${barcodeHtml}
-          </div>
-        </div>
-      `;
+      tagHtml += `<div class="barcode-label">${getBarcodeHtml(code)}</div>`;
     });
 
     const isSheet = mode === 'sheet';
+    const title = (form.name || form.product_code || 'Barcode').replace(/\s+/g, '_');
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>${name.replace(/\s+/g, '_')}_Tags</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+        <title>${title}_Barcodes</title>
         <style>
           * {
             box-sizing: border-box;
@@ -1040,120 +740,32 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
             padding: 0;
           }
           body {
-            font-family: 'Inter', sans-serif;
+            font-family: Arial, sans-serif;
             background: #f3f4f6;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          
-          .tag-card {
-            position: relative;
-            width: 2.25in;
-            height: 3.75in;
-            border-radius: 14px;
-            border: 1px solid;
-            padding: 14px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-            page-break-inside: avoid;
-          }
 
-          .kraft-texture {
-            position: absolute;
-            inset: 0;
-            opacity: 0.08;
-            pointer-events: none;
-            mix-blend-mode: multiply;
-            background-image: radial-gradient(#000 1px, transparent 1px);
-            background-size: 12px 12px;
-          }
-
-          .hole {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            border: 2px solid;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
-            z-index: 10;
-          }
-
-          .string {
-            position: absolute;
-            top: -24px;
-            width: 1px;
-            height: 28px;
-            background: rgba(156, 163, 175, 0.4);
-            z-index: 0;
-          }
-
-          .brand-title {
-            font-family: 'Cinzel', serif;
-            font-weight: 800;
-            letter-spacing: 3px;
-            font-size: 13px;
-            text-align: center;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .divider {
-            width: 40px;
-            margin: 6px auto 0 auto;
-          }
-
-          .tag-details {
+          .barcode-label {
+            width: 2in;
+            height: 1in;
+            border: 1px dashed #9ca3af;
+            border-radius: 4px;
+            background: #ffffff;
             display: flex;
             flex-direction: column;
             align-items: center;
-            flex-grow: 1;
             justify-content: center;
-            padding: 4px 0;
-            text-align: center;
-          }
-
-          .product-name {
-            font-size: 11px;
-            font-weight: 800;
-            line-height: 1.25;
-            margin-top: 2px;
-            letter-spacing: 0.2px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            max-height: 28px;
-          }
-
-          .badge {
-            margin-top: 4px;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-          }
-
-          .price-box {
-            border-radius: 9px;
             padding: 6px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            page-break-inside: avoid;
           }
 
           ${isSheet ? `
             .print-container {
               display: grid;
-              grid-template-columns: repeat(3, 2.25in);
-              gap: 0.25in;
-              padding: 0.5in;
+              grid-template-columns: repeat(4, 2in);
+              gap: 0.15in;
+              padding: 0.4in;
               justify-content: center;
               align-content: start;
               min-height: 100vh;
@@ -1167,11 +779,10 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
                 background: white;
               }
               .print-container {
-                padding: 0.5in;
+                padding: 0.4in;
               }
-              .tag-card {
-                box-shadow: none !important;
-                border: 1px dashed rgba(0,0,0,0.15) !important;
+              .barcode-label {
+                border: 1px dashed rgba(0,0,0,0.2);
               }
             }
           ` : `
@@ -1183,7 +794,7 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
               padding: 20px;
             }
             @page {
-              size: 2.25in 3.75in;
+              size: 2.25in 1.25in;
               margin: 0;
             }
             @media print {
@@ -1193,12 +804,10 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
               .print-container {
                 padding: 0;
               }
-              .tag-card {
-                border-radius: 0;
+              .barcode-label {
                 border: none !important;
-                box-shadow: none !important;
                 width: 2.25in;
-                height: 3.75in;
+                height: 1.25in;
               }
             }
           `}
@@ -1223,8 +832,13 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
   };
 
   return (
-    <Modal title={isEdit ? 'Edit Product' : 'Add Product'} onClose={onClose} size="xl">
+    <div className="max-w-4xl">
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Sticky action bar — stays visible while scrolling the long form */}
+        <div className="sticky top-0 z-10 -mx-1 px-1 pb-3 pt-1 bg-gray-50/95 backdrop-blur-sm flex items-center justify-end gap-3 border-b border-gray-100">
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" loading={loading}>{isEdit ? 'Update' : 'Create'} Product</Button>
+        </div>
 
         {/* ── 1. Basic Info ── */}
         <div className="rounded-xl border border-pink-200 bg-green-50 p-4">
@@ -1272,8 +886,68 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
         <div className="rounded-xl border border-pink-300 bg-green-50 p-4">
           <p className="text-[15px] font-bold text-pink-600 uppercase tracking-widest mb-3">Pricing &amp; Stock</p>
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Input label="Buy Price (₹)" type="number" value={form.cost_price} onChange={set('cost_price')}
+                labelClassName="text-orange-600" placeholder="0" />
+              <p className="text-[10px] text-gray-400 mt-0.5">What you paid for this item · used to calculate profit below</p>
+            </div>
             <Input label="Price (₹)" type="number" value={form.price} onChange={set('price')} required placeholder="0" />
             <Input label="Offer Price (₹)" type="number" value={form.offer_price} onChange={set('offer_price')} labelClassName="text-green-600" placeholder="0" />
+
+            {/* ── Profit Preview — Buy Price vs Price & Offer Price ── */}
+            {(() => {
+              const buyPrice = Number(form.cost_price) || 0;
+              const sellPrice = Number(form.price) || 0;
+              const offerPrice = Number(form.offer_price) || 0;
+
+              if (!buyPrice) {
+                return (
+                  <div className="col-span-2 rounded-xl border border-dashed border-gray-300 bg-white p-3 text-xs text-gray-400">
+                    Enter a Buy Price above to see profit &amp; profit % on Price and Offer Price
+                  </div>
+                );
+              }
+
+              const priceProfit = sellPrice > 0 ? sellPrice - buyPrice : 0;
+              const priceProfitPct = sellPrice > 0 ? (priceProfit / sellPrice) * 100 : 0;
+              const offerProfit = offerPrice > 0 ? offerPrice - buyPrice : 0;
+              const offerProfitPct = offerPrice > 0 ? (offerProfit / offerPrice) * 100 : 0;
+
+              const ProfitCard = ({ label, active, profit, pct }) => (
+                <div className={`rounded-xl border p-3 ${
+                  !active ? 'border-gray-200 bg-white'
+                    : profit >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
+                }`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">{label}</p>
+                  {active ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Profit</p>
+                        <p className={`text-lg font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          ₹{profit.toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Profit %</p>
+                        <p className="text-lg font-bold text-pink-800">
+                          {pct.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-1.5">Not set</p>
+                  )}
+                </div>
+              );
+
+              return (
+                <div className="col-span-2 grid grid-cols-2 gap-3">
+                  <ProfitCard label="Profit on Price" active={sellPrice > 0} profit={priceProfit} pct={priceProfitPct} />
+                  <ProfitCard label="Profit on Offer Price" active={offerPrice > 0} profit={offerProfit} pct={offerProfitPct} />
+                </div>
+              );
+            })()}
+
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-1">Default Rating (shown before reviews)</label>
               <div className="flex items-center gap-2">
@@ -1541,194 +1215,188 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
           </div>
         </div>
 
-        {/* ── 6. Product Tag Generator ── */}
+        {/* ── 6. Barcode Generator ── */}
         {(() => {
           const activeVariants = colorVariants.flatMap((cv) =>
-            cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku }))
+            cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku, stock: Number(s.stock) || 0 }))
           ).filter(v => v.size || v.color);
 
           const previewVariant = selectedVariantIndex === -1
             ? activeVariants[0] || { color: '', size: 'Free Size', sku: form.product_code || 'VL-DEMO' }
             : activeVariants[selectedVariantIndex] || { color: '', size: 'Free Size', sku: form.product_code || 'VL-DEMO' };
 
-          const selectedBrandObj = brands.find(b => String(b.id) === String(form.brand_id));
-          const brandName = selectedBrandObj?.name || 'DUNDU';
-
-          const selectedCatObj = categories.find(c => String(c.id) === String(form.category_id));
-          const categoryName = selectedCatObj?.name || 'Apparel';
-
-          const getPreviewImageUrl = (v) => {
-            if (v?.color) {
-              const matchExisting = existingImages.find(img => img.color === v.color);
-              if (matchExisting) return matchExisting.url;
-              const matchNew = images.find(img => img.color === v.color);
-              if (matchNew) return matchNew.preview;
-            }
-            const primaryImgObj = existingImages.find(img => img.is_primary);
-            if (primaryImgObj) return primaryImgObj.url;
-            return images[primaryNewIndex]?.preview || images[0]?.preview || '';
-          };
-          const previewImageUrl = getPreviewImageUrl(previewVariant);
+          const previewCode = previewVariant?.sku || form.product_code || 'CODE-PENDING';
+          const totalLabels = activeVariants.reduce((sum, v) => sum + getPrintQty(v), 0);
 
           return (
             <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-indigo-100 pb-3">
                 <div>
-                  <p className="text-[15px] font-bold text-indigo-700 uppercase tracking-widest">🏷 Product Tag Generator</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Auto-create classic & colorful professional tags for your garments</p>
+                  <p className="text-[15px] font-bold text-indigo-700 uppercase tracking-widest">Barcode Generator</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Set how many labels to print per variant, then print them all in one bulk PDF</p>
                 </div>
-                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">Preview Mode</span>
+                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">Preview</span>
               </div>
 
               <div className="flex flex-col lg:flex-row gap-6 items-start">
-                {/* Left Column: Controls */}
+                {/* Left Column: Variant quantity list + Controls */}
                 <div className="flex-grow w-full space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Select Variant</label>
-                      <select 
-                        value={selectedVariantIndex}
-                        onChange={(e) => setSelectedVariantIndex(Number(e.target.value))}
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-400 bg-white"
-                      >
-                        <option value={-1}>All Variants (Bulk PDF Sheet)</option>
+                  {activeVariants.length === 0 ? (
+                    <p className="text-xs text-gray-400 bg-white rounded-xl border border-gray-200 p-3">
+                      No colour/size variants added yet — add them in the Variants &amp; Images tab first.
+                    </p>
+                  ) : (
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="grid grid-cols-[1fr_92px] gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+                        <span>Variant · No. of Products</span>
+                        <span className="text-right">Qty to Print</span>
+                      </div>
+                      <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
                         {activeVariants.map((v, idx) => (
-                          <option key={idx} value={idx}>
-                            {v.color ? `${v.color} - ` : ''}{v.size || 'Free Size'} {v.sku ? `(${v.sku})` : ''}
-                          </option>
+                          <div
+                            key={v.sku || idx}
+                            onClick={() => setSelectedVariantIndex(idx)}
+                            className={`grid grid-cols-[1fr_92px] gap-2 px-3 py-2.5 items-center cursor-pointer transition-colors ${
+                              selectedVariantIndex === idx ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-800 truncate">
+                                {v.color ? `${v.color} · ` : ''}{v.size || 'Free Size'}
+                              </p>
+                              <p className="text-[10px] text-gray-400 font-mono truncate">{v.sku || '—'} · Stock: {v.stock}</p>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={getPrintQty(v)}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => setPrintQty((p) => ({ ...p, [v.sku]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                              className="w-full text-sm text-right border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-400"
+                            />
+                          </div>
                         ))}
-                      </select>
+                      </div>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">Tag Style</label>
-                      <select 
-                        value={tagStyle}
-                        onChange={(e) => setTagStyle(e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-400 bg-white"
-                      >
-                        {Object.entries(TAG_THEMES).map(([k, t]) => (
-                          <option key={k} value={k}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Barcode Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200">
-                    <div>
-                      <p className="text-sm font-bold text-gray-700">Include Barcode</p>
-                      <p className="text-[10px] text-gray-400">Generate a scannable Code 39 barcode representing the SKU/Code</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIncludeBarcode(!includeBarcode)}
-                      className="w-11 h-6 rounded-full relative transition-colors flex-shrink-0"
-                      style={{ backgroundColor: includeBarcode ? '#4f46e5' : '#d1d5db' }}
-                    >
-                      <span
-                        className="absolute top-1 w-4 h-4 rounded-full shadow transition-all bg-white"
-                        style={{ left: includeBarcode ? '1.5rem' : '0.25rem' }}
-                      />
-                    </button>
-                  </div>
+                  )}
 
                   {/* Export Buttons */}
-                  <div className="flex flex-wrap gap-2.5 pt-2">
+                  <div className="flex flex-wrap gap-2.5 pt-1">
                     <button
                       type="button"
                       onClick={() => handlePrintTags('single')}
-                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition-colors shadow-sm"
+                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 transition-colors shadow-sm"
                     >
-                      📥 Download PDF (Single Tag)
+                      📥 Download 1 Test Label
                     </button>
                     <button
                       type="button"
                       onClick={() => handlePrintTags('sheet')}
-                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 transition-colors shadow-sm"
+                      disabled={totalLabels === 0}
+                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      🖨 Print Bulk Sheet (A4 PDF)
+                      🖨 Print All ({totalLabels}) — Bulk PDF
                     </button>
                   </div>
                 </div>
 
-                {/* Right Column: Live Tag Preview */}
-                <div className="w-full lg:w-auto flex justify-center shrink-0 p-4 border border-dashed border-indigo-150 rounded-2xl bg-white/50">
-                  <ProductTagPreview 
-                    productData={{
-                      name: form.name,
-                      price: form.price,
-                      offer_price: form.offer_price,
-                      product_code: form.product_code,
-                      categoryName: categoryName
-                    }}
-                    variant={previewVariant}
-                    themeKey={tagStyle}
-                    includeBarcode={includeBarcode}
-                    brandName={brandName}
-                    imageUrl={previewImageUrl}
-                  />
+                {/* Right Column: Live Barcode Preview */}
+                <div className="w-full lg:w-auto flex justify-center shrink-0 p-6 border border-dashed border-indigo-200 rounded-2xl bg-white">
+                  <div className="w-56">
+                    <Barcode value={previewCode} />
+                  </div>
                 </div>
               </div>
             </div>
           );
         })()}
 
-        {/* ── Reviews (edit mode only) ── */}
-        {isEdit && (
-          <div className="border-t border-green-600 pt-5">
-            <label className="text-xs font-medium text-yellow-600 uppercase tracking-wide block mb-3">
-              Customer Reviews &amp; Ratings
-            </label>
+        {/* ── Reviews ── */}
+        <div className="border-t border-green-600 pt-5">
+          <label className="text-xs font-medium text-yellow-600 uppercase tracking-wide block mb-1">
+            Customer Reviews &amp; Ratings
+          </label>
+          {!isEdit && (
+            <p className="text-[10px] text-gray-400 mb-3">Reviews added here are saved together with the product once you hit Create.</p>
+          )}
 
-            {/* Add / Edit review form */}
-            <div className={`rounded-xl p-4 mb-4 space-y-3 ${editingReview ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50'}`}>
-              {editingReview && (
-                <p className="text-xs font-semibold text-indigo-600">Editing review by {editingReview.user_name}</p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Reviewer Name</p>
-                  <input
-                    value={reviewForm.reviewer_name}
-                    onChange={(e) => setReviewForm((p) => ({ ...p, reviewer_name: e.target.value }))}
-                    placeholder="e.g. Priya from Mumbai"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
-                  />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Rating</p>
-                  <StarPicker value={reviewForm.rating} onChange={(v) => setReviewForm((p) => ({ ...p, rating: v }))} />
-                </div>
-              </div>
+          {/* Add / Edit review form */}
+          <div className={`rounded-xl p-4 mb-4 space-y-3 ${editingReview ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50'}`}>
+            {editingReview && (
+              <p className="text-xs font-semibold text-indigo-600">
+                Editing review by {editingReview.isLocal ? pendingReviews[editingReview.index]?.reviewer_name : editingReview.user_name}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Review Text (optional)</p>
-                <textarea
-                  value={reviewForm.review}
-                  onChange={(e) => setReviewForm((p) => ({ ...p, review: e.target.value }))}
-                  placeholder="Write the review..."
-                  rows={2}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400"
+                <p className="text-xs text-gray-500 mb-1">Reviewer Name</p>
+                <input
+                  value={reviewForm.reviewer_name}
+                  onChange={(e) => setReviewForm((p) => ({ ...p, reviewer_name: e.target.value }))}
+                  placeholder="e.g. Priya from Mumbai"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                {editingReview && (
-                  <Button type="button" size="sm" variant="outline" onClick={cancelEditReview}>Cancel</Button>
-                )}
-                <Button type="button" size="sm" loading={reviewLoading} onClick={handleAddReview}>
-                  {editingReview ? 'Save Changes' : <><Plus className="h-3.5 w-3.5" /> Add Review</>}
-                </Button>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Rating</p>
+                <StarPicker value={reviewForm.rating} onChange={(v) => setReviewForm((p) => ({ ...p, rating: v }))} />
               </div>
             </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Review Text (optional)</p>
+              <textarea
+                value={reviewForm.review}
+                onChange={(e) => setReviewForm((p) => ({ ...p, review: e.target.value }))}
+                placeholder="Write the review..."
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400"
+              />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Photo (optional)</p>
+              <div className="flex items-center gap-3">
+                {(reviewForm.imagePreview || reviewForm.existingImageUrl) ? (
+                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                    <img src={reviewForm.imagePreview || reviewForm.existingImageUrl} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={removeReviewImage}
+                      className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors shrink-0 gap-0.5">
+                    <ImagePlus className="h-4 w-4 text-gray-400" />
+                    <span className="text-[9px] text-gray-400 font-medium">Add</span>
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={(e) => handleReviewImagePick(e.target.files?.[0])} />
+                  </label>
+                )}
+                <p className="text-[10px] text-gray-400">Optional customer photo shown alongside this review</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              {editingReview && (
+                <Button type="button" size="sm" variant="outline" onClick={cancelEditReview}>Cancel</Button>
+              )}
+              <Button type="button" size="sm" loading={reviewLoading} onClick={handleAddReview}>
+                {editingReview ? 'Save Changes' : <><Plus className="h-3.5 w-3.5" /> Add Review</>}
+              </Button>
+            </div>
+          </div>
 
-            {/* Existing reviews */}
-            {productReviews.length > 0 && (
+          {/* Reviews list — saved ones in edit mode, queued ones in add mode */}
+          {isEdit ? (
+            productReviews.length > 0 && (
               <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                 {productReviews.map((r) => (
                   <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-white">
-                    <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-indigo-600 font-bold text-xs">
-                      {r.user_name?.[0]?.toUpperCase() || '?'}
-                    </div>
+                    {r.image_url ? (
+                      <img src={r.image_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-indigo-600 font-bold text-xs">
+                        {r.user_name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-gray-700">{r.user_name}</span>
@@ -1757,14 +1425,49 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={loading}>{isEdit ? 'Update' : 'Create'} Product</Button>
+            )
+          ) : (
+            pendingReviews.length > 0 && (
+              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                {pendingReviews.map((r, idx) => (
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-white">
+                    {r.imagePreview ? (
+                      <img src={r.imagePreview} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-indigo-600 font-bold text-xs">
+                        {r.reviewer_name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-700">{r.reviewer_name}</span>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map((s) => (
+                            <Star key={s} className="h-3 w-3"
+                              style={{ fill: s <= r.rating ? '#facc15' : 'transparent', color: s <= r.rating ? '#facc15' : '#d1d5db' }} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">Pending save</span>
+                      </div>
+                      {r.review && <p className="text-xs text-gray-500 mt-0.5 truncate">{r.review}</p>}
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button type="button" onClick={() => startEditReview(r, idx)}
+                        className="p-1 rounded text-gray-300 hover:text-indigo-500 transition-colors">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" onClick={() => removePendingReview(idx)}
+                        className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
         </div>
+
       </form>
 
       {/* Interactive Image Cropper Modal */}
@@ -1774,6 +1477,6 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
         onClose={() => setCropperModal({ isOpen: false, imageSrc: null, imageIndex: null })}
         onCropComplete={handleCroppedImageSave}
       />
-    </Modal>
+    </div>
   );
 }

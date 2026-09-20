@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Svg, { Defs, Mask, Rect, Path, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import useScratchCardStore from '../../store/scratchCard.store';
+import usePopupCoordinator from '../../store/popupCoordinator.store';
 import useAuthStore from '../../store/auth.store';
 import { API_URL, COLORS } from '../../config';
 
@@ -74,6 +75,7 @@ const getGiftTheme = (prize) => {
 export default function ScratchCardModal() {
   const { isOpen, closeScratchCard } = useScratchCardStore();
   const { user: authUser, isAuthenticated } = useAuthStore();
+  const activePopup = usePopupCoordinator((s) => s.activePopup);
 
   const [loading, setLoading] = useState(false);
   const [config, setConfig] = useState(null);
@@ -91,6 +93,7 @@ export default function ScratchCardModal() {
 
   useEffect(() => {
     if (isOpen) {
+      usePopupCoordinator.getState().requestPopup('scratch_card');
       setIsRevealed(false);
       setPrize(null);
       setTouchPos(null);
@@ -206,12 +209,18 @@ export default function ScratchCardModal() {
     Alert.alert('Copied! 🎉', `Coupon code "${code}" copied to clipboard!`);
   };
 
+  const handleCloseModal = () => {
+    usePopupCoordinator.getState().releasePopup('scratch_card');
+    closeScratchCard();
+  };
+
   if (!isOpen) return null;
+  if (activePopup && activePopup !== 'scratch_card') return null;
 
   const currentTheme = getGiftTheme(prize);
 
   return (
-    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={closeScratchCard}>
+    <Modal visible={isOpen} transparent animationType="fade" onRequestClose={handleCloseModal}>
       <View style={styles.overlay}>
         <View style={styles.cardModal}>
           {/* Top Hot Pink Ribbon */}
@@ -220,7 +229,7 @@ export default function ScratchCardModal() {
           </View>
 
           {/* Close button */}
-          <TouchableOpacity style={styles.closeBtn} onPress={closeScratchCard} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.closeBtn} onPress={handleCloseModal} activeOpacity={0.8}>
             <Text style={styles.closeBtnText}>✕</Text>
           </TouchableOpacity>
 
@@ -330,7 +339,7 @@ export default function ScratchCardModal() {
 
           {/* Footer controls (Shown ONLY after user completes finger scratching) */}
           {isRevealed && (
-            <TouchableOpacity style={styles.doneBtn} onPress={closeScratchCard} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.doneBtn} onPress={handleCloseModal} activeOpacity={0.85}>
               <Text style={styles.doneBtnText}>CLAIM & CONTINUE</Text>
             </TouchableOpacity>
           )}
