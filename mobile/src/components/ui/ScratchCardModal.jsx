@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Modal,
   View,
@@ -17,6 +18,12 @@ import useScratchCardStore from '../../store/scratchCard.store';
 import usePopupCoordinator from '../../store/popupCoordinator.store';
 import useAuthStore from '../../store/auth.store';
 import { API_URL, COLORS } from '../../config';
+
+// Prize endpoints identify the customer from the JWT, so every call must carry it.
+const authHeaders = async () => {
+  const token = (await AsyncStorage.getItem('dundu_token')) || (await AsyncStorage.getItem('velora_token'));
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 const BOX_SIZE = 240;
 
@@ -104,11 +111,8 @@ export default function ScratchCardModal() {
       foilOpacity.setValue(1);
       prizeScale.setValue(0.7);
 
-      const params = new URLSearchParams();
-      if (authUser?.id) params.append('user_id', authUser.id);
-      if (authUser?.phone) params.append('phone', authUser.phone);
-
-      fetch(`${API_URL}/scratch-card/config?${params.toString()}`)
+      authHeaders()
+        .then((headers) => fetch(`${API_URL}/scratch-card/config`, { headers }))
         .then((r) => r.json())
         .then((res) => {
           if (res?.success) {
@@ -128,11 +132,8 @@ export default function ScratchCardModal() {
     try {
       const res = await fetch(`${API_URL}/scratch-card/reveal`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: authUser?.id || null,
-          phone: authUser?.phone || null,
-        }),
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data?.success && data?.data?.prize) {

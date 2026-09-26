@@ -12,13 +12,16 @@ const loginRules = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+const phoneRule = () =>
+  body('phone').isString().trim().matches(/^\+?[0-9]{10,15}$/).withMessage('Valid phone number is required');
+
 const sendOtpRules = [
-  body('phone').notEmpty().withMessage('Phone number is required'),
+  phoneRule(),
 ];
 
 const verifyOtpRules = [
-  body('phone').notEmpty().withMessage('Phone number is required'),
-  body('otp').notEmpty().withMessage('OTP code is required'),
+  phoneRule(),
+  body('otp').isString().trim().matches(/^[0-9]{4,10}$/).withMessage('OTP code is required'),
 ];
 
 const forgotPasswordRules = [
@@ -27,7 +30,7 @@ const forgotPasswordRules = [
 
 const resetPasswordRules = [
   body('email').isEmail().withMessage('Valid email is required'),
-  body('otp').notEmpty().withMessage('OTP is required'),
+  body('otp').isString().trim().matches(/^[0-9]{4,10}$/).withMessage('OTP is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
 ];
 

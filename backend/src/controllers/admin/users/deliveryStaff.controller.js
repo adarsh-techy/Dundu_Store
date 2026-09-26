@@ -4,9 +4,11 @@ const { ok, notFound, badRequest } = require('../../../utils/response');
 
 const list = async (_req, res) => {
   const { rows } = await db.query(
-    `SELECT id, name, email, phone, is_blocked, created_at
-     FROM users WHERE role='delivery_staff'
-     ORDER BY created_at DESC`
+    `SELECT u.id, u.name, u.email, u.phone, u.is_blocked, u.created_at,
+            (SELECT COUNT(*) FROM orders o WHERE o.picked_up_by = u.id) AS total_pickups,
+            (SELECT COUNT(*) FROM orders o WHERE o.delivered_by = u.id) AS total_deliveries
+     FROM users u WHERE u.role='delivery_staff'
+     ORDER BY u.created_at DESC`
   );
   ok(res, { staff: rows });
 };

@@ -1,20 +1,32 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingBag, Heart, User, Search, Star, Tag, Wallet } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingBag, Heart, User, Search, Star, Tag, Wallet, Package, LogOut, ChevronDown, X, Sparkles, Gift } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import useAuthStore from '../../store/auth.store';
 import useCartStore from '../../store/cart.store';
 import { categoryApi } from '../../api';
+import logo from '../../assets/logo.png';
 
+const NAV = [
+  { to: '/products', label: 'Shop' },
+  { to: '/products?new_arrival=true', label: 'New In', icon: Sparkles },
+  { to: '/products?offer=true', label: 'Offers', icon: Tag, accent: true },
+  { to: '/combos', label: 'Combos', icon: Gift },
+];
 
 export default function Header() {
   const { user, logout } = useAuthStore();
-  const { totalItems, openCart } = useCartStore();
+  const { totalItems, openCart, lastAdded } = useCartStore();
   const [search, setSearch] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const menuRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const activeCategory = new URLSearchParams(location.search).get('category') || '';
-  const isOfferPage = new URLSearchParams(location.search).get('offer') === 'true';
+  const params = new URLSearchParams(location.search);
+  const activeCategory = params.get('category') || '';
+  const isOfferPage = params.get('offer') === 'true';
+  const count = totalItems();
 
   const { data: catData } = useQuery({
     queryKey: ['categories-nav'],
@@ -23,162 +35,172 @@ export default function Header() {
   });
   const categories = catData?.data?.categories || [];
 
+  // Close the account menu on outside click; links inside it close it on navigation.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [menuOpen]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (search.trim()) {
       navigate(`/products?search=${encodeURIComponent(search.trim())}`);
       setSearch('');
+      setSearchOpen(false);
     }
   };
 
+  const searchBox = (cls = '') => (
+    <form onSubmit={handleSearch} className={cls} role="search">
+      <div className="relative w-full">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-faint pointer-events-none" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search dresses, kids wear, maternity…"
+          aria-label="Search products"
+          autoFocus={searchOpen}
+          className="input pl-10 pr-9 h-10 rounded-full bg-surface"
+        />
+        {search && (
+          <button type="button" onClick={() => setSearch('')} aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-faint hover:text-ink">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </form>
+  );
+
+  const iconBtn = 'relative flex flex-col items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-xl text-muted hover:text-ink hover:bg-white/5 transition-colors';
+
   return (
-    <header>
-      {/* ── Top navbar ── */}
-      <div className="bg-black">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center gap-4 h-16">
-            <Link to="/" className="text-2xl font-black tracking-widest shrink-0 text-pink-600">
-              DUNDU
-            </Link>
+    <header className="glass border-b border-line">
+      {/* ── Top bar ── */}
+      <div className="container-x">
+        <div className="flex items-center gap-3 md:gap-6 h-16">
+          <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Dundu home">
+            <img src={logo} alt="" className="h-9 w-9 object-contain drop-shadow-[0_0_12px_rgba(233,30,140,.45)]" />
+            <span className="font-display text-[1.45rem] font-semibold tracking-wide text-ink">Dundu</span>
+          </Link>
 
-            {/* Search — desktop only */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:flex">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#888' }} />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search for products, brands and more..."
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg focus:outline-none"
-                  style={{ backgroundColor: '#2a2a2a', border: '1px solid #2e2e2e', color: '#f5f5f5' }}
-                  onFocus={(e) => { e.target.style.borderColor = '#e91e8c'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#2e2e2e'; }}
-                />
-              </div>
-            </form>
-
-            {/* Right icons */}
-            <div className="flex items-center gap-1 ml-auto">
-              {user ? (
-                <div className="relative group">
-                  <Link to="/profile" className="flex flex-col items-center px-3 py-1 rounded-lg hover:bg-white/5 transition-colors">
-                    <User className="h-5 w-5 text-white" />
-                    <span className="text-[10px] mt-0.5" style={{ color: '#bbb' }}>{user.name?.split(' ')[0]}</span>
-                  </Link>
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-xl shadow-2xl py-1 hidden group-hover:block z-50"
-                    style={{ backgroundColor: '#1e1e1e', border: '1px solid #2e2e2e' }}>
-                    <Link to="/profile" className="block px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 hover:text-white transition-colors">My Profile</Link>
-                    <Link to="/orders" className="block px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 hover:text-white transition-colors">My Orders</Link>
-                    <Link to="/wishlist" className="block px-4 py-2.5 text-sm text-gray-200 hover:bg-white/5 hover:text-white transition-colors">Wishlist</Link>
-                    <Link to="/loyalty-card" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors" style={{ color: '#e91e8c' }}>
-                      <Star className="h-3.5 w-3.5" /> My Loyalty Card
-                    </Link>
-                    <Link to="/wallet" className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/5 transition-colors" style={{ color: '#e91e8c' }}>
-                      <Wallet className="h-3.5 w-3.5" /> My Wallet
-                    </Link>
-                    <hr style={{ borderColor: '#2e2e2e', margin: '4px 0' }} />
-                    <button onClick={logout} className="block w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/5" style={{ color: '#e91e8c' }}>
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <Link to="/login" className="flex flex-col items-center px-3 py-1 rounded-lg hover:bg-white/5 transition-colors">
-                  <User className="h-5 w-5 text-white" />
-                  <span className="text-[10px] mt-0.5" style={{ color: '#bbb' }}>Login</span>
-                </Link>
-              )}
-
-              <Link to="/wishlist" className="flex flex-col items-center px-3 py-1 rounded-lg hover:bg-white/5 transition-colors">
-                <Heart className="h-5 w-5 text-white" />
-                <span className="text-[10px] mt-0.5" style={{ color: '#bbb' }}>Wishlist</span>
-              </Link>
-
-              <button onClick={openCart} className="flex flex-col items-center px-3 py-1 rounded-lg hover:bg-white/5 transition-colors relative">
-                <div className="relative">
-                  <ShoppingBag className="h-5 w-5 text-white" />
-                  {totalItems() > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#e91e8c' }}>
-                      {totalItems()}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] mt-0.5" style={{ color: '#bbb' }}>Cart</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Mobile: Search bar ── */}
-      <div className="md:hidden px-4 py-2" style={{ backgroundColor: '#0d0d0d', borderBottom: '1px solid #1e1e1e' }}>
-        <form onSubmit={handleSearch}>
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#666' }} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products, brands..."
-              className="w-full pl-10 pr-4 py-2 text-sm rounded-xl focus:outline-none"
-              style={{ backgroundColor: '#1a1a1a', border: '1px solid #2e2e2e', color: '#f5f5f5' }}
-              onFocus={(e) => { e.target.style.borderColor = '#e91e8c'; }}
-              onBlur={(e) => { e.target.style.borderColor = '#2e2e2e'; }}
-            />
-          </div>
-        </form>
-      </div>
-
-      {/* ── Category circle strip (mobile + desktop) ── */}
-      <div style={{ backgroundColor: '#0d0d0d', borderBottom: '2px solid #e91e8c' }}>
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-4 md:gap-6 overflow-x-auto py-2 md:py-3"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-
-            {/* Offers bubble */}
-            <Link to="/products?offer=true" className="flex flex-col items-center gap-1 shrink-0">
-              <div className="w-11 h-11 md:w-14 md:h-14 rounded-full flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #e91e8c, #ff6b35)',
-                  boxShadow: isOfferPage ? '0 0 0 3px #3b82f6, 0 3px 8px rgba(59,130,246,0.4)' : '0 3px 8px rgba(233,30,140,0.4)',
-                }}>
-                <Tag className="h-5 w-5 md:h-6 md:w-6 text-white" />
-              </div>
-              <span className="text-[10px] md:text-xs font-semibold" style={{ color: isOfferPage ? '#3b82f6' : '#f5f5f5' }}>Offers</span>
-            </Link>
-
-            {/* Dynamic categories */}
-            {categories.map((c) => {
-              const isActive = activeCategory === c.slug;
+          <nav className="hidden lg:flex items-center gap-1 ml-2" aria-label="Main">
+            {NAV.map((n) => {
+              const active = location.pathname + location.search === n.to || (n.to === '/products' && location.pathname === '/products' && !location.search);
               return (
-                <Link key={c.id} to={`/products?category=${c.slug}`}
-                  className="flex flex-col items-center gap-1 shrink-0">
-                  <div className="w-11 h-11 md:w-14 md:h-14 rounded-full overflow-hidden"
-                    style={{
-                      border: isActive ? '2.5px solid #3b82f6' : '2px solid #2e2e2e',
-                      backgroundColor: '#1a1a1a',
-                      boxShadow: isActive ? '0 0 0 2px rgba(59,130,246,0.3)' : 'none',
-                    }}>
-                    {c.image_url
-                      ? <img src={c.image_url} alt={c.name} className="w-full h-full object-cover" loading="lazy" />
-                      : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-base"
-                          style={{ color: '#e91e8c', backgroundColor: '#1a0a12' }}>
-                          {c.name[0]}
-                        </div>
-                      )
-                    }
-                  </div>
-                  <span className="text-[10px] md:text-xs font-medium text-center leading-tight"
-                    style={{ color: isActive ? '#3b82f6' : '#ddd', maxWidth: '56px', fontWeight: isActive ? 700 : 500 }}>
-                    {c.name}
-                  </span>
+                <Link key={n.to} to={n.to}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${active ? 'text-primary-soft bg-primary/10' : n.accent ? 'text-primary-soft hover:bg-primary/10' : 'text-ink-2 hover:text-ink hover:bg-white/5'}`}>
+                  {n.label}
                 </Link>
               );
             })}
+          </nav>
+
+          {searchBox('flex-1 max-w-xl hidden md:flex')}
+
+          <div className="flex items-center gap-0.5 ml-auto">
+            {user ? (
+              <div className="relative" ref={menuRef}>
+                <button onClick={() => setMenuOpen((o) => !o)} className={iconBtn} aria-haspopup="menu" aria-expanded={menuOpen}>
+                  <span className="flex items-center gap-1">
+                    <span className="h-6 w-6 rounded-full bg-primary/20 text-primary-soft text-xs font-bold flex items-center justify-center">
+                      {(user.name || 'U').trim()[0]?.toUpperCase()}
+                    </span>
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                  </span>
+                  <span className="text-[10px] max-w-16 truncate">{user.name?.split(' ')[0]}</span>
+                </button>
+                {menuOpen && (
+                  <div role="menu" className="absolute right-0 top-full mt-2 w-56 card p-1.5 animate-fade-up z-50">
+                    <div className="px-3 py-2.5 border-b border-line mb-1">
+                      <p className="text-sm font-semibold text-ink truncate">{user.name}</p>
+                      <p className="text-xs text-muted truncate">{user.email || user.phone}</p>
+                    </div>
+                    {[
+                      ['/profile', 'My Profile', User],
+                      ['/orders', 'My Orders', Package],
+                      ['/wishlist', 'Wishlist', Heart],
+                      ['/loyalty-card', 'Loyalty Card', Star],
+                      ['/wallet', 'Wallet', Wallet],
+                    ].map(([to, label, Icon]) => (
+                      <Link key={to} to={to} role="menuitem" onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-ink-2 hover:bg-white/5 hover:text-ink">
+                        <Icon className="h-4 w-4 text-muted" />{label}
+                      </Link>
+                    ))}
+                    <button onClick={() => { setMenuOpen(false); logout(); navigate('/'); }} role="menuitem"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-primary-soft hover:bg-primary/10 mt-1">
+                      <LogOut className="h-4 w-4" />Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link to="/login" className={iconBtn}>
+                <User className="h-5 w-5" />
+                <span className="text-[10px]">Login</span>
+              </Link>
+            )}
+
+            <button onClick={() => setSearchOpen((o) => !o)} className={`${iconBtn} md:hidden`} aria-label="Search" aria-expanded={searchOpen}>
+              <Search className="h-5 w-5" />
+              <span className="text-[10px]">Search</span>
+            </button>
+
+            <Link to="/wishlist" className={`${iconBtn} hidden md:flex`}>
+              <Heart className="h-5 w-5" />
+              <span className="text-[10px]">Wishlist</span>
+            </Link>
+
+            <button onClick={openCart} className={iconBtn} aria-label={`Open cart, ${count} items`}>
+              <span className="relative">
+                <ShoppingBag className="h-5 w-5" />
+                {count > 0 && (
+                  <span key={lastAdded || 'badge'} className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center animate-pop">
+                    {count}
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px]">Cart</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* ── Mobile search (toggled) ── */}
+      {searchOpen && <div className="md:hidden container-x pb-2.5 animate-fade-in">{searchBox()}</div>}
+
+      {/* ── Category strip ── */}
+      {(categories.length > 0) && (
+        <div className="border-t border-line/70">
+          <div className="container-x">
+            <div className="flex gap-4 md:gap-6 overflow-x-auto py-2.5 md:py-3 scrollbar-none">
+              <Link to="/products?offer=true" className="flex flex-col items-center gap-1.5 shrink-0 group">
+                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-transform group-hover:scale-105 ${isOfferPage ? 'ring-2 ring-offset-2 ring-offset-bg ring-primary' : ''}`}
+                  style={{ background: 'linear-gradient(135deg, #e91e8c, #ff7a3d)', boxShadow: '0 6px 18px -6px rgba(233,30,140,.7)' }}>
+                  <Tag className="h-5 w-5 text-white" />
+                </div>
+                <span className={`text-[11px] font-semibold ${isOfferPage ? 'text-primary-soft' : 'text-ink-2'}`}>Offers</span>
+              </Link>
+              {categories.map((c) => {
+                const isActive = activeCategory === c.slug;
+                return (
+                  <NavLink key={c.id} to={`/products?category=${c.slug}`} className="flex flex-col items-center gap-1.5 shrink-0 group">
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden bg-elevated border transition-all group-hover:scale-105 ${isActive ? 'border-primary ring-2 ring-primary/30' : 'border-line'}`}>
+                      {c.image_url
+                        ? <img src={c.image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        : <div className="w-full h-full flex items-center justify-center font-display text-lg text-primary-soft bg-primary/10">{c.name[0]}</div>}
+                    </div>
+                    <span className={`text-[11px] font-semibold text-center leading-tight max-w-16 truncate ${isActive ? 'text-primary-soft' : 'text-ink-2'}`}>{c.name}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

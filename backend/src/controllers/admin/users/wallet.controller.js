@@ -81,24 +81,45 @@ const adjust = async (req, res) => {
   if (!(amt > 0)) return badRequest(res, 'Amount must be greater than 0');
   if (!note || !note.trim()) return badRequest(res, 'A note explaining the adjustment is required');
 
-  const { rows: userRows } = await db.query('SELECT id FROM users WHERE id=$1', [userId]);
+  const { rows: userRows } = await db.query('SELECT id, role FROM users WHERE id=$1', [userId]);
   if (!userRows.length) return notFound(res, 'User not found');
+  if (userRows[0].role !== 'user') return badRequest(res, 'Only customer accounts have a wallet');
+  if (userId === req.user.id) return badRequest(res, 'You cannot adjust your own wallet');
 
-  const fn = type === 'credit' ? walletService.credit : walletService.debit;
-  const result = await fn(db, {
-    userId,
-    amount: amt,
-    reason: type === 'credit' ? 'admin_credit' : 'admin_debit',
-    referenceType: 'admin',
-    referenceId: req.user.id,
-    note: note.trim(),
-    createdBy: req.user.id,
-  });
+  // Per-adjustment ceiling (setting `wallet_max_adjustment`, default ₹10,000) — super admins may exceed it.
+  const { rows: capRows } = await db.query("SELECT value FROM settings WHERE key='wallet_max_adjustment'");
+  const cap = parseFloat(capRows[0]?.value) || 10000;
+  if (req.user.role !== 'super_admin' && amt > cap) {
+    return badRequest(res, `Adjustments above ₹${cap} need a super admin`);
+  }
+
+  const client = await db.getClient();
+  let result;
+  try {
+    await client.query('BEGIN');
+    const fn = type === 'credit' ? walletService.credit : walletService.debit;
+    result = await fn(client, {
+      userId,
+      amount: amt,
+      reason: type === 'credit' ? 'admin_credit' : 'admin_debit',
+      referenceType: 'admin',
+      referenceId: req.user.id,
+      note: note.trim(),
+      createdBy: req.user.id,
+    });
+    if (type === 'debit' && result?.success === false) {
+      await client.query('ROLLBACK');
+      return badRequest(res, `Insufficient wallet balance (current: ₹${Number(result.wallet.balance).toFixed(2)})`);
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 
   const wallet = result?.wallet ?? result; // credit() returns the wallet directly; debit() returns {success, wallet}
-  if (type === 'debit' && result?.success === false) {
-    return badRequest(res, `Insufficient wallet balance (current: ₹${Number(wallet.balance).toFixed(2)})`);
-  }
 
   ok(res, { balance: Number(wallet.balance) }, `Wallet ${type === 'credit' ? 'credited' : 'debited'}`);
 };

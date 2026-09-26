@@ -1,7 +1,9 @@
 const router = require('express').Router();
 const db = require('../config/db');
-const { ok } = require('../utils/response');
+const { ok, badRequest } = require('../utils/response');
 const ah = require('../utils/asyncHandler');
+const { authenticate, authenticateOptional } = require('../middleware/auth/auth.middleware');
+const { rewardLimiter } = require('../middleware/rateLimit.middleware');
 const { formatEstimateText } = require('../utils/delivery');
 
 // ── Customer & Domain Route Registrations ──────────────────────────────────
@@ -45,7 +47,7 @@ router.get('/settings/splash', async (_req, res) => {
 router.get('/settings/payment', async (_req, res) => {
   try {
     const { rows } = await db.query(
-      "SELECT key, value FROM settings WHERE key IN ('cod_enabled','delivery_charge','free_delivery_threshold','coupon_field_enabled','birthday_discount','birthday_popup_enabled','update_available','update_message','latest_version','offer_badge_color','offer_badge_text_color','delivery_estimate_min_days','delivery_estimate_max_days')"
+      "SELECT key, value FROM settings WHERE key IN ('cod_enabled','delivery_charge','free_delivery_threshold','coupon_field_enabled','birthday_discount','birthday_popup_enabled','update_available','update_message','latest_version','offer_badge_color','offer_badge_text_color','delivery_estimate_min_days','delivery_estimate_max_days','loyalty_redeem_points','loyalty_redeem_discount','wallet_enabled','wallet_min_order_amount','wallet_max_usage_percent','wallet_max_discount_cap')"
     );
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     const deliveryEstimateMinDays = parseInt(map.delivery_estimate_min_days ?? '3', 10);
@@ -65,6 +67,14 @@ router.get('/settings/payment', async (_req, res) => {
       delivery_estimate_min_days: deliveryEstimateMinDays,
       delivery_estimate_max_days: deliveryEstimateMaxDays,
       delivery_estimate_text: formatEstimateText(deliveryEstimateMinDays, deliveryEstimateMaxDays),
+      loyalty_redeem_points: parseInt(map.loyalty_redeem_points ?? '200', 10),
+      loyalty_redeem_discount: parseFloat(map.loyalty_redeem_discount ?? '200'),
+      wallet: {
+        enabled: map.wallet_enabled !== 'false',
+        min_order_amount: parseFloat(map.wallet_min_order_amount ?? '0'),
+        max_usage_percent: parseInt(map.wallet_max_usage_percent ?? '100', 10),
+        max_discount_cap: parseFloat(map.wallet_max_discount_cap ?? '0'),
+      },
     });
   } catch {
     ok(res, {
@@ -183,91 +193,94 @@ router.get('/first-purchase/config', ah(async (_req, res) => {
   }
 }));
 
-// Public Scratch & Win config
-router.get('/scratch-card/config', ah(async (req, res) => {
+// ── Scratch & Win ────────────────────────────────────────────────────────────
+// Identity always comes from the JWT (never from the body/query), and the eligibility
+// rules shown by /config are the same ones enforced by /reveal.
+const SCRATCH_KEYS = [
+  'scratch_card_enabled',
+  'scratch_card_min_order',
+  'scratch_card_payment_methods',
+  'scratch_card_auto_grant',
+  'scratch_card_title',
+  'scratch_card_subtitle',
+  'scratch_card_foil_color',
+  'scratch_card_min_orders',
+  'scratch_card_active_from',
+  'scratch_card_active_until',
+  'scratch_card_max_per_day',
+  'scratch_card_cooldown_hours',
+];
+
+const getScratchState = async (user, q = db) => {
+  const { rows } = await q.query(`SELECT key, value FROM settings WHERE key = ANY($1)`, [SCRATCH_KEYS]);
+  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+
+  let isForced = false;
+  let userOrderCount = 0;
+  let lastScratchAt = null;
+  let scratchesToday = 0;
+
+  if (user) {
+    const uRes = await q.query(
+      'SELECT id, force_scratch_popup, last_scratch_at FROM users WHERE id = $1', [user.id]
+    );
+    if (uRes.rows.length) {
+      const uRow = uRes.rows[0];
+      if (uRow.force_scratch_popup) isForced = true;
+      lastScratchAt = uRow.last_scratch_at;
+    }
+    const orderRes = await q.query(
+      `SELECT COUNT(*)::int AS count FROM orders WHERE user_id=$1 AND status != 'cancelled'`, [user.id]
+    );
+    userOrderCount = orderRes.rows[0]?.count || 0;
+    const todayRes = await q.query(
+      `SELECT COUNT(*)::int AS count FROM scratch_card_logs WHERE user_id=$1 AND scratched_at >= date_trunc('day', now())`,
+      [user.id]
+    ).catch(() => ({ rows: [{ count: 0 }] }));
+    scratchesToday = todayRes.rows[0]?.count || 0;
+  }
+
+  const now = new Date();
+  let isScheduleActive = true;
+  if (map.scratch_card_active_from) {
+    const fromDate = new Date(map.scratch_card_active_from);
+    if (!isNaN(fromDate.getTime()) && now < fromDate) isScheduleActive = false;
+  }
+  if (map.scratch_card_active_until) {
+    const untilDate = new Date(map.scratch_card_active_until);
+    if (!isNaN(untilDate.getTime()) && now > untilDate) isScheduleActive = false;
+  }
+
+  const minOrdersRequired = parseInt(map.scratch_card_min_orders ?? '0', 10);
+  const meetsOrderRequirement = minOrdersRequired === 0 || userOrderCount >= minOrdersRequired;
+
+  const cooldownHours = parseFloat(map.scratch_card_cooldown_hours ?? '24');
+  let isCooldownActive = false;
+  if (lastScratchAt) {
+    const hoursSinceLast = (now.getTime() - new Date(lastScratchAt).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceLast < cooldownHours) isCooldownActive = true;
+  }
+  const maxPerDay = parseInt(map.scratch_card_max_per_day ?? '1', 10);
+  const overDailyCap = maxPerDay > 0 && scratchesToday >= maxPerDay;
+
+  const isGloballyEnabled = map.scratch_card_enabled !== 'false';
+  const isEligible = !!user && (isForced || (isGloballyEnabled && isScheduleActive && meetsOrderRequirement && !isCooldownActive && !overDailyCap));
+
+  return {
+    map, isForced, isGloballyEnabled, isEligible, minOrdersRequired, userOrderCount,
+  };
+};
+
+router.get('/scratch-card/config', authenticateOptional, ah(async (req, res) => {
   try {
-    const { phone, user_id } = req.query;
-    const KEYS = [
-      'scratch_card_enabled',
-      'scratch_card_min_order',
-      'scratch_card_payment_methods',
-      'scratch_card_auto_grant',
-      'scratch_card_title',
-      'scratch_card_subtitle',
-      'scratch_card_foil_color',
-      'scratch_card_min_orders',
-      'scratch_card_active_from',
-      'scratch_card_active_until',
-      'scratch_card_max_per_day',
-      'scratch_card_cooldown_hours',
-    ];
-    const { rows } = await db.query(`SELECT key, value FROM settings WHERE key = ANY($1)`, [KEYS]);
-    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-
-    let is_forced = false;
-    let userOrderCount = 0;
-    let lastScratchAt = null;
-
-    if (user_id || phone) {
-      let uSql = 'SELECT id, force_scratch_popup, last_scratch_at FROM users WHERE ';
-      const uParams = [];
-      if (user_id) {
-        uParams.push(user_id);
-        uSql += `id = $${uParams.length}`;
-      }
-      if (phone) {
-        if (user_id) uSql += ' OR ';
-        uParams.push(phone);
-        uSql += `RIGHT(phone, 10) = RIGHT($${uParams.length}, 10)`;
-      }
-      const uRes = await db.query(uSql, uParams).catch(() => ({ rows: [] }));
-      if (uRes.rows.length > 0) {
-        const uRow = uRes.rows[0];
-        if (uRow.force_scratch_popup) is_forced = true;
-        lastScratchAt = uRow.last_scratch_at;
-
-        // Get user order count
-        const orderRes = await db.query(
-          `SELECT COUNT(*)::int AS count FROM orders WHERE user_id=$1 AND status != 'cancelled'`,
-          [uRow.id]
-        ).catch(() => ({ rows: [{ count: 0 }] }));
-        userOrderCount = orderRes.rows[0]?.count || 0;
-      }
-    }
-
-    // Schedule check (Active From & Until)
-    const now = new Date();
-    let isScheduleActive = true;
-    if (map.scratch_card_active_from) {
-      const fromDate = new Date(map.scratch_card_active_from);
-      if (!isNaN(fromDate.getTime()) && now < fromDate) isScheduleActive = false;
-    }
-    if (map.scratch_card_active_until) {
-      const untilDate = new Date(map.scratch_card_active_until);
-      if (!isNaN(untilDate.getTime()) && now > untilDate) isScheduleActive = false;
-    }
-
-    // Min orders threshold check
-    const minOrdersRequired = parseInt(map.scratch_card_min_orders ?? '0', 10);
-    const meetsOrderRequirement = minOrdersRequired === 0 || userOrderCount >= minOrdersRequired;
-
-    // Cooldown check
-    const cooldownHours = parseFloat(map.scratch_card_cooldown_hours ?? '24');
-    let isCooldownActive = false;
-    if (lastScratchAt) {
-      const hoursSinceLast = (now.getTime() - new Date(lastScratchAt).getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLast < cooldownHours) isCooldownActive = true;
-    }
-
-    const isGloballyEnabled = map.scratch_card_enabled !== 'false';
-    const isEligible = is_forced || (isGloballyEnabled && isScheduleActive && meetsOrderRequirement && !isCooldownActive);
-
+    const st = await getScratchState(req.user || null);
+    const { map } = st;
     ok(res, {
-      enabled: isGloballyEnabled,
-      is_eligible: isEligible,
+      enabled: st.isGloballyEnabled,
+      is_eligible: st.isEligible,
       min_order: parseFloat(map.scratch_card_min_order ?? '499'),
-      min_orders: minOrdersRequired,
-      user_orders_count: userOrderCount,
+      min_orders: st.minOrdersRequired,
+      user_orders_count: st.userOrderCount,
       active_from: map.scratch_card_active_from || '',
       active_until: map.scratch_card_active_until || '',
       payment_methods: map.scratch_card_payment_methods || 'all',
@@ -275,12 +288,12 @@ router.get('/scratch-card/config', ah(async (req, res) => {
       title: map.scratch_card_title || ' Scratch & Win Guaranteed Prizes!',
       subtitle: map.scratch_card_subtitle || 'Scratch the card to reveal your instant discount reward!',
       foil_color: map.scratch_card_foil_color || '#C0C0C0',
-      is_forced,
+      is_forced: st.isForced,
     });
   } catch {
     ok(res, {
-      enabled: true,
-      is_eligible: true,
+      enabled: false,
+      is_eligible: false,
       min_order: 499,
       min_orders: 0,
       payment_methods: 'all',
@@ -293,12 +306,34 @@ router.get('/scratch-card/config', ah(async (req, res) => {
   }
 }));
 
-// Customer Scratch reveal endpoint
-router.post('/scratch-card/reveal', ah(async (req, res) => {
-  const { user_id, phone, order_id } = req.body;
+// Customer Scratch reveal endpoint (login required; eligibility enforced server-side)
+router.post('/scratch-card/reveal', authenticate, rewardLimiter, ah(async (req, res) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    // Per-user lock: parallel reveals must not each pass the eligibility check.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`scratch:${req.user.id}`]);
+    await revealInner(req, res, client);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}));
 
-  const prizesRes = await db.query('SELECT * FROM scratch_card_prizes WHERE is_active=true');
+const revealInner = async (req, res, q) => {
+  const st = await getScratchState(req.user, q);
+  if (!st.isEligible) return badRequest(res, 'You are not eligible to scratch a card right now.');
+
+  const prizesRes = await q.query('SELECT * FROM scratch_card_prizes WHERE is_active=true');
   const prizes = prizesRes.rows;
+
+  // Record the attempt first (and clear any forced popup) so a retry cannot re-roll.
+  await q.query(
+    'UPDATE users SET force_scratch_popup = false, last_scratch_at = NOW() WHERE id = $1', [req.user.id]
+  );
 
   if (prizes.length === 0) {
     return ok(res, {
@@ -306,79 +341,60 @@ router.post('/scratch-card/reveal', ah(async (req, res) => {
     });
   }
 
-  const totalWeight = prizes.reduce((sum, p) => sum + (p.probability || 10), 0);
+  const totalWeight = prizes.reduce((sum, p) => sum + (Number(p.probability) || 10), 0);
   let randomNum = Math.random() * totalWeight;
   let selectedPrize = prizes[0];
 
   for (const prize of prizes) {
-    if (randomNum < (prize.probability || 10)) {
+    if (randomNum < (Number(prize.probability) || 10)) {
       selectedPrize = prize;
       break;
     }
-    randomNum -= (prize.probability || 10);
+    randomNum -= (Number(prize.probability) || 10);
   }
 
-  if (user_id || phone) {
-    let updateSql = 'UPDATE users SET force_scratch_popup = false, last_scratch_at = NOW() WHERE ';
-    const updateParams = [];
-    if (user_id) {
-      updateParams.push(user_id);
-      updateSql += `id = $${updateParams.length}`;
-    }
-    if (phone) {
-      if (user_id) updateSql += ' OR ';
-      updateParams.push(phone);
-      updateSql += `RIGHT(phone, 10) = RIGHT($${updateParams.length}, 10)`;
-    }
-    await db.query(updateSql, updateParams).catch(() => {});
+  // Prize coupon codes are shared across winners but each customer may use one only once.
+  if (selectedPrize.coupon_code && selectedPrize.type !== 'no_prize') {
+    await q.query(
+      `INSERT INTO coupons (code, discount_type, discount_value, is_active, per_user_limit)
+       VALUES ($1, $2, $3, true, 1)
+       ON CONFLICT (code) DO NOTHING`,
+      [
+        selectedPrize.coupon_code,
+        Number(selectedPrize.value) > 50 ? 'fixed' : 'percentage',
+        Number(selectedPrize.value) || 0,
+      ]
+    ).catch(() => {});
   }
 
-  await db.query(
-    `INSERT INTO scratch_card_logs (user_id, phone, prize_id, prize_label, prize_type, prize_value, coupon_code, order_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+  const phone = (req.user.phone || '').replace(/\D/g, '') || null;
+  await q.query(
+    `INSERT INTO scratch_card_logs (user_id, phone, user_name, prize_id, prize_label, prize_type, prize_value, coupon_code, is_redeemed)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false)`,
     [
-      user_id || null,
-      phone || null,
+      req.user.id,
+      phone,
+      req.user.name || null,
       selectedPrize.id,
       selectedPrize.label,
       selectedPrize.type,
       selectedPrize.value || 0,
       selectedPrize.coupon_code || null,
-      order_id || null,
     ]
-  ).catch(() => {});
+  );
 
   ok(res, { prize: selectedPrize });
-}));
+};
 
 // Customer Scratch Active Reward endpoint
-router.get('/scratch-card/active-reward', ah(async (req, res) => {
-  const userId = req.query.user_id || req.query.userId || null;
-  const rawPhone = req.query.phone || '';
-  const phone = rawPhone.replace(/\D/g, '');
-
-  if (!userId && !phone) {
-    return ok(res, { active_reward: null });
-  }
-
-  let rewardQuery = `
-    SELECT id, prize_label, prize_type, prize_value, coupon_code, created_at
-    FROM scratch_card_logs
-    WHERE is_redeemed = false AND prize_type != 'no_prize' AND (
-  `;
-  const rewardParams = [];
-  if (userId) {
-    rewardParams.push(userId);
-    rewardQuery += `user_id = $${rewardParams.length}`;
-  }
-  if (phone) {
-    if (userId) rewardQuery += ' OR ';
-    rewardParams.push(phone);
-    rewardQuery += `RIGHT(phone, 10) = RIGHT($${rewardParams.length}, 10)`;
-  }
-  rewardQuery += `) ORDER BY created_at DESC LIMIT 1`;
-
-  const { rows } = await db.query(rewardQuery, rewardParams).catch(() => ({ rows: [] }));
+router.get('/scratch-card/active-reward', authenticate, ah(async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT id, prize_label, prize_type, prize_value, coupon_code, scratched_at AS created_at
+     FROM scratch_card_logs
+     WHERE user_id = $1 AND is_redeemed = false AND prize_type != 'no_prize'
+     ORDER BY scratched_at DESC LIMIT 1`,
+    [req.user.id]
+  ).catch(() => ({ rows: [] }));
 
   ok(res, { active_reward: rows[0] || null });
 }));

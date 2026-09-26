@@ -1,13 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
-import { userApi } from '../../../api';
-import { formatPrice } from '../../../utils/format';
-import useCartStore from '../../../store/cart.store';
-import Spinner from '../../../components/ui/Spinner';
+import { Trash2, Heart, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { userApi } from '../../../api';
+import { formatPrice, pluralize } from '../../../utils/format';
+import { imageUrl } from '../../../utils/image';
+import useCartStore from '../../../store/cart.store';
+import PageHeader from '../../../components/ui/PageHeader';
+import EmptyState from '../../../components/ui/EmptyState';
+import { ProductGridSkeleton } from '../../../components/ui/Skeleton';
+import useDocumentTitle from '../../../hooks/useDocumentTitle';
 
 export default function Wishlist() {
+  useDocumentTitle('Wishlist');
   const qc = useQueryClient();
   const { addToCart } = useCartStore();
   const { data, isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: userApi.getWishlist });
@@ -23,48 +28,33 @@ export default function Wishlist() {
       await addToCart(product_id);
       await userApi.toggleWishlist(product_id);
       qc.invalidateQueries({ queryKey: ['wishlist'] });
-      toast.success('Moved to cart');
-    } catch { toast.error('Failed'); }
+      toast.success('Moved to your bag');
+    } catch (e) { toast.error(e?.message || 'Could not add to bag'); }
   };
 
-  if (isLoading) return <Spinner />;
-
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6" style={{ color: '#f5f5f5' }}>Wishlist</h1>
-      {items.length === 0 ? (
-        <div className="text-center py-20" style={{ color: '#555' }}>
-          <p className="text-4xl mb-3">🤍</p>
-          <p>Your wishlist is empty</p>
-          <Link to="/products" className="mt-3 inline-block text-sm font-medium hover:underline" style={{ color: '#e91e8c' }}>Browse Products</Link>
-        </div>
+    <div className="container-x py-6 md:py-10">
+      <PageHeader title="Wishlist" subtitle={items.length ? pluralize(items.length, 'saved item') : undefined} crumbs={[{ label: 'Wishlist' }]} />
+      {isLoading ? <ProductGridSkeleton count={8} /> : items.length === 0 ? (
+        <EmptyState icon={Heart} title="Nothing saved yet" description="Tap the heart on any product to keep it here for later." action="Browse products" to="/products" />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="product-grid">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl overflow-hidden group" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
-              <Link to={`/products/${item.product_id}`}>
-                <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: '#222' }}>
-                  <img src={item.image || '/placeholder.svg'} alt={item.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
+            <div key={item.id} className="group animate-fade-up">
+              <Link to={`/products/${item.product_id}`} className="block relative aspect-[3/4] rounded-2xl overflow-hidden bg-elevated border border-line/60">
+                <img src={imageUrl(item.image)} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                <button onClick={(e) => { e.preventDefault(); remove(item.product_id); }} aria-label="Remove from wishlist"
+                  className="absolute top-2.5 right-2.5 h-9 w-9 rounded-full glass border border-white/10 flex items-center justify-center text-white hover:text-danger">
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </Link>
-              <div className="p-3">
-                <p className="text-sm font-medium line-clamp-2 leading-snug" style={{ color: '#ddd' }}>{item.name}</p>
-                <p className="text-sm font-semibold mt-1" style={{ color: '#e91e8c' }}>{formatPrice(item.offer_price || item.price)}</p>
-                <div className="flex gap-1.5 mt-2">
-                  <button onClick={() => moveToCart(item.product_id)}
-                    className="flex-1 text-white text-xs font-medium py-1.5 rounded-lg transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: '#e91e8c' }}>
-                    Add to Cart
-                  </button>
-                  <button onClick={() => remove(item.product_id)}
-                    className="p-1.5 rounded-lg transition-colors"
-                    style={{ border: '1px solid #2e2e2e', color: '#555' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = '#3b0a0a'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#2e2e2e'; }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+              <div className="mt-2.5 px-0.5">
+                <p className="text-sm font-medium line-clamp-2 text-ink-2">{item.name}</p>
+                <p className="text-sm font-bold mt-1 text-ink">{formatPrice(item.offer_price || item.price)}</p>
+                <button onClick={() => moveToCart(item.product_id)}
+                  className="mt-2.5 w-full h-10 rounded-full bg-primary text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-primary-deep transition-colors">
+                  <ShoppingBag className="h-4 w-4" /> Add to bag
+                </button>
               </div>
             </div>
           ))}

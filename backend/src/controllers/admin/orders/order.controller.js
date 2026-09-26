@@ -4,6 +4,7 @@ const db = require('../../../config/db');
 const { ok, notFound, badRequest } = require('../../../utils/response');
 const whatsapp = require('../../../services/whatsapp/whatsapp.service');
 const walletService = require('../../../services/wallet/wallet.service');
+const { reverseOrderSideEffects } = require('../../customer/order/order.controller');
 const paymentService = require('../../../services/payment/payment.service');
 
 const REFUND_METHODS = ['wallet', 'original', 'bank_transfer', 'replacement'];
@@ -15,7 +16,9 @@ const generateReplacementOrderNumber = () => `RPL${Date.now().toString().slice(-
 const generateTrackingNumber = () => `DUNDU-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
 
 const list = async (req, res) => {
-  const { status, category, date, page = 1, limit = 20 } = req.query;
+  const { status, category, date, search } = req.query;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 20));
   const offset = (page - 1) * limit;
   const params = [];
   const conditions = [];
@@ -31,6 +34,10 @@ const list = async (req, res) => {
     );
   }
   if (date) { params.push(date); conditions.push(`o.created_at::date = $${params.length}::date`); }
+  if (search && search.trim()) {
+    params.push(`%${search.trim()}%`);
+    conditions.push(`(o.order_number ILIKE $${params.length} OR u.name ILIKE $${params.length} OR u.phone ILIKE $${params.length})`);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const countParams = params.slice();
@@ -128,18 +135,19 @@ const updateStatus = async (req, res) => {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
-      const { rows: items } = await client.query(
-        'SELECT product_id, variant_id, quantity FROM order_items WHERE order_id=$1',
-        [order.id]
+      // Atomic status guard so a concurrent customer/admin cancel cannot double-refund.
+      const { rows: locked } = await client.query(
+        `UPDATE orders SET status='cancelled', updated_at=now()
+         WHERE id=$1 AND status = ANY($2) RETURNING *`,
+        [order.id, CANCELLABLE_FROM]
       );
-      for (const item of items) {
-        if (item.variant_id) {
-          await client.query('UPDATE product_variants SET stock=stock+$1 WHERE id=$2', [item.quantity, item.variant_id]);
-        } else {
-          await client.query('UPDATE products SET stock=stock+$1 WHERE id=$2', [item.quantity, item.product_id]);
-        }
+      if (!locked.length) {
+        await client.query('ROLLBACK');
+        return badRequest(res, 'Order cannot be cancelled at this stage');
       }
-      await client.query("UPDATE orders SET status='cancelled', updated_at=now() WHERE id=$1", [order.id]);
+      // Restores stock, wallet, loyalty points, coupon usage, referral reward and refunds
+      // any captured online payment (shared with the customer cancel path).
+      await reverseOrderSideEffects(client, locked[0], { refundNote: 'Order cancelled by store' });
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -150,7 +158,9 @@ const updateStatus = async (req, res) => {
   } else {
     const currentIdx = STATUS_FLOW.indexOf(order.status);
     const newIdx = STATUS_FLOW.indexOf(status);
-    if (newIdx === -1 || (currentIdx !== -1 && newIdx <= currentIdx)) {
+    // cancelled / returned / return_requested are terminal for the normal flow: moving them
+    // back would allow a second cancel/return and therefore a second refund + restock.
+    if (newIdx === -1 || currentIdx === -1 || newIdx <= currentIdx) {
       return badRequest(res, 'Invalid status transition');
     }
     if (status === 'shipped') {
@@ -168,6 +178,8 @@ const updateStatus = async (req, res) => {
         whatsapp.sendOrderShipped?.(userRows[0]?.phone, order.order_number)?.catch(console.error);
         return ok(res, { qr_data_url: qrDataUrl, courier_tracking_number: trackingNumber }, 'Order marked as shipped');
       }
+    } else if (status === 'delivered') {
+      await db.query("UPDATE orders SET status='delivered', delivered_at=COALESCE(delivered_at, now()), updated_at=now() WHERE id=$1", [order.id]);
     } else {
       await db.query("UPDATE orders SET status=$1, updated_at=now() WHERE id=$2", [status, order.id]);
     }
@@ -208,12 +220,17 @@ const updateCourier = async (req, res) => {
 };
 
 const getReturnRequests = async (req, res) => {
-  const { date, page = 1, limit = 20 } = req.query;
+  const { date, status, search, page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;
   const params = [];
   const conditions = [];
 
   if (date) { params.push(date); conditions.push(`rr.created_at::date = $${params.length}::date`); }
+  if (status) { params.push(status); conditions.push(`rr.status = $${params.length}`); }
+  if (search && search.trim()) {
+    params.push(`%${search.trim()}%`);
+    conditions.push(`(o.order_number ILIKE $${params.length} OR u.name ILIKE $${params.length} OR u.phone ILIKE $${params.length} OR rr.reason ILIKE $${params.length})`);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const countParams = params.slice();
@@ -224,7 +241,25 @@ const getReturnRequests = async (req, res) => {
       `SELECT rr.*, o.order_number, o.total AS order_total, o.payment_method, o.payment_status,
               (o.razorpay_payment_id IS NOT NULL) AS has_online_payment,
               u.name AS user_name, u.phone AS user_phone,
-              ro.order_number AS replacement_order_number
+              ro.order_number AS replacement_order_number,
+              (
+                SELECT json_agg(item_data)
+                FROM (
+                  SELECT jsonb_build_object(
+                    'product_name', oi.product_name,
+                    'variant_info', oi.variant_info,
+                    'quantity', oi.quantity,
+                    'product_image', (
+                      SELECT pi.url FROM product_images pi
+                      WHERE pi.product_id = oi.product_id AND pi.is_primary = true
+                      LIMIT 1
+                    )
+                  ) AS item_data
+                  FROM order_items oi
+                  WHERE oi.order_id = o.id
+                  ORDER BY oi.id
+                ) sub
+              ) AS items
        FROM return_requests rr
        JOIN orders o ON rr.order_id=o.id
        JOIN users u ON o.user_id=u.id
@@ -234,7 +269,14 @@ const getReturnRequests = async (req, res) => {
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     ),
-    db.query(`SELECT COUNT(*) FROM return_requests rr ${where}`, countParams),
+    db.query(
+      `SELECT COUNT(*) FROM return_requests rr
+       JOIN orders o ON rr.order_id=o.id
+       JOIN users u ON o.user_id=u.id
+       LEFT JOIN orders ro ON rr.replacement_order_id=ro.id
+       ${where}`,
+      countParams
+    ),
     db.query("SELECT value FROM settings WHERE key='return_courier_charge'"),
   ]);
   const courierCharge = chargeRes.rows.length ? parseInt(chargeRes.rows[0].value) || 0 : 0;
@@ -295,6 +337,26 @@ const handleReturn = async (req, res) => {
     const client = await db.getClient();
     try {
       await client.query('BEGIN');
+      // Lock the request and re-check under the lock so two approve clicks cannot both refund.
+      const { rows: lockedRr } = await client.query(
+        "SELECT status FROM return_requests WHERE id=$1 FOR UPDATE", [req.params.id]
+      );
+      if (!lockedRr.length || lockedRr[0].status !== 'pending') {
+        await client.query('ROLLBACK');
+        return badRequest(res, 'Return already reviewed');
+      }
+      const { rows: lockedOrder } = await client.query(
+        "SELECT status, payment_status, razorpay_refund_id FROM orders WHERE id=$1 FOR UPDATE", [rr[0].order_id]
+      );
+      if (!lockedOrder.length || lockedOrder[0].status !== 'return_requested') {
+        await client.query('ROLLBACK');
+        return badRequest(res, 'Order is not awaiting a return decision');
+      }
+      if (refund_method === 'original' && (lockedOrder[0].payment_status === 'refunded' || lockedOrder[0].razorpay_refund_id)) {
+        await client.query('ROLLBACK');
+        return badRequest(res, 'This payment was already refunded. Choose Wallet Credit or Bank Transfer if more is owed.');
+      }
+
       const { rows: items } = await client.query(
         'SELECT product_id, variant_id, product_name, variant_info, quantity, unit_price FROM order_items WHERE order_id=$1',
         [rr[0].order_id]
@@ -302,9 +364,8 @@ const handleReturn = async (req, res) => {
       for (const item of items) {
         if (item.variant_id) {
           await client.query('UPDATE product_variants SET stock=stock+$1 WHERE id=$2', [item.quantity, item.variant_id]);
-        } else {
-          await client.query('UPDATE products SET stock=stock+$1 WHERE id=$2', [item.quantity, item.product_id]);
         }
+        await client.query('UPDATE products SET stock=stock+$1 WHERE id=$2', [item.quantity, item.product_id]);
       }
 
       // Carry out the resolution itself. 'original' calls out to Razorpay (an external, live
@@ -324,6 +385,7 @@ const handleReturn = async (req, res) => {
           return badRequest(res, `Refund via original payment method failed: ${refundErr.error?.description || refundErr.message || 'Unknown error'}`);
         }
         refundReferenceToStore = refund.id;
+        await client.query("UPDATE orders SET payment_status='refunded', razorpay_refund_id=$2 WHERE id=$1", [rr[0].order_id, refund.id]);
       } else if (refund_method === 'bank_transfer') {
         refundReferenceToStore = refund_reference.trim();
       } else if (refund_method === 'wallet' && refundAmount > 0) {
@@ -358,9 +420,8 @@ const handleReturn = async (req, res) => {
           );
           if (item.variant_id) {
             await client.query('UPDATE product_variants SET stock=GREATEST(0,stock-$1) WHERE id=$2', [item.quantity, item.variant_id]);
-          } else {
-            await client.query('UPDATE products SET stock=GREATEST(0,stock-$1) WHERE id=$2', [item.quantity, item.product_id]);
           }
+          await client.query('UPDATE products SET stock=GREATEST(0,stock-$1) WHERE id=$2', [item.quantity, item.product_id]);
         }
       }
 
@@ -376,15 +437,18 @@ const handleReturn = async (req, res) => {
         [rr[0].order_id]
       );
 
-      if (ord?.phone) {
+      // Take back the points this order earned (recorded at payment/placement) — not for
+      // replacements, where the customer keeps the goods.
+      if (ord?.phone && refund_method !== 'replacement') {
         const phone = ord.phone.replace(/\D/g, '');
-        const pointsToDeduct = Math.floor(parseFloat(ord.total) / 500) * 20;
+        const { rows: earnedRows } = await client.query('SELECT loyalty_points_earned FROM orders WHERE id=$1', [rr[0].order_id]);
+        const pointsToDeduct = parseInt(earnedRows[0]?.loyalty_points_earned, 10) || 0;
         if (pointsToDeduct > 0) {
           await client.query(
             `UPDATE loyalty_cards
-             SET points = GREATEST(0, points - $1), updated_at = now()
-             WHERE phone = $2`,
-            [pointsToDeduct, phone]
+             SET points = GREATEST(0, points - $1), total_spent = GREATEST(0, total_spent - $2), updated_at = now()
+             WHERE phone = $3`,
+            [pointsToDeduct, parseFloat(ord.total), phone]
           );
         }
       }
@@ -402,12 +466,13 @@ const handleReturn = async (req, res) => {
       client.release();
     }
   } else {
-    await db.query(
-      'UPDATE return_requests SET status=$1, admin_note=$2, updated_at=now() WHERE id=$3',
+    const { rows: rejected } = await db.query(
+      "UPDATE return_requests SET status=$1, admin_note=$2, updated_at=now() WHERE id=$3 AND status='pending' RETURNING id",
       [status, admin_note || null, req.params.id]
     );
+    if (!rejected.length) return badRequest(res, 'Return already reviewed');
     await db.query(
-      "UPDATE orders SET status='delivered', updated_at=now() WHERE id=$1",
+      "UPDATE orders SET status='delivered', updated_at=now() WHERE id=$1 AND status='return_requested'",
       [rr[0].order_id]
     );
 

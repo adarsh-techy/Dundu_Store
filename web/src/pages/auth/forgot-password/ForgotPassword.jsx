@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { authApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
-import toast from 'react-hot-toast';
+import useDocumentTitle from '../../../hooks/useDocumentTitle';
+import AuthShell from '../AuthShell';
 
 export default function ForgotPassword() {
+  useDocumentTitle('Reset password');
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
@@ -16,8 +19,8 @@ export default function ForgotPassword() {
   const sendOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try { await authApi.forgotPassword(email); setStep(2); toast.success('OTP sent'); }
-    catch { toast.error('Something went wrong'); }
+    try { await authApi.forgotPassword(email); setStep(2); toast.success('If the account exists, a code was sent to its WhatsApp number'); }
+    catch (err) { toast.error(err?.message || 'Something went wrong'); }
     finally { setLoading(false); }
   };
 
@@ -26,37 +29,28 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       await authApi.resetPassword({ email, otp, newPassword });
-      toast.success('Password reset! Please login.');
+      toast.success('Password reset. Please log in.');
       navigate('/login');
-    } catch (err) { toast.error(err.message || 'Invalid OTP'); }
+    } catch (err) { toast.error(err?.message || 'Invalid or expired code'); }
     finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-black tracking-widest" style={{ color: '#e91e8c' }}>DUNDU</Link>
-          <p className="mt-2 text-sm" style={{ color: '#666' }}>Reset your password</p>
-        </div>
-        <div className="rounded-2xl p-7 space-y-4" style={{ backgroundColor: '#1a1a1a', border: '1px solid #2e2e2e' }}>
-          {step === 1 ? (
-            <form onSubmit={sendOtp} className="space-y-4">
-              <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <Button type="submit" loading={loading} fullWidth>Send OTP</Button>
-            </form>
-          ) : (
-            <form onSubmit={reset} className="space-y-4">
-              <Input label="OTP" value={otp} onChange={(e) => setOtp(e.target.value)} maxLength={6} required />
-              <Input label="New Password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-              <Button type="submit" loading={loading} fullWidth>Reset Password</Button>
-            </form>
-          )}
-          <p className="text-center text-sm" style={{ color: '#666' }}>
-            <Link to="/login" className="hover:underline" style={{ color: '#e91e8c' }}>Back to login</Link>
-          </p>
-        </div>
-      </div>
-    </div>
+    <AuthShell title="Reset your password" subtitle={step === 1 ? 'We will send a one-time code to the WhatsApp number linked to your account.' : `Enter the code sent for ${email}.`}
+      footer={<Link to="/login" className="font-semibold text-primary-soft hover:underline">Back to login</Link>}>
+      {step === 1 ? (
+        <form onSubmit={sendOtp} className="space-y-4">
+          <Input label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Button type="submit" loading={loading} fullWidth size="lg">Send code</Button>
+        </form>
+      ) : (
+        <form onSubmit={reset} className="space-y-4">
+          <Input label="One-time code" inputMode="numeric" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} required className="tracking-[0.4em] text-center text-lg" />
+          <Input label="New password" type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required hint="At least 6 characters" />
+          <Button type="submit" loading={loading} fullWidth size="lg">Reset password</Button>
+          <button type="button" onClick={() => setStep(1)} className="w-full text-xs text-muted hover:text-ink">Use a different email</button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

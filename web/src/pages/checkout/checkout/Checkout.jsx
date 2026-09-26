@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { orderApi, userApi, couponApi, loyaltyApi, settingsApi, spinWheelApi, walletApi } from '../../../api';
-import useCartStore from '../../../store/cart.store';
+import useCartStore, { cartItemPrice, cartItemName, cartItemImage } from '../../../store/cart.store';
+import PageHeader from '../../../components/ui/PageHeader';
+import EmptyState from '../../../components/ui/EmptyState';
+import useDocumentTitle from '../../../hooks/useDocumentTitle';
+import { PhoneInput } from '../../auth/AuthShell';
 import useAuthStore from '../../../store/auth.store';
 import { formatPrice } from '../../../utils/format';
 import { loadRazorpay, openRazorpayCheckout } from '../../../utils/razorpay';
@@ -10,24 +14,21 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import toast from 'react-hot-toast';
 
-const getImageUrl = (img) => {
-  if (!img) return '/placeholder.svg';
-  if (img.startsWith('http://') || img.startsWith('https://')) return img;
-  return img.startsWith('/') ? img : '/' + img;
-};
+import { imageUrl as getImageUrl } from '../../../utils/image';
 
 const PAYMENT_METHODS_ALL = [
-  { id: 'online', label: 'Online Payment (Razorpay)' },
-  { id: 'cod', label: 'Cash on Delivery' },
+  { id: 'online', label: 'Pay online', hint: 'UPI · Cards · Net banking via Razorpay' },
+  { id: 'cod', label: 'Cash on delivery', hint: 'Pay when your order arrives' },
 ];
 
 export default function Checkout() {
+  useDocumentTitle('Checkout');
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCartStore();
   const { user } = useAuthStore();
   const location = useLocation();
   const buyNow = location.state?.buyNow || null;
-  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [chosenAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('online');
   const [coupon, setCoupon] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -36,8 +37,7 @@ export default function Checkout() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const [newAddress, setNewAddress] = useState({ name: '', phone: '', address_line1: '', city: '', state: '', pincode: '' });
-  const [loyaltyCard, setLoyaltyCard] = useState(null);
-  const [useLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
+  const [wantLoyaltyPoints, setUseLoyaltyPoints] = useState(false);
   const [codEnabled, setCodEnabled] = useState(true);
   const [codBlockedForUser, setCodBlockedForUser] = useState(false);
   const [couponFieldEnabled, setCouponFieldEnabled] = useState(true);
@@ -48,6 +48,8 @@ export default function Checkout() {
   const [spinReward, setSpinReward] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
+  const [walletRules, setWalletRules] = useState({ enabled: true, min_order_amount: 0, max_usage_percent: 100, max_discount_cap: 0 });
+  const [loyaltyRule, setLoyaltyRule] = useState({ points: 200, discount: 200 });
 
   useEffect(() => {
     if (!user) return;
@@ -61,12 +63,7 @@ export default function Checkout() {
         const reward = res?.data?.active_reward || res?.active_reward;
         if (reward) {
           setSpinReward(reward);
-          if (reward.prize_type === 'coupon' && reward.coupon_code) {
-            setCoupon(reward.coupon_code);
-            couponApi.validate(reward.coupon_code, 100)
-              .then((cRes) => setAppliedCoupon(cRes.data?.coupon || cRes.data || cRes))
-              .catch(() => {});
-          }
+          if (reward.prize_type === 'coupon' && reward.coupon_code) setCoupon(reward.coupon_code);
         }
       })
       .catch(() => {});
@@ -83,11 +80,8 @@ export default function Checkout() {
     queryFn: loyaltyApi.getMyCard,
     enabled: !!user,
   });
-  useEffect(() => {
-    const card = loyaltyData?.data?.card;
-    setLoyaltyCard(card || null);
-    if (!card || card.points < 200) setUseLoyaltyPoints(false);
-  }, [loyaltyData]);
+  const loyaltyCard = loyaltyData?.data?.card || null;
+  const useLoyaltyPoints = wantLoyaltyPoints && !!loyaltyCard && loyaltyCard.points >= loyaltyRule.points;
 
   useEffect(() => {
     settingsApi.getPayment()
@@ -101,6 +95,8 @@ export default function Checkout() {
         if (d?.coupon_field_enabled !== undefined) setCouponFieldEnabled(d.coupon_field_enabled !== false);
         if (d?.birthday_discount) setBirthdayDiscountPct(d.birthday_discount);
         if (d?.delivery_estimate_text) setDeliveryEstimateText(d.delivery_estimate_text);
+        if (d?.wallet) setWalletRules(d.wallet);
+        if (d?.loyalty_redeem_points) setLoyaltyRule({ points: d.loyalty_redeem_points, discount: d.loyalty_redeem_discount || d.loyalty_redeem_points });
       })
       .catch(() => { });
 
@@ -116,19 +112,17 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!data) return;
-    const list = data?.data?.addresses || [];
-    if (list.length === 0) {
-      navigate('/profile', { state: { addAddress: true, next: '/checkout' } });
-    } else if (!selectedAddress) {
-      setSelectedAddress(list[0].id);
+    if ((data?.data?.addresses || []).length === 0) {
+      navigate('/profile', { state: { addAddress: true, next: '/checkout', nextState: location.state || null } });
     }
-  }, [data]);
+  }, [data, navigate]);
+  const selectedAddress = chosenAddress ?? (addresses.find((a) => a.is_default)?.id || addresses[0]?.id || null);
 
   const displayItems = buyNow
-    ? [{ id: buyNow.product_id, ...buyNow }]
-    : items;
+    ? [{ id: buyNow.product_id, ...buyNow, quantity: buyNow.quantity || 1, unit: Number(buyNow.offer_price || buyNow.price) }]
+    : items.map((i) => ({ ...i, name: cartItemName(i), image: cartItemImage(i), unit: cartItemPrice(i) }));
   const subtotal = buyNow
-    ? (buyNow.offer_price || buyNow.price) * (buyNow.quantity || 1)
+    ? (Number(buyNow.offer_price || buyNow.price)) * (buyNow.quantity || 1)
     : totalPrice();
 
   const isBirthday = (() => {
@@ -146,17 +140,43 @@ export default function Checkout() {
       : appliedCoupon.discount_value
     : 0;
 
-  // Server picks best discount — mirror same logic for preview
-  const discount = Math.max(couponDiscountAmt, birthdayDiscountAmt);
-  const discountIsBirthday = birthdayDiscountAmt > 0 && birthdayDiscountAmt >= couponDiscountAmt;
-
-  const loyaltyDiscount = useLoyaltyPoints ? 200 : 0;
+  // The server applies exactly ONE discount — the largest of coupon / birthday / loyalty
+  // (a referral reward, if any, is also in that race but only the server knows about it).
+  const loyaltyCandidate = useLoyaltyPoints ? Math.min(subtotal, loyaltyRule.discount) : 0;
+  const best = [
+    { type: 'coupon', amount: Math.min(subtotal, couponDiscountAmt) },
+    { type: 'birthday', amount: Math.min(subtotal, birthdayDiscountAmt) },
+    { type: 'loyalty', amount: loyaltyCandidate },
+  ].reduce((a, b) => (b.amount > a.amount ? b : a));
+  const discountType = best.amount > 0 ? best.type : null;
+  const discount = discountType && discountType !== 'loyalty' ? best.amount : 0;
+  const loyaltyDiscount = discountType === 'loyalty' ? best.amount : 0;
+  const discountIsBirthday = discountType === 'birthday';
   const pointsToEarn = Math.floor(Math.max(0, subtotal - discount - loyaltyDiscount) / 500) * 20;
 
-  const shipping = (spinReward?.prize_type === 'free_shipping' || (subtotal - discount) >= freeDeliveryThreshold) ? 0 : deliveryCharge;
-  const grandTotal = Math.max(0, subtotal - discount - loyaltyDiscount + shipping);
-  const walletAmount = useWallet ? Math.min(walletBalance, grandTotal) : 0;
-  const payableTotal = Math.max(0, grandTotal - walletAmount);
+  const afterDiscounts = Math.max(0, subtotal - discount - loyaltyDiscount);
+  const shipping = (spinReward?.prize_type === 'free_shipping' || afterDiscounts >= freeDeliveryThreshold) ? 0 : deliveryCharge;
+  const grandTotal = Math.round(Math.max(0, afterDiscounts + shipping) * 100) / 100;
+
+  // Wallet: same caps the server enforces (enabled, min order, % of total, absolute cap).
+  let walletAllowed = 0;
+  if (useWallet && walletRules.enabled !== false && grandTotal >= (Number(walletRules.min_order_amount) || 0)) {
+    walletAllowed = (grandTotal * (Number(walletRules.max_usage_percent) || 100)) / 100;
+    if (Number(walletRules.max_discount_cap) > 0) walletAllowed = Math.min(walletAllowed, Number(walletRules.max_discount_cap));
+  }
+  const walletAmount = useWallet ? Math.round(Math.max(0, Math.min(walletBalance, grandTotal, walletAllowed)) * 100) / 100 : 0;
+  const payableTotal = Math.max(0, Math.round((grandTotal - walletAmount) * 100) / 100);
+
+  // Auto-apply a won spin/scratch coupon against the real subtotal (once per code).
+  const autoTriedRef = useRef('');
+  useEffect(() => {
+    const code = spinReward?.coupon_code;
+    if (!code || coupon !== code || appliedCoupon || !(subtotal > 0) || autoTriedRef.current === code) return;
+    autoTriedRef.current = code;
+    couponApi.validate(code, subtotal)
+      .then((cRes) => setAppliedCoupon(cRes.data?.coupon || null))
+      .catch((e) => toast(e?.message || 'Prize coupon could not be applied', { icon: '🎟️' }));
+  }, [spinReward, coupon, appliedCoupon, subtotal]);
 
   const applyCoupon = async () => {
     if (!coupon.trim()) return;
@@ -167,7 +187,7 @@ export default function Checkout() {
       toast.success(`Coupon applied! You save ${formatPrice(discount || 0)}`);
     } catch (e) {
       setAppliedCoupon(null);
-      toast.error(e.response?.data?.message || 'Invalid coupon');
+      toast.error(e?.message || 'Invalid coupon');
     } finally { setApplyingCoupon(false); }
   };
 
@@ -200,15 +220,21 @@ export default function Checkout() {
       if (paymentMethod === 'online' && res.data.razorpay) {
         const loaded = await loadRazorpay();
         if (!loaded) { toast.error('Failed to load payment gateway'); setLoading(false); return; }
+        if (!buyNow) clearCart(); // the server already emptied the cart when it created the order
+        const goToOrder = (msg) => { if (msg) toast(msg, { icon: '⏳' }); navigate(`/orders/${order.id}`); };
         openRazorpayCheckout({
           order: res.data.razorpay,
           user,
           onSuccess: async (paymentData) => {
-            await orderApi.verifyPayment({ ...paymentData, order_id: order.id });
-            if (!buyNow) clearCart();
-            navigate(`/orders/${order.id}?success=true`);
+            try {
+              await orderApi.verifyPayment({ ...paymentData, order_id: order.id });
+              navigate(`/orders/${order.id}?success=true`);
+            } catch (err) {
+              goToOrder(err?.message || 'We could not confirm the payment yet. Check the order page.');
+            }
           },
-          onError: () => toast.error('Payment failed. Please try again.'),
+          onError: () => goToOrder('Payment failed. You can retry from the order page.'),
+          onDismiss: () => goToOrder('Payment not completed. Your order is saved — pay anytime from the order page.'),
         });
         setLoading(false);
         return;
@@ -223,22 +249,21 @@ export default function Checkout() {
   };
 
   if (!buyNow && items.length === 0) return (
-    <div className="max-w-md mx-auto text-center py-20">
-      <p className="mb-4" style={{ color: '#666' }}>Your cart is empty</p>
-      <Button onClick={() => navigate('/products')}>Shop Now</Button>
+    <div className="container-x">
+      <EmptyState emoji="🛍️" title="Your bag is empty" description="Add something you love and come back to check out." action="Shop now" to="/products" />
     </div>
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8" style={{ color: '#f5f5f5' }}>Checkout</h1>
-      <div className="grid md:grid-cols-3 gap-8">
+    <div className="container-x max-w-6xl py-6 md:py-10">
+      <PageHeader title="Checkout" subtitle="Almost there — confirm your address and payment." crumbs={[{ label: 'Checkout' }]} />
+      <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
         {/* Left */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           {/* Delivery Address */}
-          <section className="rounded-2xl p-5" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+          <section className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold" style={{ color: '#ddd' }}>Delivery Address</h2>
+              <h2 className="font-display text-lg text-ink">Delivery address</h2>
               {deliveryEstimateText && (
                 <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ backgroundColor: '#0f2e1a', color: '#4ade80' }}>
                   🚚 Delivery in {deliveryEstimateText}
@@ -268,19 +293,9 @@ export default function Checkout() {
                 <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid #2e2e2e', backgroundColor: '#222' }}>
                   <div className="grid grid-cols-2 gap-3">
                     <Input label="Full Name" value={newAddress.name} onChange={(e) => setNewAddress(p => ({ ...p, name: e.target.value }))} />
-                    {/* Phone — +91 prefix, 10 digits */}
                     <div>
-                      <label className="block text-xs font-medium mb-1" style={{ color: '#aaa' }}>Phone</label>
-                      <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid #2e2e2e' }}>
-                        <span className="flex items-center px-2 text-xs font-bold" style={{ backgroundColor: '#252525', color: '#f5f5f5', borderRight: '1px solid #2e2e2e', whiteSpace: 'nowrap' }}>🇮🇳 +91</span>
-                        <input type="tel"
-                          value={newAddress.phone}
-                          onChange={(e) => setNewAddress(p => ({ ...p, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                          placeholder="10-digit number"
-                          maxLength={10}
-                          className="flex-1 px-2 py-2 text-sm focus:outline-none"
-                          style={{ backgroundColor: '#1a1a1a', color: '#f5f5f5' }} />
-                      </div>
+                      <label className="block text-xs font-semibold tracking-wide text-muted mb-1.5">Phone</label>
+                      <PhoneInput value={newAddress.phone} onChange={(v) => setNewAddress((p) => ({ ...p, phone: v }))} />
                     </div>
                   </div>
                   <Input label="Address" value={newAddress.address_line1} onChange={(e) => setNewAddress(p => ({ ...p, address_line1: e.target.value }))} />
@@ -319,8 +334,8 @@ export default function Checkout() {
           })()}
 
           {/* Payment */}
-          <section className="rounded-2xl p-5" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
-            <h2 className="font-semibold mb-4" style={{ color: '#ddd' }}>Payment Method</h2>
+          <section className="card p-5">
+            <h2 className="font-display text-lg text-ink mb-4">Payment method</h2>
             {!codEnabled && (
               <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium" style={{ backgroundColor: '#2a1a0a', border: '1px solid #7c3700', color: '#fb923c' }}>
                 🚫 Cash on Delivery is currently unavailable. Please pay online.
@@ -340,7 +355,10 @@ export default function Checkout() {
                     : { border: '1px solid #2e2e2e', backgroundColor: '#222' }}>
                   <input type="radio" name="payment" value={m.id} checked={paymentMethod === m.id}
                     onChange={() => setPaymentMethod(m.id)} style={{ accentColor: '#e91e8c' }} />
-                  <span className="text-sm font-medium" style={{ color: '#ddd' }}>{m.label}</span>
+                  <span>
+                    <span className="block text-sm font-medium" style={{ color: '#ddd' }}>{m.label}</span>
+                    <span className="block text-xs mt-0.5" style={{ color: '#777' }}>{m.hint}</span>
+                  </span>
                 </label>
               ))}
             </div>
@@ -349,8 +367,8 @@ export default function Checkout() {
 
         {/* Order Summary */}
         <aside className="space-y-4">
-          <div className="rounded-2xl p-5 space-y-4 sticky top-24" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
-            <h2 className="font-semibold" style={{ color: '#ddd' }}>Order Summary</h2>
+          <div className="card p-5 space-y-4 lg:sticky lg:top-32 min-w-0">
+            <h2 className="font-display text-lg text-ink">Order summary</h2>
             <div className="space-y-3 max-h-48 overflow-y-auto">
               {displayItems.map((item) => (
                 <div key={item.id} className="flex gap-3">
@@ -358,19 +376,19 @@ export default function Checkout() {
                     className="w-12 h-14 object-cover rounded-lg shrink-0" style={{ backgroundColor: '#222' }} />
                   <div className="min-w-0">
                     <p className="text-xs font-medium line-clamp-2" style={{ color: '#ddd' }}>{item.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#666' }}>Qty: {item.quantity}</p>
-                    <p className="text-xs font-semibold mt-0.5" style={{ color: '#f5f5f5' }}>{formatPrice((item.offer_price || item.price) * item.quantity)}</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#666' }}>Qty: {item.quantity}{item.size || item.color ? ` · ${[item.size, item.color].filter(Boolean).join(' / ')}` : ''}</p>
+                    <p className="text-xs font-semibold mt-0.5" style={{ color: '#f5f5f5' }}>{formatPrice(item.unit * item.quantity)}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Spin Wheel Reward Banner */}
-            {spinReward && (
+            {spinReward && (spinReward.prize_type === 'free_shipping' || (appliedCoupon && coupon === spinReward.coupon_code)) && (
               <div className="rounded-xl p-3 border text-xs font-semibold" style={{ backgroundColor: '#142918', borderColor: '#16a34a', color: '#4ade80' }}>
                 {spinReward.prize_type === 'free_shipping'
                   ? '🎁 Lucky Spin Wheel Gift: Free Delivery Auto-Applied!'
-                  : `🎁 Lucky Spin Wheel Gift: Coupon "${spinReward.coupon_code}" Auto-Applied!`}
+                  : `🎁 Lucky Spin Wheel Gift: Coupon "${spinReward.coupon_code}" applied!`}
               </div>
             )}
 
@@ -396,9 +414,9 @@ export default function Checkout() {
                     <p className="text-xs font-semibold" style={{ color: '#e91e8c' }}>Loyalty Points</p>
                     <p className="text-xs mt-0.5" style={{ color: '#888' }}>You have <span style={{ color: '#f5f5f5', fontWeight: 600 }}>{loyaltyCard.points} pts</span></p>
                   </div>
-                  {loyaltyCard.points >= 200 ? (
+                  {loyaltyCard.points >= loyaltyRule.points ? (
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <span className="text-xs" style={{ color: '#aaa' }}>Use 200 pts (−₹200)</span>
+                      <span className="text-xs" style={{ color: '#aaa' }}>Use {loyaltyRule.points} pts (−₹{loyaltyRule.discount})</span>
                       <div
                         onClick={() => setUseLoyaltyPoints((v) => !v)}
                         className="relative w-9 h-5 rounded-full transition-colors cursor-pointer"
@@ -409,9 +427,12 @@ export default function Checkout() {
                       </div>
                     </label>
                   ) : (
-                    <p className="text-xs" style={{ color: '#555' }}>{200 - loyaltyCard.points} pts to redeem</p>
+                    <p className="text-xs" style={{ color: '#555' }}>{loyaltyRule.points - loyaltyCard.points} pts to redeem</p>
                   )}
                 </div>
+                {useLoyaltyPoints && discountType !== 'loyalty' && (
+                  <p className="text-xs" style={{ color: '#fbbf24' }}>Your {discountIsBirthday ? 'birthday' : 'coupon'} discount is larger, so points will not be used on this order.</p>
+                )}
                 {pointsToEarn > 0 && (
                   <p className="text-xs" style={{ color: '#888' }}>
                     You'll earn <span style={{ color: '#4ade80', fontWeight: 600 }}>+{pointsToEarn} pts</span> on this order
@@ -436,7 +457,7 @@ export default function Checkout() {
               )}
               {loyaltyDiscount > 0 && (
                 <div className="flex justify-between" style={{ color: '#4ade80' }}>
-                  <span>Loyalty Points (200 pts)</span><span>−{formatPrice(loyaltyDiscount)}</span>
+                  <span>Loyalty Points ({loyaltyRule.points} pts)</span><span>−{formatPrice(loyaltyDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between" style={shipping === 0 ? { color: '#888', textDecoration: 'line-through' } : { color: '#888' }}>
@@ -492,7 +513,7 @@ export default function Checkout() {
                 setShowConfirm(true);
               }}
               fullWidth size="lg">
-              {paymentMethod === 'online' && payableTotal > 0 ? 'Proceed to Pay' : 'Place Order'}
+              {paymentMethod === 'online' && payableTotal > 0 ? `Proceed to pay ${formatPrice(payableTotal)}` : 'Place order'}
             </Button>
           </div>
         </aside>
@@ -525,7 +546,7 @@ export default function Checkout() {
                       <p className="text-xs" style={{ color: '#666' }}>Qty: {item.quantity}</p>
                     </div>
                     <p className="text-xs font-semibold shrink-0" style={{ color: '#f5f5f5' }}>
-                      {formatPrice((item.offer_price || item.price) * item.quantity)}
+                      {formatPrice(item.unit * item.quantity)}
                     </p>
                   </div>
                 ))}

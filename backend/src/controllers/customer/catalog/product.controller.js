@@ -40,6 +40,12 @@ const list = async (req, res) => {
     ? `EXISTS (SELECT 1 FROM wishlists WHERE product_id=p.id AND user_id=$${wishlistParamIdx}) AS is_wishlisted`
     : `false AS is_wishlisted`;
 
+  const countParams = params.slice(0, userId ? params.length - 3 : params.length - 2);
+  const { rows: countRows } = await db.query(
+    `SELECT COUNT(*)::int AS total FROM products p JOIN categories c ON p.category_id=c.id WHERE ${where}`,
+    countParams
+  );
+
   const { rows } = await db.query(
     `SELECT p.*, c.name AS category_name, c.slug AS category_slug, b.name AS brand_name,
             (SELECT url FROM product_images WHERE product_id=p.id AND is_primary=true LIMIT 1) AS primary_image,
@@ -57,7 +63,8 @@ const list = async (req, res) => {
   );
   // cost_price ("Buy Price") is an internal admin figure — never expose it to customers.
   const products = rows.map(({ cost_price, ...p }) => p);
-  ok(res, { products });
+  const total = countRows[0]?.total ?? products.length;
+  ok(res, { products, total, page: Number(page), limit: Number(limit), has_more: Number(offset) + products.length < total });
 };
 
 const getOne = async (req, res) => {

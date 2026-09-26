@@ -8,8 +8,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-dundu_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Bound to localhost only: the API reaches Postgres over the compose network, and the
+    # database must never be reachable from the internet with these credentials.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dundu}"]
       interval: 5s

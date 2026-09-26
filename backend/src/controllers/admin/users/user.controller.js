@@ -146,10 +146,11 @@ const updateAdminPermissions = async (req, res) => {
 
 const listAdmins = async (_req, res) => {
   const { rows } = await db.query(
-    `SELECT u.id, u.name, u.email, u.phone, u.role, u.permissions, u.is_blocked
+    `SELECT u.id, u.name, u.email, u.phone, u.role, u.permissions, u.is_blocked, u.created_at,
+            (SELECT MAX(created_at) FROM login_logs WHERE user_id = u.id) AS last_login_at
      FROM users u
      WHERE u.role IN ('admin','super_admin')
-     ORDER BY u.created_at DESC`
+     ORDER BY (u.role = 'super_admin') DESC, u.created_at DESC`
   );
   ok(res, { admins: rows });
 };
@@ -185,7 +186,8 @@ const deleteAdmin = async (req, res) => {
     if (allSupers.length <= 1) return badRequest(res, 'Cannot delete the last super admin');
   }
 
-  await db.query('DELETE FROM orders WHERE user_id=$1', [req.params.id]);
+  const { rows: orderRows } = await db.query('SELECT 1 FROM orders WHERE user_id=$1 LIMIT 1', [req.params.id]);
+  if (orderRows.length) return badRequest(res, 'This account has order history and cannot be deleted. Block it instead.');
   await db.query('DELETE FROM users WHERE id=$1', [req.params.id]);
   ok(res, {}, 'Admin deleted');
 };
@@ -200,7 +202,13 @@ const deleteUser = async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    await client.query('DELETE FROM orders WHERE user_id=$1', [req.params.id]);
+    // Orders are financial records: refuse to delete an account that has any, rather
+    // than cascading them (and their items/returns) out of existence.
+    const { rows: orderRows } = await client.query('SELECT 1 FROM orders WHERE user_id=$1 LIMIT 1', [req.params.id]);
+    if (orderRows.length) {
+      await client.query('ROLLBACK');
+      return badRequest(res, 'This customer has order history and cannot be deleted. Block the account instead.');
+    }
 
     if (phone) await client.query('DELETE FROM loyalty_cards WHERE phone=$1', [phone]);
 

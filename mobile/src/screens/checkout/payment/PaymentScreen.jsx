@@ -10,7 +10,7 @@ export default function PaymentScreen({ route, navigation }) {
   const { order, razorpayOrder, user } = route.params || {};
   const [verifying, setVerifying] = useState(false);
 
-  const razorpayKey = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_T9OyWP0MyUW2Df';
+  const razorpayKey = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
   if (!order || !razorpayOrder) {
     return (

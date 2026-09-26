@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  ArrowLeft, Bell, ShoppingCart, Heart, ShoppingBag, RotateCcw, Cake, CalendarDays, CheckCircle2,
+  ArrowLeft, Bell, ShoppingCart, Heart, ShoppingBag, RotateCcw, Cake, CalendarDays, CheckCircle2, Gift, X, Clock, Menu,
 } from 'lucide-react';
 import { birthdayApi, orderApi, wishlistApi, cartApi } from '../../api';
 import { allNavGroups } from './Sidebar';
@@ -90,7 +90,7 @@ function playOrderChime() {
 }
 
 /* ── main component ──────────────────────────────────────────────────────── */
-export default function TopBar() {
+export default function TopBar({ onToggleSidebar }) {
   const now = useClock();
   const navigate = useNavigate();
   const location = useLocation();
@@ -238,9 +238,9 @@ export default function TopBar() {
   // Build ticker messages solely from birthdays
   const tickerMessages = birthdays.map((u) => {
     if (u.daysLeft === 0) {
-      return { type: 'birthday', text: `🎂 TODAY IS ${u.name.toUpperCase()}'S BIRTHDAY! 🎉 Wish them a happy birthday!` };
+      return { type: 'birthday', text: `TODAY IS ${u.name.toUpperCase()}'S BIRTHDAY! Send your best wishes.` };
     }
-    return { type: 'birthday', text: `🎈 Upcoming Birthday: ${u.name} in ${u.daysLeft} day${u.daysLeft > 1 ? 's' : ''}` };
+    return { type: 'birthday', text: `Upcoming Birthday: ${u.name} in ${u.daysLeft} day${u.daysLeft > 1 ? 's' : ''}` };
   });
 
   const doubled = tickerMessages.length > 0 ? [...tickerMessages, ...tickerMessages] : [];
@@ -252,12 +252,15 @@ export default function TopBar() {
       {newOrderAlert && (
         <div className="new-order-toast">
           <div className="new-order-toast-header">
-            <span className="new-order-toast-badge">🔔 NEW ORDER PLACED!</span>
+            <span className="new-order-toast-badge flex items-center gap-1.5 font-bold">
+              <Bell size={13} /> NEW ORDER PLACED
+            </span>
             <button
               className="new-order-toast-close"
               onClick={() => setNewOrderAlert(null)}
+              aria-label="Close"
             >
-              ✕
+              <X size={15} />
             </button>
           </div>
           <p className="new-order-toast-body">
@@ -276,8 +279,18 @@ export default function TopBar() {
       )}
 
       <div className="topbar">
-        {/* ── LEFT: Universal Back Button & Birthday Ticker ── */}
+        {/* ── LEFT: Mobile Hamburger, Back Button & Birthday Ticker ── */}
         <div className="topbar-left">
+          {/* Mobile Drawer Toggle */}
+          <button
+            onClick={onToggleSidebar}
+            className="topbar-hamburger-btn lg:hidden"
+            aria-label="Open navigation menu"
+            id="topbar-hamburger-btn"
+          >
+            <Menu size={20} />
+          </button>
+
           {location.pathname !== '/' && (
             <button
               onClick={() => navigate(-1)}
@@ -286,7 +299,7 @@ export default function TopBar() {
               id="topbar-back-btn"
             >
               <ArrowLeft size={15} />
-              <span>Back</span>
+              <span className="hidden sm:inline">Back</span>
             </button>
           )}
 
@@ -322,7 +335,7 @@ export default function TopBar() {
         <div className="topbar-right">
           {/* Live Date & Time */}
           <div className="topbar-datetime">
-            <CalendarDays size={13} color="rgba(255,255,255,0.35)" />
+            <CalendarDays size={13} color="#9d174d" />
             <span className="topbar-date">{formatDate(now)}</span>
             <span className="topbar-time">{formatTime(now)}</span>
           </div>
@@ -347,10 +360,10 @@ export default function TopBar() {
             {notifOpen && (
               <div className="notif-dropdown">
                 <div className="notif-dropdown-header">
-                  <span className="notif-dropdown-title">🔔 Notifications</span>
+                  <span className="notif-dropdown-title">Customer Birthdays</span>
                   {bdayCount > 0 && (
                     <span className="notif-dropdown-count">
-                      {bdayCount} Birthday{bdayCount !== 1 ? 's' : ''} Coming
+                      {bdayCount} Birthday{bdayCount !== 1 ? 's' : ''} Upcoming
                     </span>
                   )}
                 </div>
@@ -364,15 +377,15 @@ export default function TopBar() {
                   ) : (
                     birthdays.map((u, i) => (
                       <div key={i} className="notif-item">
-                        <div className="notif-avatar">
-                          {u.daysLeft === 0 ? '🎂' : '🎁'}
+                        <div className="notif-avatar flex items-center justify-center text-white">
+                          {u.daysLeft === 0 ? <Cake size={16} /> : <Gift size={16} />}
                         </div>
                         <div className="notif-body">
                           <div className="notif-name">{u.name || 'Customer'}</div>
                           <div className="notif-desc">
                             {u.phone && <span style={{ opacity: 0.7 }}>{u.phone} · </span>}
                             {u.daysLeft === 0
-                              ? "Birthday is TODAY! 🎉"
+                              ? "Birthday is today!"
                               : `Birthday in ${u.daysLeft} day${u.daysLeft === 1 ? '' : 's'}`}
                           </div>
                         </div>
@@ -419,7 +432,7 @@ export default function TopBar() {
             {cartOpen && (
               <div className="orders-dropdown">
                 <div className="notif-dropdown-header">
-                  <span className="notif-dropdown-title">🛒 Active Customer Carts</span>
+                  <span className="notif-dropdown-title">Active Customer Carts</span>
                   {cartCount > 0 && (
                     <span className="notif-dropdown-count" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>
                       {cartCount} Active
@@ -446,7 +459,7 @@ export default function TopBar() {
                             {c.name || 'Customer'}
                           </span>
                           <span className="cart-items-count-badge">
-                            🛍️ {c.items} item{c.items !== 1 ? 's' : ''}
+                            {c.items} item{c.items !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <div className="order-row-bottom">
@@ -454,7 +467,7 @@ export default function TopBar() {
                             {c.phone || '-'}
                           </span>
                           <span className="order-placed-time">
-                            ⏱️ {formatRelativeTime(c.last_active)}
+                            {formatRelativeTime(c.last_active)}
                           </span>
                         </div>
                       </NavLink>
@@ -496,7 +509,7 @@ export default function TopBar() {
             {wishlistOpen && (
               <div className="orders-dropdown">
                 <div className="notif-dropdown-header">
-                  <span className="notif-dropdown-title">❤️ Recent Wishlists</span>
+                  <span className="notif-dropdown-title">Saved Wishlists</span>
                   {wishlistCount > 0 && (
                     <span className="notif-dropdown-count" style={{ background: 'rgba(236,72,153,0.15)', color: '#f472b6' }}>
                       {wishlistCount} Saved
@@ -522,8 +535,8 @@ export default function TopBar() {
                           {w.image_url ? (
                             <img src={w.image_url} alt={w.product_name} className="wishlist-thumb" />
                           ) : (
-                            <div className="wishlist-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-                              🛍️
+                            <div className="wishlist-thumb flex items-center justify-center text-slate-400">
+                              <ShoppingBag size={16} />
                             </div>
                           )}
                           <div className="wishlist-details">
@@ -539,7 +552,7 @@ export default function TopBar() {
                               </span>
                             </div>
                             <div className="order-placed-time" style={{ marginTop: '2px' }}>
-                              ⏱️ {formatRelativeTime(w.created_at)}
+                              {formatRelativeTime(w.created_at)}
                             </div>
                           </div>
                         </div>
@@ -582,7 +595,7 @@ export default function TopBar() {
             {ordersOpen && (
               <div className="orders-dropdown">
                 <div className="notif-dropdown-header">
-                  <span className="notif-dropdown-title">📦 Recent Orders</span>
+                  <span className="notif-dropdown-title">Recent Orders</span>
                   {orderCount > 0 && (
                     <span className="notif-dropdown-count" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
                       {orderCount} Total
@@ -617,7 +630,7 @@ export default function TopBar() {
                             {o.status || 'pending'}
                           </span>
                           <span className="order-placed-time">
-                            ⏱️ {formatRelativeTime(o.created_at)}
+                            {formatRelativeTime(o.created_at)}
                           </span>
                         </div>
                       </NavLink>
@@ -659,7 +672,7 @@ export default function TopBar() {
             {returnsOpen && (
               <div className="orders-dropdown">
                 <div className="notif-dropdown-header">
-                  <span className="notif-dropdown-title">🔄 Return Requests</span>
+                  <span className="notif-dropdown-title">Return Requests</span>
                   {returnCount > 0 && (
                     <span className="notif-dropdown-count" style={{ background: 'rgba(225,29,72,0.15)', color: '#fb7185' }}>
                       {returnCount} Total
@@ -694,7 +707,7 @@ export default function TopBar() {
                             {r.status || 'pending'}
                           </span>
                           <span className="order-placed-time">
-                            ⏱️ {formatRelativeTime(r.created_at)}
+                            {formatRelativeTime(r.created_at)}
                           </span>
                         </div>
                         {r.reason && (

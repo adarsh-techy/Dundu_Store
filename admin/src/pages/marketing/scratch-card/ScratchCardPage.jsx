@@ -1,20 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  Gift,
+  Trophy,
+  History,
+  CheckCircle2,
+  Plus,
+  Edit3,
+  Trash2,
+  Search,
+  RotateCcw,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Smartphone,
+  Copy,
+  Check,
+  Sparkles,
+  Coins,
+  Tag,
+  Zap,
+  ShoppingBag,
+  Percent,
+  Award
+} from 'lucide-react';
 import { scratchCardApi } from '../../../api';
-import NotificationModal from '../../../components/ui/NotificationModal';
-import './ScratchCardPage.css';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Spinner from '../../../components/ui/Spinner';
+import toast from 'react-hot-toast';
 
 export default function ScratchCardPage() {
-  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'prizes' | 'users' | 'logs'
+  const [activeTab, setActiveTab] = useState('settings'); // 'settings' | 'prizes' | 'logs'
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const initialDataRef = useRef(null);
 
   const [data, setData] = useState({
     enabled: true,
     min_order: 499,
     payment_methods: 'all',
     auto_grant: true,
-    title: '🎁 Scratch & Win Guaranteed Prizes!',
-    subtitle: 'Scratch the card to reveal your instant discount reward!',
+    title: 'Scratch & Win Guaranteed Rewards',
+    subtitle: 'Scratch the card to reveal your instant discount prize!',
     foil_color: '#C0C0C0',
     min_orders: 0,
     active_from: '',
@@ -27,29 +56,15 @@ export default function ScratchCardPage() {
 
   // Simulator state
   const [isScratched, setIsScratched] = useState(false);
-
-  // Users permissions state
-  const [userList, setUserList] = useState([]);
-  const [userSearch, setUserSearch] = useState('');
-  const [userPage, setUserPage] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [userListLoading, setUserListLoading] = useState(false);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Logs state
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsPage, setLogsPage] = useState(1);
+  const [logSearch, setLogSearch] = useState('');
 
-  // Notification modal
-  const [notifModal, setNotifModal] = useState({
-    isOpen: false,
-    type: 'success',
-    title: '',
-    message: '',
-  });
-
-  // Modal for prize card creation/editing
+  // Prize modal state
   const [prizeModalOpen, setPrizeModalOpen] = useState(false);
   const [editingPrize, setEditingPrize] = useState(null);
   const [prizeForm, setPrizeForm] = useState({
@@ -57,19 +72,11 @@ export default function ScratchCardPage() {
     type: 'coupon',
     value: 100,
     coupon_code: '',
-    color: '#FFD700',
-    text_color: '#000000',
+    color: '#4C1D95',
+    text_color: '#FFFFFF',
     probability: 25,
     is_active: true,
   });
-
-  const showNotify = (type, title, message) => {
-    setNotifModal({ isOpen: true, type, title, message });
-  };
-
-  const closeNotify = () => {
-    setNotifModal((prev) => ({ ...prev, isOpen: false }));
-  };
 
   const fetchConfig = async () => {
     try {
@@ -77,25 +84,19 @@ export default function ScratchCardPage() {
       const res = await scratchCardApi.getConfig();
       const resData = res.data || res;
       setData(resData);
+      initialDataRef.current = JSON.stringify({
+        enabled: resData.enabled !== false,
+        min_order: resData.min_order,
+        payment_methods: resData.payment_methods || 'all',
+        title: resData.title || '',
+        subtitle: resData.subtitle || '',
+        min_orders: resData.min_orders || 0,
+        max_per_day: resData.max_per_day || 1,
+      });
     } catch (err) {
-      showNotify('error', 'Error Loading Config', err.response?.data?.message || 'Failed to load scratch card config.');
+      toast.error(err?.response?.data?.message || 'Failed to load scratch card configuration.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUsersPermissions = async (pageNo = 1, searchStr = '') => {
-    try {
-      setUserListLoading(true);
-      const res = await scratchCardApi.getUsersPermissions({ page: pageNo, search: searchStr });
-      const resData = res.data || res;
-      setUserList(resData.users || []);
-      setTotalUsers(resData.total || 0);
-      setUserPage(pageNo);
-    } catch (err) {
-      // silent catch for polling
-    } finally {
-      setUserListLoading(false);
     }
   };
 
@@ -106,7 +107,7 @@ export default function ScratchCardPage() {
       const resData = res.data || res;
       setLogs(resData.logs || []);
       setLogsPage(pageNo);
-    } catch (err) {
+    } catch {
       // silent
     } finally {
       setLogsLoading(false);
@@ -118,123 +119,55 @@ export default function ScratchCardPage() {
   }, []);
 
   useEffect(() => {
-    let interval;
-    if (activeTab === 'users') {
-      fetchUsersPermissions(userPage, userSearch);
-      interval = setInterval(() => {
-        fetchUsersPermissions(userPage, userSearch);
-      }, 3000);
-    } else if (activeTab === 'logs') {
+    if (activeTab === 'logs') {
       fetchLogs(logsPage);
-      interval = setInterval(() => {
-        fetchLogs(logsPage);
-      }, 3000);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeTab, userPage, userSearch, logsPage]);
+  }, [activeTab, logsPage]);
+
+  // Dirty state tracking: true if user changed any setting
+  const isDirty = initialDataRef.current !== null && JSON.stringify({
+    enabled: data.enabled !== false,
+    min_order: data.min_order,
+    payment_methods: data.payment_methods || 'all',
+    title: data.title || '',
+    subtitle: data.subtitle || '',
+    min_orders: data.min_orders || 0,
+    max_per_day: data.max_per_day || 1,
+  }) !== initialDataRef.current;
+
+  const handleDiscard = () => {
+    if (initialDataRef.current) {
+      const parsed = JSON.parse(initialDataRef.current);
+      setData((prev) => ({
+        ...prev,
+        ...parsed,
+      }));
+      toast('Changes discarded', { icon: '↩️' });
+    }
+  };
 
   const handleSaveSettings = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       setSaving(true);
       await scratchCardApi.updateSettings(data);
-      showNotify('success', 'Settings Saved! 🎯', 'Scratch & Win eligibility criteria, schedule, and settings updated successfully.');
+      toast.success('Scratch card settings saved!');
+      initialDataRef.current = JSON.stringify({
+        enabled: data.enabled !== false,
+        min_order: data.min_order,
+        payment_methods: data.payment_methods || 'all',
+        title: data.title || '',
+        subtitle: data.subtitle || '',
+        min_orders: data.min_orders || 0,
+        max_per_day: data.max_per_day || 1,
+      });
       fetchConfig();
     } catch (err) {
-      showNotify('error', 'Save Failed', err.response?.data?.message || 'Failed to save settings.');
+      toast.error(err?.response?.data?.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
   };
-
-  const handleForceUserPopup = async (userId) => {
-    try {
-      await scratchCardApi.forceUserScratchPopup(userId);
-      showNotify('success', 'Scratch Card Forced! ⚡', 'Scratch card popup will appear for this customer immediately on their app open.');
-      fetchUsersPermissions(userPage, userSearch);
-    } catch (err) {
-      showNotify('error', 'Action Failed', err.response?.data?.message || 'Failed to force scratch popup.');
-    }
-  };
-
-  const handleToggleSelectUser = (id) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAllUsers = () => {
-    if (selectedUserIds.length === userList.length) {
-      setSelectedUserIds([]);
-    } else {
-      setSelectedUserIds(userList.map((u) => u.id));
-    }
-  };
-
-  const handleBulkForcePopup = async () => {
-    if (!selectedUserIds.length) return;
-    try {
-      await scratchCardApi.forceUserScratchPopup(null, selectedUserIds);
-      showNotify('success', 'Bulk Scratch Popup Forced! ⚡', `Scratch card popup enabled for ${selectedUserIds.length} specified customer(s).`);
-      setSelectedUserIds([]);
-      fetchUsersPermissions(userPage, userSearch);
-    } catch (err) {
-      showNotify('error', 'Action Failed', err.response?.data?.message || 'Failed to force bulk popup.');
-    }
-  };
-
-  const setDatePreset = (type) => {
-    const now = new Date();
-    if (type === 'always') {
-      setData((prev) => ({ ...prev, active_from: '', active_until: '' }));
-    } else if (type === 'weekend') {
-      const sat = new Date(now);
-      sat.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
-      sat.setHours(0, 0, 0, 0);
-      const sun = new Date(sat);
-      sun.setDate(sat.getDate() + 1);
-      sun.setHours(23, 59, 59, 999);
-      setData((prev) => ({
-        ...prev,
-        active_from: sat.toISOString().slice(0, 16),
-        active_until: sun.toISOString().slice(0, 16),
-      }));
-    } else if (type === '7days') {
-      const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      setData((prev) => ({
-        ...prev,
-        active_from: now.toISOString().slice(0, 16),
-        active_until: end.toISOString().slice(0, 16),
-      }));
-    } else if (type === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59);
-      setData((prev) => ({
-        ...prev,
-        active_from: start.toISOString().slice(0, 16),
-        active_until: end.toISOString().slice(0, 16),
-      }));
-    }
-  };
-
-  // Schedule status badge computation
-  const getScheduleStatus = () => {
-    if (!data.active_from && !data.active_until) {
-      return { text: '🟢 Always Active (No Time Limit)', color: '#10b981', bg: '#ecfdf5' };
-    }
-    const now = new Date();
-    if (data.active_from && now < new Date(data.active_from)) {
-      return { text: '🟡 Scheduled (Starts Future)', color: '#f59e0b', bg: '#fffbeb' };
-    }
-    if (data.active_until && now > new Date(data.active_until)) {
-      return { text: '🔴 Expired', color: '#ef4444', bg: '#fef2f2' };
-    }
-    return { text: '🟢 Live Active Now', color: '#10b981', bg: '#ecfdf5' };
-  };
-
-  const scheduleStatus = getScheduleStatus();
 
   const openAddPrizeModal = () => {
     setEditingPrize(null);
@@ -243,8 +176,8 @@ export default function ScratchCardPage() {
       type: 'coupon',
       value: 100,
       coupon_code: '',
-      color: '#FFD700',
-      text_color: '#000000',
+      color: '#4C1D95',
+      text_color: '#FFFFFF',
       probability: 25,
       is_active: true,
     });
@@ -258,8 +191,8 @@ export default function ScratchCardPage() {
       type: prize.type,
       value: prize.value,
       coupon_code: prize.coupon_code || '',
-      color: prize.color || '#FFD700',
-      text_color: prize.text_color || '#000000',
+      color: prize.color || '#4C1D95',
+      text_color: prize.text_color || '#FFFFFF',
       probability: prize.probability || 10,
       is_active: prize.is_active !== false,
     });
@@ -271,615 +204,840 @@ export default function ScratchCardPage() {
     try {
       if (editingPrize) {
         await scratchCardApi.updatePrize(editingPrize.id, prizeForm);
-        showNotify('success', 'Prize Updated!', 'Prize card updated successfully.');
+        toast.success('Prize card updated!');
       } else {
         await scratchCardApi.createPrize(prizeForm);
-        showNotify('success', 'Prize Added!', 'New prize card added to the pool.');
+        toast.success('Prize card created!');
       }
       setPrizeModalOpen(false);
       fetchConfig();
     } catch (err) {
-      showNotify('error', 'Error Saving Prize', err.response?.data?.message || 'Failed to save prize card.');
+      toast.error(err?.response?.data?.message || 'Failed to save prize.');
     }
   };
 
   const handleDeletePrize = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this prize card from the pool?')) return;
+    if (!window.confirm('Delete this prize card from the pool?')) return;
     try {
       await scratchCardApi.deletePrize(id);
-      showNotify('success', 'Prize Removed', 'Prize card deleted from pool.');
+      toast.success('Prize card removed.');
       fetchConfig();
     } catch (err) {
-      showNotify('error', 'Delete Failed', err.response?.data?.message || 'Failed to delete prize.');
+      toast.error(err?.response?.data?.message || 'Failed to delete prize.');
     }
   };
 
-  return (
-    <div className="sc-container">
-      <NotificationModal
-        isOpen={notifModal.isOpen}
-        type={notifModal.type}
-        title={notifModal.title}
-        message={notifModal.message}
-        onClose={closeNotify}
-      />
+  const samplePrize = data.prizes?.[0] || {
+    label: '₹100 Cashback Voucher',
+    coupon_code: 'SCRATCH100',
+    type: 'coupon',
+    value: 100,
+  };
 
-      {/* Header */}
-      <div className="sc-header">
+  const handleCopyCode = (code) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  // Filter logs by search term
+  const filteredLogs = logs.filter((log) => {
+    if (!logSearch) return true;
+    const q = logSearch.toLowerCase();
+    return (
+      (log.user_name && log.user_name.toLowerCase().includes(q)) ||
+      (log.phone && log.phone.includes(q)) ||
+      (log.prize_label && log.prize_label.toLowerCase().includes(q)) ||
+      (log.coupon_code && log.coupon_code.toLowerCase().includes(q))
+    );
+  });
+
+  const totalPrizeProbability = (data.prizes || []).reduce(
+    (sum, p) => sum + (Number(p.probability) || 0),
+    0
+  );
+
+  // Color theme presets for prize cards
+  const colorThemes = [
+    { name: 'Cosmic Violet', bg: '#4C1D95', text: '#FFFFFF', gradient: 'from-purple-900 to-indigo-950' },
+    { name: 'Royal Gold', bg: '#78350F', text: '#FFFFFF', gradient: 'from-amber-800 to-yellow-950' },
+    { name: 'Emerald Fortune', bg: '#064E3B', text: '#FFFFFF', gradient: 'from-emerald-900 to-teal-950' },
+    { name: 'Neon Rose', bg: '#831843', text: '#FFFFFF', gradient: 'from-pink-900 to-rose-950' },
+    { name: 'Electric Sapphire', bg: '#1E3A8A', text: '#FFFFFF', gradient: 'from-blue-900 to-cyan-950' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-32">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-6 pb-16">
+      {/* Colorful Header Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-violet-600/15 via-pink-500/15 to-amber-500/15 p-6 sm:p-7 rounded-3xl border border-purple-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="sc-title">🎁 Scratch & Win Card Management</h1>
-          <p className="sc-subtitle">
-            Manage after how many orders customers get Scratch cards, active dates & times, target specified users, and win rewards.
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white px-3 py-1 rounded-full shadow-xs">
+              <Sparkles className="h-3 w-3" />
+              Gamified Checkout Rewards
+            </span>
+            {data.enabled ? (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-1 rounded-full border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                Live in App & Web
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-slate-500 bg-slate-200/80 px-2.5 py-1 rounded-full">
+                Offer Disabled
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
+            Scratch & Win Cards
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Reward customers with dynamic digital scratch cards for placing orders.
           </p>
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="sc-tabs-bar">
-        <button
-          className={`sc-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          ⚙️ Rules & Eligibility Schedule
-        </button>
-        <button
-          className={`sc-tab-btn ${activeTab === 'prizes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('prizes')}
-        >
-          🎁 Prize Cards Pool ({data.prizes?.length || 0})
-        </button>
-        <button
-          className={`sc-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          👥 Specific Customer Permissions ({totalUsers})
-        </button>
-        <button
-          className={`sc-tab-btn ${activeTab === 'logs' ? 'active' : ''}`}
-          onClick={() => setActiveTab('logs')}
-        >
-          📜 Scratch Audit Logs ({data.total_scratches || 0})
-        </button>
-      </div>
+        {/* Header Action: Save button appears on change with blue background and white text */}
+        <div className="flex items-center gap-3">
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-slate-300 text-slate-700 bg-white font-semibold text-xs hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Discard
+            </button>
+          )}
 
-      {/* Main Grid */}
-      <div className="sc-layout">
-        {/* Left Tab Content */}
-        <div className="sc-card">
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-              Loading scratch card configuration...
-            </div>
+          {isDirty ? (
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer animate-fadeIn"
+            >
+              <Save className="h-4 w-4 text-white" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
           ) : (
-            <>
-              {/* TAB 1: SETTINGS & ELIGIBILITY */}
-              {activeTab === 'settings' && (
-                <form onSubmit={handleSaveSettings} className="space-y-6">
-                  <div>
-                    <h3 className="sc-card-title">Offer Rules & Customer Eligibility</h3>
-                    <p className="sc-card-sub">
-                      Control who can scratch, minimum order thresholds, and active date & time schedule.
-                    </p>
-                  </div>
-
-                  {/* Enable Switch */}
-                  <div className="sc-setting-box">
-                    <label className="sc-toggle-label">
-                      <input
-                        type="checkbox"
-                        checked={data.enabled}
-                        onChange={(e) => setData({ ...data, enabled: e.target.checked })}
-                      />
-                      <span className="font-bold">Enable Scratch & Win Offer in App</span>
-                    </label>
-                    <p className="sc-help-text">
-                      Turn ON to allow eligible customers to earn and scratch discount cards.
-                    </p>
-                  </div>
-
-                  {/* 🎯 SECTION: ORDER ELIGIBILITY RULE */}
-                  <div className="bg-purple-50/70 border border-purple-200/90 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">🎯</span>
-                        <h4 className="font-extrabold text-slate-900 text-sm">After How Many Orders Can Customer Scratch?</h4>
-                      </div>
-                      <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full">
-                        {data.min_orders === 0 ? 'All Customers (0 Orders)' : `After ${data.min_orders} Completed Orders`}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="sc-label">Minimum Orders Required</label>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number"
-                          min="0"
-                          value={data.min_orders}
-                          onChange={(e) => setData({ ...data, min_orders: parseInt(e.target.value, 10) || 0 })}
-                          className="sc-input max-w-[140px] font-bold text-base"
-                        />
-                        <span className="text-xs text-slate-500 font-medium">orders placed by customer</span>
-                      </div>
-
-                      {/* Quick Presets */}
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {[
-                          { label: 'All Users (0)', val: 0 },
-                          { label: '1st Order (1)', val: 1 },
-                          { label: '2 Orders', val: 2 },
-                          { label: '3 Orders', val: 3 },
-                          { label: '5 Orders', val: 5 },
-                          { label: '10 Orders', val: 10 },
-                        ].map((preset) => (
-                          <button
-                            key={preset.val}
-                            type="button"
-                            onClick={() => setData({ ...data, min_orders: preset.val })}
-                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
-                              data.min_orders === preset.val
-                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                                : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-                            }`}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 📅 SECTION: ACTIVE DATE & TIME SCHEDULE */}
-                  <div className="bg-indigo-50/70 border border-indigo-200/90 rounded-2xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">📅</span>
-                        <h4 className="font-extrabold text-slate-900 text-sm">Active Schedule (Which Date & Which Time)</h4>
-                      </div>
-                      <span
-                        className="text-xs font-bold px-2.5 py-1 rounded-full border"
-                        style={{ color: scheduleStatus.color, backgroundColor: scheduleStatus.bg, borderColor: `${scheduleStatus.color}40` }}
-                      >
-                        {scheduleStatus.text}
-                      </span>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="sc-label">Active From (Start Date & Time)</label>
-                        <input
-                          type="datetime-local"
-                          value={data.active_from ? data.active_from.slice(0, 16) : ''}
-                          onChange={(e) => setData({ ...data, active_from: e.target.value })}
-                          className="sc-input font-medium text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="sc-label">Active Until (End Date & Time)</label>
-                        <input
-                          type="datetime-local"
-                          value={data.active_until ? data.active_until.slice(0, 16) : ''}
-                          onChange={(e) => setData({ ...data, active_until: e.target.value })}
-                          className="sc-input font-medium text-xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Schedule Quick Presets */}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setDatePreset('always')}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 transition-all"
-                      >
-                        ⚡ Always Active
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDatePreset('weekend')}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 transition-all"
-                      >
-                        🎉 This Weekend
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDatePreset('7days')}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 transition-all"
-                      >
-                        ⏳ Next 7 Days
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDatePreset('month')}
-                        className="text-xs font-bold px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 transition-all"
-                      >
-                        🗓️ This Month
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ⚡ SECTION: SCRATCH LIMITS & COOLDOWN */}
-                  <div className="sc-field-row">
-                    <div className="sc-field-group">
-                      <label className="sc-label">Max Scratches Allowed Per Day</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={data.max_per_day}
-                        onChange={(e) => setData({ ...data, max_per_day: parseInt(e.target.value, 10) || 1 })}
-                        className="sc-input font-bold"
-                      />
-                      <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                        Maximum scratch opportunities per customer in 24 hours.
-                      </p>
-                    </div>
-
-                    <div className="sc-field-group">
-                      <label className="sc-label">Cooldown Between Scratches (Hours)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={data.cooldown_hours}
-                        onChange={(e) => setData({ ...data, cooldown_hours: parseFloat(e.target.value) || 0 })}
-                        className="sc-input font-bold"
-                      />
-                      <p style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px' }}>
-                        Wait time required before the customer can scratch again.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Other Order Value & Payment Restrictions */}
-                  <div className="sc-field-row">
-                    <div className="sc-field-group">
-                      <label className="sc-label">Min Purchase Amount to Earn Card (₹)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={data.min_order}
-                        onChange={(e) => setData({ ...data, min_order: parseFloat(e.target.value) || 0 })}
-                        className="sc-input font-bold"
-                        placeholder="499"
-                        required
-                      />
-                    </div>
-
-                    <div className="sc-field-group">
-                      <label className="sc-label">Qualifying Payment Modes</label>
-                      <select
-                        value={data.payment_methods}
-                        onChange={(e) => setData({ ...data, payment_methods: e.target.value })}
-                        className="sc-input font-medium"
-                      >
-                        <option value="all">💳 All Payment Methods (Prepaid & COD)</option>
-                        <option value="prepaid_only">⚡ Online Payments Only (Prepaid Exclusive)</option>
-                        <option value="cod_only">💵 Cash on Delivery (COD) Only</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Title & Subtitle */}
-                  <div className="space-y-3">
-                    <div className="sc-field-group">
-                      <label className="sc-label">Scratch Card Popup Heading Title</label>
-                      <input
-                        type="text"
-                        value={data.title}
-                        onChange={(e) => setData({ ...data, title: e.target.value })}
-                        className="sc-input"
-                        required
-                      />
-                    </div>
-
-                    <div className="sc-field-group">
-                      <label className="sc-label">Scratch Card Description Subtitle</label>
-                      <textarea
-                        rows={2}
-                        value={data.subtitle}
-                        onChange={(e) => setData({ ...data, subtitle: e.target.value })}
-                        className="sc-input"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '24px', textAlign: 'right' }}>
-                    <button type="submit" className="sc-save-btn" disabled={saving}>
-                      {saving ? 'Saving...' : '💾 Save Scratch Card Rules & Schedule'}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* TAB 2: PRIZE POOL */}
-              {activeTab === 'prizes' && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-                    <div>
-                      <h3 className="sc-card-title">Scratch Card Prize Pool</h3>
-                      <p className="sc-card-sub" style={{ margin: 0 }}>Configure discount coupons, cashbacks, free gifts, and win probabilities.</p>
-                    </div>
-                    <button className="sc-save-btn" onClick={openAddPrizeModal}>
-                      + Add New Prize Card
-                    </button>
-                  </div>
-
-                  <div className="sc-prize-grid">
-                    {data.prizes.map((prize) => (
-                      <div
-                        key={prize.id}
-                        className="sc-prize-card"
-                        style={{ background: prize.color || '#7c3aed', color: prize.text_color || '#ffffff' }}
-                      >
-                        <div>
-                          <span className="sc-prize-type">{prize.type}</span>
-                          <h4 className="sc-prize-title">{prize.label}</h4>
-                          {prize.coupon_code && <div className="sc-prize-code">CODE: {prize.coupon_code}</div>}
-                        </div>
-                        <div>
-                          <div className="sc-prize-prob">
-                            <span>Probability Weight: {prize.probability}%</span>
-                            <span>{prize.is_active !== false ? '✅ Active' : '❌ Disabled'}</span>
-                          </div>
-                          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button
-                              type="button"
-                              style={{ background: 'rgba(255,255,255,0.25)', border: 'none', color: 'inherit', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}
-                              onClick={() => openEditPrizeModal(prize)}
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button
-                              type="button"
-                              style={{ background: 'rgba(0,0,0,0.3)', border: 'none', color: '#ff4d4d', padding: '4px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}
-                              onClick={() => handleDeletePrize(prize.id)}
-                            >
-                              🗑️ Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: SPECIFIC USER PERMISSIONS */}
-              {activeTab === 'users' && (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <h3 className="sc-card-title">Specified Customer Permissions & Force Popup</h3>
-                      <p className="sc-card-sub" style={{ margin: 0 }}>
-                        Target specific customers to receive instant Scratch & Win popups regardless of schedule or orders.
-                      </p>
-                    </div>
-
-                    {selectedUserIds.length > 0 && (
-                      <button
-                        onClick={handleBulkForcePopup}
-                        className="sc-save-btn"
-                        style={{ padding: '8px 16px', fontSize: '12px' }}
-                      >
-                        ⚡ Force Scratch for Selected ({selectedUserIds.length})
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <input
-                      type="text"
-                      placeholder="Search customer name, email, or phone..."
-                      value={userSearch}
-                      onChange={(e) => {
-                        setUserSearch(e.target.value);
-                        fetchUsersPermissions(1, e.target.value);
-                      }}
-                      className="sc-input"
-                    />
-                  </div>
-
-                  {userListLoading ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading customer list...</div>
-                  ) : (
-                    <table className="sc-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '36px' }}>
-                            <input
-                              type="checkbox"
-                              checked={userList.length > 0 && selectedUserIds.length === userList.length}
-                              onChange={handleSelectAllUsers}
-                            />
-                          </th>
-                          <th>Customer Name & Contact</th>
-                          <th style={{ textAlign: 'center' }}>Orders Placed</th>
-                          <th style={{ textAlign: 'center' }}>Total Scratched</th>
-                          <th style={{ textAlign: 'right' }}>Target User Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {userList.length === 0 ? (
-                          <tr><td colSpan="5" style={{ textAlign: 'center', color: '#64748b' }}>No customers found.</td></tr>
-                        ) : (
-                          userList.map((userObj) => {
-                            const isForced = userObj.force_scratch_popup === true;
-                            const isSelected = selectedUserIds.includes(userObj.id);
-                            return (
-                              <tr key={userObj.id} style={{ background: isSelected ? '#f5f3ff' : undefined }}>
-                                <td>
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => handleToggleSelectUser(userObj.id)}
-                                  />
-                                </td>
-                                <td>
-                                  <strong>{userObj.name || 'Customer'}</strong>
-                                  <br />
-                                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                    {userObj.email || '-'} · <code>{userObj.phone || '-'}</code>
-                                  </span>
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <span className="font-bold text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800">
-                                    {userObj.total_orders || 0} Orders
-                                  </span>
-                                </td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <strong style={{ color: '#7c3aed' }}>{userObj.total_scratches || 0} Cards</strong>
-                                </td>
-                                <td style={{ textAlign: 'right' }}>
-                                  <button
-                                    type="button"
-                                    style={{
-                                      padding: '5px 12px',
-                                      fontSize: '11.5px',
-                                      fontWeight: '800',
-                                      borderRadius: '16px',
-                                      color: isForced ? '#ffffff' : '#7c3aed',
-                                      borderColor: isForced ? '#7c3aed' : '#c4b5fd',
-                                      background: isForced ? 'linear-gradient(135deg, #7c3aed, #9333ea)' : '#ffffff',
-                                      border: '1px solid #c4b5fd',
-                                      cursor: 'pointer',
-                                    }}
-                                    onClick={() => handleForceUserPopup(userObj.id)}
-                                  >
-                                    {isForced ? '⚡ Forced (Popup Pending)' : '⚡ Force Scratch'}
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 4: AUDIT LOGS */}
-              {activeTab === 'logs' && (
-                <div>
-                  <h3 className="sc-card-title">Scratch Card Audit Logs</h3>
-                  <p className="sc-card-sub">History of customer scratch card reveals and claimed prizes.</p>
-
-                  {logsLoading ? (
-                    <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>Loading logs...</div>
-                  ) : (
-                    <table className="sc-table">
-                      <thead>
-                        <tr>
-                          <th>Log ID</th>
-                          <th>Customer</th>
-                          <th>Prize Won</th>
-                          <th>Type</th>
-                          <th>Coupon Code</th>
-                          <th>Date & Time</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logs.length === 0 ? (
-                          <tr><td colSpan="6" style={{ textAlign: 'center', color: '#64748b' }}>No scratch log history recorded yet.</td></tr>
-                        ) : (
-                          logs.map((log) => (
-                            <tr key={log.id}>
-                              <td>#{log.id}</td>
-                              <td>
-                                <strong>{log.user_name || 'Guest User'}</strong>
-                                <br />
-                                <span style={{ fontSize: '11px', color: '#64748b' }}>{log.phone || '-'}</span>
-                              </td>
-                              <td><strong style={{ color: '#7c3aed' }}>{log.prize_label}</strong></td>
-                              <td><span style={{ fontSize: '11px', textTransform: 'uppercase', background: '#f1f5f9', padding: '2px 6px', borderRadius: '6px' }}>{log.prize_type}</span></td>
-                              <td>{log.coupon_code ? <code>{log.coupon_code}</code> : '-'}</td>
-                              <td>{new Date(log.scratched_at).toLocaleString()}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-            </>
+            <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs font-semibold shadow-xs">
+              <Check className="h-3.5 w-3.5 text-blue-600" />
+              Saved
+            </div>
           )}
         </div>
+      </div>
 
-        {/* Right Live Simulator Phone */}
-        <div>
-          <h3 className="sc-card-title" style={{ marginBottom: '14px' }}>📱 Live Scratch Simulator</h3>
-          <div className="sc-phone-wrap">
-            <div className="sc-phone-notch" />
-            <div className="sc-phone-screen">
-              <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '1px', color: '#7c3aed', marginBottom: '8px' }}>
-                LIVE PREVIEW
-              </span>
-              <h4 style={{ fontSize: '16px', fontWeight: '900', margin: '0 0 4px 0' }}>{data.title}</h4>
-              <p style={{ fontSize: '12px', opacity: 0.8, margin: '0 0 16px 0', lineHeight: 1.4 }}>{data.subtitle}</p>
-
-              {/* Scratch Card Box */}
-              <div
-                className="sc-scratch-box"
-                onClick={() => setIsScratched(!isScratched)}
-              >
-                {!isScratched ? (
-                  <div className="sc-scratch-foil" />
-                ) : (
-                  <div className="sc-scratch-revealed">
-                    <span style={{ fontSize: '10px', fontWeight: '900', background: 'rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '12px', letterSpacing: '1px', marginBottom: '8px' }}>
-                      🎉 REWARD UNLOCKED!
-                    </span>
-                    <span style={{ fontSize: '34px', marginBottom: '4px' }}>🏆</span>
-                    <span style={{ fontSize: '15px', fontWeight: '900', color: '#ffffff', textAlign: 'center', lineHeight: '1.3' }}>
-                      {data.prizes[0]?.label || '₹100 OFF VOUCHER'}
-                    </span>
-                    {data.prizes[0]?.coupon_code && (
-                      <span style={{ fontSize: '13px', fontWeight: '900', background: '#ffffff', color: '#7c3aed', padding: '5px 12px', borderRadius: '10px', marginTop: '10px', letterSpacing: '1.5px', fontFamily: 'monospace', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}>
-                        {data.prizes[0]?.coupon_code}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700' }}>
-                {isScratched ? 'Click card to reset foil' : 'Click card to reveal prize!'}
-              </span>
+      {/* Colorful Metric KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPI 1: Total Scratched Cards */}
+        <div className="bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-white rounded-3xl p-5 border border-purple-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-purple-700 uppercase tracking-wider">
+              Total Scratches
+            </span>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {Number(data.total_scratches || 0).toLocaleString()}
             </div>
+            <p className="text-[11px] text-purple-600/80 font-medium">Customer scratch events</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
+            <Gift className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* KPI 2: Active Prize Pool */}
+        <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white rounded-3xl p-5 border border-amber-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
+              Active Prizes
+            </span>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {(data.prizes || []).length} Cards
+            </div>
+            <p className="text-[11px] text-amber-600/80 font-medium">
+              {totalPrizeProbability}% total win pool
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
+            <Trophy className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* KPI 3: Min Order Spend */}
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-white rounded-3xl p-5 border border-emerald-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+              Min Order Value
+            </span>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              ₹{data.min_order}
+            </div>
+            <p className="text-[11px] text-emerald-600/80 font-medium">Threshold to earn card</p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
+            <ShoppingBag className="h-6 w-6" />
+          </div>
+        </div>
+
+        {/* KPI 4: Daily Limit & Modes */}
+        <div className="bg-gradient-to-br from-blue-500/10 via-cyan-500/5 to-white rounded-3xl p-5 border border-blue-200/80 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
+              Daily Limit
+            </span>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {data.max_per_day} Card / Day
+            </div>
+            <p className="text-[11px] text-blue-600/80 font-medium capitalize">
+              {data.payment_methods === 'all' ? 'All payment modes' : data.payment_methods.replace('_', ' ')}
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+            <Zap className="h-6 w-6" />
           </div>
         </div>
       </div>
 
-      {/* Add/Edit Prize Modal */}
+      {/* Colorful Tabs Bar */}
+      <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap gap-2 max-w-fit">
+        {[
+          {
+            id: 'settings',
+            label: 'Offer Settings & Studio',
+            icon: Gift,
+            activeClass: 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20',
+          },
+          {
+            id: 'prizes',
+            label: `Prize Rewards (${(data.prizes || []).length})`,
+            icon: Trophy,
+            activeClass: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/20',
+          },
+          {
+            id: 'logs',
+            label: `Winners History (${data.total_scratches || 0})`,
+            icon: History,
+            activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20',
+          },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                active
+                  ? tab.activeClass
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* TAB 1: SETTINGS & PREVIEW */}
+      {activeTab === 'settings' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left: Setup & Eligibility Form (7 cols) */}
+          <form onSubmit={handleSaveSettings} className="lg:col-span-7 space-y-6">
+            
+            {/* Card 1: Main Toggle & Card Copy */}
+            <div className="bg-white rounded-3xl border border-purple-200/60 p-6 shadow-sm space-y-5">
+              <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-sm shadow-purple-500/20">
+                    <Gift className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-base">Enable Scratch Card Offer</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Show scratch card popups to eligible shoppers on checkout & order confirmation
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setData((p) => ({ ...p, enabled: !p.enabled }))}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none cursor-pointer ${
+                    data.enabled ? 'bg-emerald-500' : 'bg-slate-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                      data.enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Card Heading Title
+                </label>
+                <Input
+                  value={data.title}
+                  onChange={(e) => setData({ ...data, title: e.target.value })}
+                  placeholder="e.g. Scratch & Win Guaranteed Rewards"
+                  className="font-bold text-slate-900 border-slate-200 focus:border-purple-500 focus:ring-purple-200"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Card Subtitle (Instruction)
+                </label>
+                <Input
+                  value={data.subtitle}
+                  onChange={(e) => setData({ ...data, subtitle: e.target.value })}
+                  placeholder="e.g. Scratch the card to reveal your instant discount prize!"
+                  className="text-slate-700 text-sm border-slate-200 focus:border-purple-500 focus:ring-purple-200"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Card 2: Simple Eligibility */}
+            <div className="bg-white rounded-3xl border border-amber-200/60 p-6 shadow-sm space-y-5">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-500/20">
+                  <Coins className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Who Gets a Scratch Card?</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Define order amount and customer milestone rules
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Minimum Order Value (₹)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={data.min_order}
+                    onChange={(e) => setData({ ...data, min_order: parseFloat(e.target.value) || 0 })}
+                    placeholder="499"
+                    className="font-bold text-slate-900 border-slate-200 focus:border-amber-500 focus:ring-amber-200"
+                    required
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Minimum cart spend required to earn a card</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Customer Milestone
+                  </label>
+                  <select
+                    value={data.min_orders}
+                    onChange={(e) => setData({ ...data, min_orders: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+                  >
+                    <option value={0}>All Customers (Any Order)</option>
+                    <option value={1}>After 1 Completed Order</option>
+                    <option value={2}>After 2 Completed Orders</option>
+                    <option value={3}>After 3 Completed Orders</option>
+                    <option value={5}>After 5 Completed Orders</option>
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">When customer unlocks the card</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Max Scratches Per Day
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={data.max_per_day}
+                    onChange={(e) => setData({ ...data, max_per_day: parseInt(e.target.value, 10) || 1 })}
+                    className="font-bold text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Payment Method
+                  </label>
+                  <select
+                    value={data.payment_methods}
+                    onChange={(e) => setData({ ...data, payment_methods: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  >
+                    <option value="all">All Modes (Prepaid & COD)</option>
+                    <option value="prepaid_only">Online Payments Only</option>
+                    <option value="cod_only">COD Only</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Save Action: Shows only when dirty, with Blue background and White text */}
+            {isDirty && (
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-blue-600 shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-blue-950">You have unsaved changes</p>
+                    <p className="text-[11px] text-blue-700">Click below to publish the updated scratch settings.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleDiscard}
+                    className="px-4 py-2.5 rounded-xl border border-blue-300 text-blue-800 bg-white font-semibold text-xs hover:bg-blue-100/50 transition-colors cursor-pointer"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Save className="h-4 w-4 text-white" />
+                    {saving ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+
+          {/* Right: Vibrant Live Scratch Card Mockup (5 cols) */}
+          <div className="lg:col-span-5 sticky top-6">
+            <div className="relative bg-white rounded-3xl border border-purple-200/80 p-6 shadow-sm flex flex-col items-center overflow-hidden">
+              {/* Colorful Background Aura */}
+              <div className="absolute -top-16 -right-16 w-52 h-52 bg-gradient-to-br from-amber-400/20 via-pink-400/20 to-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -left-16 w-52 h-52 bg-gradient-to-tr from-purple-400/20 via-indigo-400/20 to-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 w-full flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                    <Smartphone className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Interactive Phone Preview
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsScratched(!isScratched)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {isScratched ? 'Reset Foil' : 'Scratch Card'}
+                </button>
+              </div>
+
+              {/* Smartphone Frame with Cosmic Gradient Screen */}
+              <div className="relative z-10 my-6 w-[280px] h-[520px] rounded-[40px] border-[8px] border-slate-900 shadow-2xl overflow-hidden bg-gradient-to-b from-slate-950 via-indigo-950 to-purple-950 flex flex-col justify-between p-5 text-center text-white">
+                {/* Speaker Notch */}
+                <div className="w-20 h-4 bg-slate-900 rounded-full mx-auto" />
+
+                <div className="w-full space-y-4 my-auto">
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 px-2.5 py-0.5 rounded-full shadow-md">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      Guaranteed Reward
+                    </span>
+                    <h3 className="text-sm font-extrabold text-white leading-snug">
+                      {data.title}
+                    </h3>
+                    <p className="text-xs text-purple-200/80 leading-relaxed px-1">
+                      {data.subtitle}
+                    </p>
+                  </div>
+
+                  {/* Foil Scratch Card Container */}
+                  <div
+                    onClick={() => setIsScratched(!isScratched)}
+                    className="relative w-full h-48 rounded-2xl cursor-pointer overflow-hidden border border-amber-400/40 shadow-xl select-none group transition-transform active:scale-98"
+                  >
+                    {!isScratched ? (
+                      /* Holographic Metallic Gold Foil Layer */
+                      <div className="absolute inset-0 bg-gradient-to-tr from-amber-200 via-yellow-100 to-amber-300 flex flex-col items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-radial from-white/40 via-transparent to-amber-400/30 opacity-60 pointer-events-none" />
+                        <div className="relative w-12 h-12 rounded-full bg-white/95 border-2 border-amber-300 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Gift className="h-6 w-6 text-amber-600" />
+                        </div>
+                        <p className="relative text-xs font-black text-slate-900 tracking-wider uppercase mt-3">
+                          Tap to Scratch
+                        </p>
+                        <span className="relative text-[10px] font-bold text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full mt-1">
+                          Reveal Instant Prize
+                        </span>
+                      </div>
+                    ) : (
+                      /* Vibrant Revealed Celebratory Prize Card */
+                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-950 text-white flex flex-col items-center justify-center p-4 border border-amber-400/50 animate-fadeIn">
+                        <div className="absolute -top-6 -right-6 w-20 h-20 bg-amber-400/20 rounded-full blur-xl pointer-events-none" />
+                        <span className="text-[10px] font-black text-amber-300 uppercase tracking-widest bg-amber-950/80 border border-amber-500/40 px-2 py-0.5 rounded-full mb-1">
+                          Congratulations!
+                        </span>
+                        <Trophy className="h-8 w-8 text-amber-400 my-1 drop-shadow-md animate-bounce" />
+                        <p className="text-xs font-extrabold text-white text-center leading-tight">
+                          {samplePrize.label}
+                        </p>
+                        {samplePrize.coupon_code && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyCode(samplePrize.coupon_code);
+                            }}
+                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-mono text-xs font-black tracking-wider transition-colors shadow-md cursor-pointer"
+                          >
+                            <span>{samplePrize.coupon_code}</span>
+                            {copiedCode ? <Check className="h-3 w-3 text-emerald-800" /> : <Copy className="h-3 w-3 opacity-70" />}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-purple-200/70 font-medium">
+                    {isScratched ? 'Click card to reset simulation' : 'Click the foil card to scratch & reveal'}
+                  </p>
+                </div>
+
+                {/* Bottom Bar */}
+                <div className="w-24 h-1 bg-slate-800 rounded-full mx-auto" />
+              </div>
+
+              {/* Quick Summary Pill below Phone */}
+              <div className="relative z-10 w-full bg-gradient-to-r from-purple-50 via-pink-50 to-amber-50 rounded-2xl p-3.5 border border-purple-100 flex items-center justify-between text-xs text-slate-700 font-bold">
+                <span className="flex items-center gap-1.5 text-purple-900">
+                  <ShoppingBag className="h-3.5 w-3.5 text-purple-600" />
+                  Min spend: ₹{data.min_order}
+                </span>
+                <span className="flex items-center gap-1.5 text-amber-900">
+                  <Zap className="h-3.5 w-3.5 text-amber-600" />
+                  Max {data.max_per_day} per day
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: PRIZE REWARDS */}
+      {activeTab === 'prizes' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-purple-500/10 p-6 rounded-3xl border border-amber-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+                  Reward Pool
+                </span>
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  totalPrizeProbability === 100
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border border-amber-300'
+                }`}>
+                  Total Odds: {totalPrizeProbability}%
+                </span>
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900 mt-1">Prize Reward Cards</h2>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Manage discounts, coupons, vouchers, and the probability of winning each card.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              onClick={openAddPrizeModal}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              Add Prize Card
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {(data.prizes || []).map((prize) => {
+              const isCoupon = prize.type === 'coupon';
+              const isCashback = prize.type === 'cashback';
+              const isFreeShipping = prize.type === 'free_shipping';
+
+              const badgeColor = isCoupon
+                ? 'bg-purple-100 text-purple-800 border-purple-200'
+                : isCashback
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                : isFreeShipping
+                ? 'bg-sky-100 text-sky-800 border-sky-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200';
+
+              return (
+                <div
+                  key={prize.id}
+                  className="bg-white rounded-3xl border border-slate-200/80 p-5 shadow-sm space-y-4 hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full border ${badgeColor}`}>
+                        {prize.type.replace('_', ' ')}
+                      </span>
+                      <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                        {prize.probability}% Chance
+                      </span>
+                    </div>
+
+                    {/* Rich Styled Prize Card Body */}
+                    <div
+                      className="relative overflow-hidden p-4 rounded-2xl flex flex-col justify-between h-32 shadow-sm"
+                      style={{
+                        backgroundColor: prize.color || '#4C1D95',
+                        color: prize.text_color || '#FFFFFF',
+                      }}
+                    >
+                      {/* Holographic Gloss Line */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-extrabold text-sm leading-snug line-clamp-2">
+                          {prize.label}
+                        </p>
+                        <Trophy className="h-5 w-5 text-amber-300 shrink-0" />
+                      </div>
+
+                      <div className="flex items-end justify-between pt-2 border-t border-white/15">
+                        {prize.coupon_code ? (
+                          <div className="flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded-lg bg-white/20 backdrop-blur-xs font-bold tracking-wider">
+                            <Tag className="h-3 w-3 text-amber-300" />
+                            <span>{prize.coupon_code}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] opacity-80 font-medium">Auto-applied</span>
+                        )}
+                        <span className="text-base font-black text-amber-300">
+                          {prize.value ? `₹${prize.value}` : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Win Chance Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                        <span>Pool Odds</span>
+                        <span>{prize.probability}%</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-amber-500 to-orange-500 h-1.5 rounded-full"
+                          style={{ width: `${Math.min(100, prize.probability)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditPrizeModal(prize)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <Edit3 className="h-3.5 w-3.5 text-purple-600" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePrize(prize.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: WINNERS HISTORY */}
+      {activeTab === 'logs' && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-emerald-500/5 via-teal-500/5 to-white">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                  Live Audit Log
+                </span>
+                <span className="text-xs font-bold text-slate-600">
+                  {data.total_scratches || 0} Total Claims
+                </span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mt-1">Recent Scratched Cards</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Real-time log of shoppers who scratched cards and the prizes they unlocked.
+              </p>
+            </div>
+
+            <div className="relative min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                placeholder="Search customer, phone, code..."
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+              />
+            </div>
+          </div>
+
+          {logsLoading ? (
+            <div className="py-20 flex justify-center"><Spinner size="lg" /></div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 text-sm">
+              No scratch card history found.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="py-3.5 px-6">Customer</th>
+                    <th className="py-3.5 px-6">Reward Won</th>
+                    <th className="py-3.5 px-6">Coupon Code</th>
+                    <th className="py-3.5 px-6 text-right">Revealed Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredLogs.map((log) => {
+                    const initials = (log.user_name || 'Customer')
+                      .split(' ')
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase();
+
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                              {initials}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900">{log.user_name || 'Customer'}</p>
+                              <p className="text-xs text-slate-400 font-mono">{log.phone || '-'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-6">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1 rounded-lg bg-amber-100 text-amber-700">
+                              <Trophy className="h-3.5 w-3.5" />
+                            </div>
+                            <span className="font-bold text-slate-900">{log.prize_label}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-6">
+                          {log.coupon_code ? (
+                            <span className="font-mono text-xs px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-bold border border-purple-200">
+                              {log.coupon_code}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-6 text-right text-xs text-slate-500 font-medium">
+                          {new Date(log.scratched_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>Page {logsPage}</span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={logsPage <= 1}
+                onClick={() => setLogsPage((p) => p - 1)}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                disabled={logs.length < 20}
+                onClick={() => setLogsPage((p) => p + 1)}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Prize Modal */}
       {prizeModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ background: '#ffffff', width: '90%', maxWidth: '480px', borderRadius: '24px', padding: '28px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '900' }}>
-              {editingPrize ? 'Edit Prize Card' : 'Add New Prize Card'}
-            </h3>
-            <form onSubmit={handleSavePrize}>
-              <div className="sc-field-group">
-                <label className="sc-label">Prize Label Title</label>
-                <input
-                  type="text"
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl border border-purple-200 shadow-2xl p-6 space-y-5 animate-scaleIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                  <Trophy className="h-4 w-4" />
+                </div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  {editingPrize ? 'Edit Prize Card' : 'Add New Prize Card'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrizeModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePrize} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Prize Title
+                </label>
+                <Input
                   value={prizeForm.label}
                   onChange={(e) => setPrizeForm({ ...prizeForm, label: e.target.value })}
-                  className="sc-input"
                   placeholder="e.g. ₹100 Cashback Voucher"
                   required
                 />
               </div>
 
-              <div className="sc-field-row">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="sc-label">Prize Type</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Type
+                  </label>
                   <select
                     value={prizeForm.type}
                     onChange={(e) => setPrizeForm({ ...prizeForm, type: e.target.value })}
-                    className="sc-input"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-purple-500"
                   >
                     <option value="coupon">Discount Coupon</option>
                     <option value="cashback">Cashback</option>
@@ -888,73 +1046,94 @@ export default function ScratchCardPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="sc-label">Value (₹ or %)</label>
-                  <input
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Value (₹)
+                  </label>
+                  <Input
                     type="number"
                     value={prizeForm.value}
                     onChange={(e) => setPrizeForm({ ...prizeForm, value: parseFloat(e.target.value) || 0 })}
-                    className="sc-input"
                   />
                 </div>
               </div>
 
-              <div className="sc-field-row">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="sc-label">Coupon Code</label>
-                  <input
-                    type="text"
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Coupon Code
+                  </label>
+                  <Input
                     value={prizeForm.coupon_code}
                     onChange={(e) => setPrizeForm({ ...prizeForm, coupon_code: e.target.value.toUpperCase() })}
-                    className="sc-input"
                     placeholder="SCRATCH100"
+                    className="font-mono text-xs uppercase"
                   />
                 </div>
                 <div>
-                  <label className="sc-label">Win Probability (%)</label>
-                  <input
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Win Chance (%)
+                  </label>
+                  <Input
                     type="number"
                     min="1"
                     max="100"
                     value={prizeForm.probability}
                     onChange={(e) => setPrizeForm({ ...prizeForm, probability: parseInt(e.target.value, 10) || 10 })}
-                    className="sc-input"
                   />
                 </div>
               </div>
 
-              <div className="sc-field-row">
-                <div>
-                  <label className="sc-label">Card Color</label>
-                  <input
-                    type="color"
-                    value={prizeForm.color}
-                    onChange={(e) => setPrizeForm({ ...prizeForm, color: e.target.value })}
-                    className="sc-input"
-                    style={{ height: '44px', padding: '4px' }}
-                  />
-                </div>
-                <div>
-                  <label className="sc-label">Text Color</label>
-                  <input
-                    type="color"
-                    value={prizeForm.text_color}
-                    onChange={(e) => setPrizeForm({ ...prizeForm, text_color: e.target.value })}
-                    className="sc-input"
-                    style={{ height: '44px', padding: '4px' }}
-                  />
+              {/* Color Theme Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Card Theme Accent
+                </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {colorThemes.map((thm) => (
+                    <button
+                      key={thm.name}
+                      type="button"
+                      onClick={() => setPrizeForm({ ...prizeForm, color: thm.bg, text_color: thm.text })}
+                      className={`h-7 px-3 rounded-xl text-[10px] font-bold text-white transition-transform ${
+                        prizeForm.color === thm.bg
+                          ? 'ring-2 ring-purple-600 ring-offset-2 scale-105'
+                          : 'opacity-85 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: thm.bg }}
+                    >
+                      {thm.name}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div style={{ marginTop: '20px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              {/* Live Preview Inside Modal */}
+              <div
+                className="p-3.5 rounded-2xl flex items-center justify-between shadow-xs"
+                style={{ backgroundColor: prizeForm.color, color: prizeForm.text_color }}
+              >
+                <div>
+                  <p className="text-xs font-extrabold">{prizeForm.label || 'Prize Preview'}</p>
+                  <p className="text-[10px] opacity-80 font-mono mt-0.5">{prizeForm.coupon_code || 'CODE'}</p>
+                </div>
+                <span className="text-sm font-black text-amber-300">
+                  {prizeForm.value ? `₹${prizeForm.value}` : ''}
+                </span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setPrizeModalOpen(false)}
-                  style={{ padding: '10px 18px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="sc-save-btn">
-                  {editingPrize ? 'Update Prize' : 'Create Prize'}
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  {editingPrize ? 'Save Changes' : 'Create Prize'}
                 </button>
               </div>
             </form>

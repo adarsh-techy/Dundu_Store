@@ -11,11 +11,59 @@ const isCloudinaryConfigured = !!(
   process.env.CLOUDINARY_API_SECRET
 );
 
-// File filter
+// Allowed image types. The stored extension is derived from the declared type (never
+// from the client-supplied filename) and the file's magic bytes are checked after the
+// write, so an "image/png" part named evil.html cannot end up served as HTML.
+const ALLOWED_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+const UPLOAD_ERROR = 'Only JPEG, PNG, WebP allowed';
+
 const fileFilter = (_req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  allowed.includes(file.mimetype) ? cb(null, true) : cb(new Error('Only JPEG, PNG, WebP allowed'));
+  ALLOWED_TYPES[file.mimetype] ? cb(null, true) : cb(new Error(UPLOAD_ERROR));
 };
+
+const sniffImageType = (buf) => {
+  if (!buf || buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png';
+  if (buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'image/webp';
+  return null;
+};
+
+const readHead = (file) => {
+  if (file.buffer) return file.buffer.subarray(0, 12);
+  const fd = fs.openSync(file.path, 'r');
+  try {
+    const head = Buffer.alloc(12);
+    const n = fs.readSync(fd, head, 0, 12, 0);
+    return head.subarray(0, n);
+  } finally {
+    fs.closeSync(fd);
+  }
+};
+
+// Runs after multer: verifies every accepted file really is the image type it claimed.
+// Files that fail are removed from disk and the request is rejected.
+const verifyImages = (req, _res, next) => {
+  const files = [...(req.file ? [req.file] : []), ...(Array.isArray(req.files) ? req.files : [])];
+  for (const file of files) {
+    let actual = null;
+    try { actual = sniffImageType(readHead(file)); } catch { actual = null; }
+    if (!actual || !ALLOWED_TYPES[actual]) {
+      for (const f of files) {
+        if (f.path && !f.buffer) fs.promises.unlink(f.path).catch(() => {});
+      }
+      return next(new Error(UPLOAD_ERROR));
+    }
+  }
+  next();
+};
+
+const filesLookValid = (req) => {
+  const files = [...(req.file ? [req.file] : []), ...(Array.isArray(req.files) ? req.files : [])];
+  return files.every((f) => { try { return !!ALLOWED_TYPES[sniffImageType(readHead(f))]; } catch { return false; } });
+};
+
+const withVerify = (mw) => (req, res, next) => mw(req, res, (err) => (err ? next(err) : verifyImages(req, res, next)));
 
 const limits = { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024 };
 
@@ -40,8 +88,7 @@ if (isCloudinaryConfigured) {
       cb(null, uploadDir);
     },
     filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `${uuidv4()}${ext}`);
+      cb(null, `${uuidv4()}${ALLOWED_TYPES[file.mimetype] || '.bin'}`);
     },
   });
   uploadMiddleware = multer({ storage, fileFilter, limits });
@@ -81,6 +128,7 @@ const makeCloudinaryUpload = (multerInstance) => {
       return (req, res, next) => {
         original(req, res, async (err) => {
           if (err) return next(err);
+          if (!filesLookValid(req)) return next(new Error(UPLOAD_ERROR));
           if (isCloudinaryConfigured && req.file) {
             try {
               const result = await uploadToCloudinary(req.file.buffer, req.file.originalname);
@@ -99,6 +147,7 @@ const makeCloudinaryUpload = (multerInstance) => {
       return (req, res, next) => {
         original(req, res, async (err) => {
           if (err) return next(err);
+          if (!filesLookValid(req)) return next(new Error(UPLOAD_ERROR));
           if (isCloudinaryConfigured && req.files && req.files.length) {
             try {
               const uploadPromises = req.files.map(async (file) => {
@@ -120,6 +169,7 @@ const makeCloudinaryUpload = (multerInstance) => {
       return (req, res, next) => {
         original(req, res, async (err) => {
           if (err) return next(err);
+          if (!filesLookValid(req)) return next(new Error(UPLOAD_ERROR));
           if (isCloudinaryConfigured && req.files && req.files.length) {
             try {
               const uploadPromises = req.files.map(async (file) => {
@@ -153,8 +203,8 @@ const getFileUrl = (file) => {
 };
 
 module.exports = {
-  single: (fieldname) => finalUpload.single(fieldname),
-  array: (fieldname, maxCount) => finalUpload.array(fieldname, maxCount),
-  any: () => finalUpload.any(),
+  single: (fieldname) => withVerify(finalUpload.single(fieldname)),
+  array: (fieldname, maxCount) => withVerify(finalUpload.array(fieldname, maxCount)),
+  any: () => withVerify(finalUpload.any()),
   getFileUrl
 };

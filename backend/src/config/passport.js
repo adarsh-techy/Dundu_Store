@@ -12,14 +12,23 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
-          const email = profile.emails?.[0]?.value;
+          const primaryEmail = profile.emails?.[0];
+          const email = primaryEmail?.value;
+          // Only link a Google identity to an existing account by email when Google
+          // reports that email as verified; otherwise an attacker could claim someone
+          // else's address at Google and log into their store account.
+          const emailVerified = primaryEmail?.verified === true || primaryEmail?.verified === 'true';
+
           const { rows } = await db.query(
-            'SELECT * FROM users WHERE google_id = $1 OR email = $2',
-            [profile.id, email]
+            emailVerified
+              ? 'SELECT * FROM users WHERE google_id = $1 OR email = $2'
+              : 'SELECT * FROM users WHERE google_id = $1',
+            emailVerified ? [profile.id, email] : [profile.id]
           );
 
           if (rows.length > 0) {
             const user = rows[0];
+            if (user.is_blocked) return done(null, false);
             if (!user.google_id) {
               await db.query('UPDATE users SET google_id = $1 WHERE id = $2', [profile.id, user.id]);
             }

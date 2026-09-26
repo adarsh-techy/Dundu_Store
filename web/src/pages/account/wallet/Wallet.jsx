@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { Wallet as WalletIcon, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { walletApi } from '../../../api';
-import { formatPrice } from '../../../utils/format';
+import { formatPrice, formatDateTime } from '../../../utils/format';
+import PageHeader from '../../../components/ui/PageHeader';
+import EmptyState from '../../../components/ui/EmptyState';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import useDocumentTitle from '../../../hooks/useDocumentTitle';
 
 const REASON_LABELS = {
   order_payment: 'Paid at checkout',
@@ -12,69 +16,56 @@ const REASON_LABELS = {
 };
 
 export default function Wallet() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['wallet-page'],
-    queryFn: () => walletApi.getTransactions({ limit: 50 }),
-  });
-
+  useDocumentTitle('My wallet');
+  const { data, isLoading } = useQuery({ queryKey: ['wallet-page'], queryFn: () => walletApi.getTransactions({ limit: 50 }) });
   const balance = data?.data?.balance ?? 0;
   const transactions = data?.data?.transactions || [];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-12 space-y-8">
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-          style={{ backgroundColor: '#1a0a12' }}>
-          <WalletIcon className="h-8 w-8" style={{ color: '#e91e8c' }} />
-        </div>
-        <h1 className="text-3xl font-black tracking-wide" style={{ color: '#f5f5f5' }}>My Wallet</h1>
-        <p className="mt-2 text-sm" style={{ color: '#666' }}>
-          Refunds and credits land here — use it to pay for your next order
-        </p>
-      </div>
+    <div className="container-x max-w-2xl py-6 md:py-10">
+      <PageHeader title="My wallet" subtitle="Refunds and credits land here. Use it to pay for your next order." crumbs={[{ label: 'Wallet' }]} />
 
-      <div className="rounded-2xl p-6 text-center"
-        style={{ background: 'linear-gradient(135deg, #1a0a12 0%, #0d0d0d 100%)', border: '1px solid #3d1226' }}>
-        <p className="text-xs uppercase tracking-widest" style={{ color: '#888' }}>Available Balance</p>
-        <p className="text-4xl font-black mt-2" style={{ color: '#e91e8c' }}>
-          {isLoading ? '…' : formatPrice(balance)}
-        </p>
-        <p className="text-xs mt-2" style={{ color: '#555' }}>Choose &quot;Pay with Wallet&quot; at checkout to use it</p>
-      </div>
-
-      <div>
-        <h2 className="font-semibold mb-3" style={{ color: '#ddd' }}>Transaction History</h2>
-        {isLoading ? (
-          <p className="text-sm text-center py-8" style={{ color: '#666' }}>Loading…</p>
-        ) : transactions.length === 0 ? (
-          <div className="text-center py-8 rounded-2xl" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
-            <WalletIcon className="h-10 w-10 mx-auto mb-3" style={{ color: '#333' }} />
-            <p style={{ color: '#888' }}>No transactions yet</p>
+      <div className="relative overflow-hidden rounded-3xl p-7 md:p-9 border border-primary/30 bg-gradient-to-br from-[#2a0b1c] via-[#170a11] to-bg mb-8">
+        <div className="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-primary/25 blur-3xl" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <p className="eyebrow">Available balance</p>
+            <p className="font-display text-5xl text-ink mt-2">{isLoading ? '…' : formatPrice(balance)}</p>
+            <p className="text-xs text-muted mt-3">Choose “Pay with wallet” at checkout to use it.</p>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {transactions.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-xl px-4 py-3"
-                style={{ backgroundColor: '#111', border: '1px solid #2e2e2e' }}>
+          <div className="h-14 w-14 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center">
+            <WalletIcon className="h-7 w-7 text-primary-soft" />
+          </div>
+        </div>
+      </div>
+
+      <h2 className="font-display text-xl text-ink mb-3">Transactions</h2>
+      {isLoading ? (
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+      ) : transactions.length === 0 ? (
+        <EmptyState icon={WalletIcon} title="No transactions yet" description="Refunds, cancellations and store credits will appear here." compact />
+      ) : (
+        <div className="card divide-y divide-line">
+          {transactions.map((t) => {
+            const credit = t.type === 'credit';
+            return (
+              <div key={t.id} className="flex items-center justify-between px-4 py-3.5">
                 <div className="flex items-center gap-3">
-                  {t.type === 'credit'
-                    ? <ArrowUpCircle className="h-5 w-5 shrink-0" style={{ color: '#22c55e' }} />
-                    : <ArrowDownCircle className="h-5 w-5 shrink-0" style={{ color: '#e91e8c' }} />}
+                  {credit ? <ArrowUpCircle className="h-5 w-5 text-success shrink-0" /> : <ArrowDownCircle className="h-5 w-5 text-primary-soft shrink-0" />}
                   <div>
-                    <p className="text-sm font-medium" style={{ color: '#f5f5f5' }}>{REASON_LABELS[t.reason] || t.reason}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#666' }}>
-                      {new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </p>
+                    <p className="text-sm font-medium text-ink">{REASON_LABELS[t.reason] || t.reason}</p>
+                    <p className="text-xs text-muted mt-0.5">{formatDateTime(t.created_at)}{t.note ? ` · ${t.note}` : ''}</p>
                   </div>
                 </div>
-                <p className="text-sm font-bold shrink-0" style={{ color: t.type === 'credit' ? '#22c55e' : '#e91e8c' }}>
-                  {t.type === 'credit' ? '+' : '-'}{formatPrice(t.amount)}
-                </p>
+                <div className="text-right shrink-0">
+                  <p className={`text-sm font-bold ${credit ? 'text-success' : 'text-ink'}`}>{credit ? '+' : '−'}{formatPrice(t.amount)}</p>
+                  <p className="text-[11px] text-faint">Bal. {formatPrice(t.balance_after)}</p>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

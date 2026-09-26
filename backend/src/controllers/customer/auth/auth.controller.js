@@ -4,6 +4,7 @@ const { sign } = require('../../../utils/jwt');
 const { ok, created, badRequest, unauthorized, error } = require('../../../utils/response');
 const otpService = require('../../../services/otp/otp.service');
 const whatsapp = require('../../../services/whatsapp/whatsapp.service');
+const env = require('../../../config/env');
 
 const tokenFor = (user) =>
   sign({ id: user.id, role: user.role, email: user.email, phone: user.phone, permissions: user.permissions || [] });
@@ -157,15 +158,19 @@ const verifyOtp = async (req, res) => {
   }
 };
 
+const GENERIC_FORGOT_MSG = 'If an account exists for this email, a reset code has been sent to its registered WhatsApp number';
+
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const { rows } = await db.query('SELECT id FROM users WHERE email=$1', [email]);
-    if (!rows.length) return ok(res, {}, 'If account exists, OTP will be sent');
+    const { rows } = await db.query('SELECT id, phone FROM users WHERE email=$1', [email]);
+    // Always answer the same way so the endpoint cannot be used to enumerate accounts.
+    if (!rows.length || !rows[0].phone) return ok(res, {}, GENERIC_FORGOT_MSG);
 
     const otp = otpService.generate();
     await otpService.save(email, otp);
-    ok(res, {}, 'OTP sent');
+    await whatsapp.sendOtp(rows[0].phone, otp);
+    ok(res, {}, GENERIC_FORGOT_MSG);
   } catch (err) {
     console.error('forgotPassword error:', err);
     error(res, err.message || 'Failed to process request');
@@ -191,8 +196,10 @@ const googleCallback = (req, res) => {
   const token = tokenFor(req.user);
   db.query('UPDATE users SET last_login_at=now() WHERE id=$1', [req.user.id]).catch(() => {});
   db.query('INSERT INTO login_logs (user_id) VALUES ($1)', [req.user.id]).catch(() => {});
-  const clientUrl = process.env.WEB_CLIENT_URL;
-  res.redirect(`${clientUrl}/auth/callback?token=${token}`);
+  const clientUrl = process.env.WEB_CLIENT_URL || env.corsOrigins[0] || '';
+  // Put the token in the URL fragment: fragments are not sent to servers, so the token
+  // does not end up in proxy/access logs or Referer headers.
+  res.redirect(`${clientUrl}/auth/callback#token=${encodeURIComponent(token)}`);
 };
 
 const me = async (req, res) => {

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -20,6 +21,12 @@ import PhoneInput from '../../../components/ui/PhoneInput';
 import useCartStore from '../../../store/cart.store';
 import useAuthStore from '../../../store/auth.store';
 import { API_URL, COLORS, UPLOADS_URL } from '../../../config';
+
+// Prize endpoints identify the customer from the JWT, so every call must carry it.
+const authHeaders = async () => {
+  const token = (await AsyncStorage.getItem('dundu_token')) || (await AsyncStorage.getItem('velora_token'));
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 import { formatPrice } from '../../../utils/format';
 import useLoginPromptStore from '../../../store/loginPrompt.store';
 import useFreeShippingStore from '../../../store/freeShipping.store';
@@ -77,7 +84,7 @@ export default function CheckoutScreen() {
     walletApi.get().then((res) => setWalletBalance((res?.data || res)?.wallet?.balance || 0)).catch(() => {});
 
     // Check Spin Wheel Reward
-    fetch(`${API_URL}/spin-wheel/active-reward?phone=${encodeURIComponent(authUser?.phone || '')}&user_id=${encodeURIComponent(authUser?.id || '')}`)
+    authHeaders().then((headers) => fetch(`${API_URL}/spin-wheel/active-reward`, { headers }))
       .then((r) => r.json())
       .then((data) => {
         if (data?.success && data?.data?.active_reward) {
@@ -94,7 +101,7 @@ export default function CheckoutScreen() {
       .catch(() => {});
 
     // Check Scratch Card Reward
-    fetch(`${API_URL}/scratch-card/active-reward?phone=${encodeURIComponent(authUser?.phone || '')}&user_id=${encodeURIComponent(authUser?.id || '')}`)
+    authHeaders().then((headers) => fetch(`${API_URL}/scratch-card/active-reward`, { headers }))
       .then((r) => r.json())
       .then((data) => {
         if (data?.success && data?.data?.active_reward) {

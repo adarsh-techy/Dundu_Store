@@ -77,15 +77,16 @@ export default function Profile() {
   const [name, setName] = useState(user?.name || '');
   const [dob, setDob] = useState(user?.date_of_birth?.slice(0, 10) || '');
   const [saving, setSaving] = useState(false);
-  const [addingAddr, setAddingAddr] = useState(false);
+  const [addingAddr, setAddingAddr] = useState(() => !!location.state?.addAddress);
   const [editingAddr, setEditingAddr] = useState(null);
   const [addrSaving, setAddrSaving] = useState(false);
 
   useEffect(() => {
     if (location.state?.addAddress) {
-      setAddingAddr(true);
-      setTimeout(() => document.getElementById('address-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      const t = setTimeout(() => document.getElementById('address-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      return () => clearTimeout(t);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { data: ordersData } = useQuery({
@@ -145,11 +146,11 @@ export default function Profile() {
   const saveProfile = async () => {
     setSaving(true);
     try {
-      const res = await userApi.updateProfile({ name, date_of_birth: dob || null });
-      setUser(res.data.user);
+      const res = await userApi.updateProfile({ name, date_of_birth: user.date_of_birth ? undefined : (dob || null) });
+      setUser({ ...user, ...res.data.user });
       setEditing(false);
       toast.success('Profile updated');
-    } catch { toast.error('Failed to update'); }
+    } catch (e) { toast.error(e?.message || 'Failed to update'); }
     finally { setSaving(false); }
   };
 
@@ -165,7 +166,7 @@ export default function Profile() {
         toast.success('Address added');
         setAddingAddr(false);
         if (location.state?.next) {
-          navigate(location.state.next);
+          navigate(location.state.next, { state: location.state.nextState || undefined });
           return;
         }
       }
@@ -185,11 +186,11 @@ export default function Profile() {
   if (!user) return <Spinner />;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-2xl font-bold" style={{ color: '#f5f5f5' }}>My Profile</h1>
+    <div className="container-x max-w-3xl py-6 md:py-10 space-y-8">
+      <h1 className="font-display text-3xl md:text-4xl text-ink">My account</h1>
 
       {/* ── Profile card ── */}
-      <section className="rounded-2xl p-6" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+      <section className="card p-6">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shrink-0"
             style={{ backgroundColor: '#1a0a12', color: '#e91e8c' }}>
@@ -211,13 +212,15 @@ export default function Profile() {
           <div className="space-y-3">
             <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
             <div>
-              <label className="block text-xs mb-1.5" style={{ color: '#888' }}>Date of Birth</label>
-              <input type="date" value={dob} onChange={(e) => setDob(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl text-sm focus:outline-none"
-                style={{ backgroundColor: '#111', border: '1px solid #2e2e2e', color: '#f5f5f5', colorScheme: 'dark' }}
-                onFocus={(e) => { e.target.style.borderColor = '#e91e8c'; }}
-                onBlur={(e) => { e.target.style.borderColor = '#2e2e2e'; }}
-              />
+              <label className="block text-xs font-semibold tracking-wide text-muted mb-1.5">Date of birth</label>
+              {user.date_of_birth ? (
+                <p className="input text-muted cursor-not-allowed">{new Date(user.date_of_birth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              ) : (
+                <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().slice(0, 10)} className="input" style={{ colorScheme: 'dark' }} />
+              )}
+              <p className="text-[11px] text-faint mt-1.5">
+                {user.date_of_birth ? 'Your birthday is locked in — it unlocks a discount every year on the day.' : 'Add your birthday once to get a special discount on the day. It cannot be changed later.'}
+              </p>
             </div>
             <div className="flex gap-2">
               <Button onClick={saveProfile} loading={saving} size="sm">Save</Button>
@@ -249,8 +252,7 @@ export default function Profile() {
 
         {orders.length === 0 ? (
           <Link to="/orders"
-            className="rounded-2xl py-10 text-center flex flex-col items-center transition-colors hover:bg-white/5"
-            style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+            className="card rounded-2xl py-10 text-center flex flex-col items-center transition-colors hover:bg-white/5" >
             <Package className="h-8 w-8 mb-2" style={{ color: '#333' }} />
             <p className="text-sm" style={{ color: '#666' }}>No orders yet</p>
             <p className="text-sm mt-1" style={{ color: '#e91e8c' }}>Go to My Orders</p>
@@ -271,8 +273,7 @@ export default function Profile() {
 
               return (
                 <Link key={order.id} to={`/orders/${order.id}`}
-                  className="flex items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white/5"
-                  style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+                  className="card flex items-center gap-3 rounded-2xl p-4 transition-colors hover:bg-white/5" >
                   {/* Thumbnail */}
                   <div className="w-12 h-14 rounded-xl overflow-hidden shrink-0" style={{ backgroundColor: '#2a2a2a' }}>
                     {firstItem?.image
@@ -307,7 +308,7 @@ export default function Profile() {
       {referralInfo && (
         <section>
           <h2 className="font-semibold mb-4" style={{ color: '#ddd' }}>Refer & Earn</h2>
-          <div className="rounded-2xl p-5 space-y-4" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+          <div className="card p-5 space-y-4">
 
             {/* Banner */}
             <div className="rounded-xl p-4 text-center"
@@ -510,7 +511,7 @@ export default function Profile() {
               </div>
             </>
           ) : (
-            <div className="rounded-2xl p-8 text-center" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+            <div className="card p-8 text-center">
               <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ backgroundColor: '#111' }}>
                 <Star className="h-8 w-8" style={{ color: '#333' }} />
               </div>
@@ -547,7 +548,7 @@ export default function Profile() {
         )}
 
         {addresses.length === 0 && !addingAddr ? (
-          <div className="text-center py-10 rounded-2xl" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+          <div className="card text-center py-10 rounded-2xl">
             <MapPin className="h-8 w-8 mx-auto mb-2" style={{ color: '#333' }} />
             <p className="text-sm" style={{ color: '#666' }}>No addresses saved yet</p>
             <button

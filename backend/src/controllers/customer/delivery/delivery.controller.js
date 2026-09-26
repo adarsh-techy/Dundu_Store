@@ -41,19 +41,16 @@ const pickup = async (req, res) => {
   const { token } = req.body;
   if (!token) return badRequest(res, 'QR token is required');
 
+  // Atomic claim: only one rider can win the same QR.
   const { rows } = await db.query(
-    `SELECT o.id, o.order_number, o.user_id, u.phone
-     FROM orders o JOIN users u ON o.user_id = u.id
-     WHERE o.delivery_qr_token = $1 AND o.status = 'shipped' AND o.picked_up_at IS NULL`,
-    [token]
+    `UPDATE orders o SET picked_up_by=$1, picked_up_at=now(), updated_at=now()
+     FROM users u
+     WHERE o.user_id = u.id AND o.delivery_qr_token = $2 AND o.status = 'shipped' AND o.picked_up_at IS NULL
+     RETURNING o.id, o.order_number, o.user_id, u.phone`,
+    [req.user.id, token]
   );
   if (!rows.length) return notFound(res, 'Invalid QR code or order already picked up');
   const order = rows[0];
-
-  await db.query(
-    'UPDATE orders SET picked_up_by=$1, picked_up_at=now(), updated_at=now() WHERE id=$2',
-    [req.user.id, order.id]
-  );
 
   const otp = otpService.generate();
   await otpService.save(`delivery:${order.id}`, otp, DELIVERY_OTP_TTL_MINUTES);
@@ -98,7 +95,7 @@ const complete = async (req, res) => {
   if (!valid) return badRequest(res, 'Invalid or expired OTP');
 
   await db.query(
-    `UPDATE orders SET status='delivered', delivered_by=$1, delivery_completed_at=now(), updated_at=now() WHERE id=$2`,
+    `UPDATE orders SET status='delivered', delivered_by=$1, delivery_completed_at=now(), delivered_at=COALESCE(delivered_at, now()), updated_at=now() WHERE id=$2 AND status='shipped'`,
     [req.user.id, order.id]
   );
 

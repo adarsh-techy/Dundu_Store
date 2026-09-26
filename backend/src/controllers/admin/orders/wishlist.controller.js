@@ -9,7 +9,7 @@ const list = async (req, res) => {
 
   if (search) {
     params.push(`%${search}%`);
-    conditions.push(`(u.name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR p.name ILIKE $${params.length})`);
+    conditions.push(`(u.name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR u.phone ILIKE $${params.length} OR p.name ILIKE $${params.length})`);
   }
   if (category) {
     params.push(category);

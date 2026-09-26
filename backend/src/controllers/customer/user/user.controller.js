@@ -1,6 +1,7 @@
 const db = require('../../../config/db');
 const bcrypt = require('bcryptjs');
 const { ok, created, notFound, badRequest, unauthorized } = require('../../../utils/response');
+const otpService = require('../../../services/otp/otp.service');
 
 const getProfile = async (req, res) => {
   const { rows } = await db.query(
@@ -10,12 +11,54 @@ const getProfile = async (req, res) => {
   ok(res, { user: rows[0] });
 };
 
+const normalizePhone = (p) => String(p || '').replace(/\D/g, '');
+
 const updateProfile = async (req, res) => {
-  const { name, phone, avatar_url, date_of_birth } = req.body;
+  const { name, avatar_url, date_of_birth, otp } = req.body;
+  const { rows: currentRows } = await db.query(
+    'SELECT phone, date_of_birth FROM users WHERE id=$1', [req.user.id]
+  );
+  const current = currentRows[0];
+
+  // Phone: changing it requires proving ownership of the new number with an OTP
+  // (POST /auth/otp/send to the new number first). Loyalty cards and OTP login are keyed
+  // by phone, so an unverified change would let someone hijack another person's number.
+  let phone = current.phone;
+  const requestedPhone = req.body.phone !== undefined ? normalizePhone(req.body.phone) : null;
+  if (requestedPhone && requestedPhone !== normalizePhone(current.phone)) {
+    if (!/^[0-9]{10,15}$/.test(requestedPhone)) return badRequest(res, 'Valid phone number is required');
+    if (!otp) return badRequest(res, 'Verify the new phone number with an OTP to change it');
+    const valid = await otpService.verify(requestedPhone, otp);
+    if (!valid) return badRequest(res, 'Invalid or expired OTP');
+    const { rows: taken } = await db.query('SELECT id FROM users WHERE phone=$1 AND id<>$2', [requestedPhone, req.user.id]);
+    if (taken.length) return badRequest(res, 'Phone number already registered');
+    phone = requestedPhone;
+  }
+
+  // Date of birth: can be set once (it drives the birthday discount, so it must not be
+  // editable to "today" before every checkout).
+  let dob = current.date_of_birth;
+  let dobChanged = false;
+  if (date_of_birth) {
+    if (current.date_of_birth) {
+      const existing = new Date(current.date_of_birth).toISOString().slice(0, 10);
+      if (String(date_of_birth).slice(0, 10) !== existing) {
+        return badRequest(res, 'Date of birth is already set and cannot be changed. Contact support.');
+      }
+    } else {
+      const parsed = new Date(date_of_birth);
+      if (Number.isNaN(parsed.getTime()) || parsed > new Date()) return badRequest(res, 'Invalid date of birth');
+      dob = parsed.toISOString().slice(0, 10);
+      dobChanged = true;
+    }
+  }
+
   const { rows } = await db.query(
-    `UPDATE users SET name=$1, phone=$2, avatar_url=$3, date_of_birth=$4, updated_at=now()
+    `UPDATE users SET name=COALESCE($1, name), phone=$2, avatar_url=$3, date_of_birth=$4,
+       date_of_birth_set_at=CASE WHEN $6 THEN now() ELSE date_of_birth_set_at END,
+       updated_at=now()
      WHERE id=$5 RETURNING id,name,email,phone,avatar_url,date_of_birth`,
-    [name, phone || req.user.phone, avatar_url, date_of_birth || null, req.user.id]
+    [name ? String(name).trim().slice(0, 100) : null, phone, avatar_url || null, dob, req.user.id, dobChanged]
   );
   ok(res, { user: rows[0] });
 };

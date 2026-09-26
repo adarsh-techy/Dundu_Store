@@ -3,10 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { CheckCircle, ChevronLeft, MapPin, CreditCard, Truck, Copy, RotateCcw } from 'lucide-react';
 import { orderApi, settingsApi } from '../../../api';
+import { loadRazorpay, openRazorpayCheckout } from '../../../utils/razorpay';
+import useAuthStore from '../../../store/auth.store';
 import { formatPrice, formatDate } from '../../../utils/format';
 import Button from '../../../components/ui/Button';
 import Spinner from '../../../components/ui/Spinner';
 import toast from 'react-hot-toast';
+import useNow from '../../../hooks/useNow';
 
 const STATUS_STYLE = {
   pending:   { bg: '#2d2000', color: '#facc15' },
@@ -34,6 +37,7 @@ export default function OrderDetail() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
+  const now = useNow();
   const { data, isLoading, refetch } = useQuery({ queryKey: ['order', id], queryFn: () => orderApi.getOne(id) });
   const order = data?.data?.order;
 
@@ -45,6 +49,32 @@ export default function OrderDetail() {
     queryFn: orderApi.getRestrictions,
   });
   const returnBlocked = restrictionsData?.data?.return_blocked || false;
+
+  const { user } = useAuthStore();
+  const [paying, setPaying] = useState(false);
+  const payNow = async () => {
+    setPaying(true);
+    try {
+      const res = await orderApi.retryPayment(id);
+      const loaded = await loadRazorpay();
+      if (!loaded) { toast.error('Failed to load payment gateway'); return; }
+      openRazorpayCheckout({
+        order: res.data.razorpay,
+        user,
+        onSuccess: async (paymentData) => {
+          try {
+            await orderApi.verifyPayment({ ...paymentData, order_id: id });
+            toast.success('Payment received');
+          } catch (err) { toast.error(err?.message || 'Payment could not be verified'); }
+          refetch();
+        },
+        onError: () => toast.error('Payment failed. Please try again.'),
+        onDismiss: () => toast('Payment not completed', { icon: '⏳' }),
+      });
+    } catch (e) {
+      toast.error(e?.message || 'Could not start payment');
+    } finally { setPaying(false); }
+  };
 
   const cancel = async () => {
     setCancelling(true);
@@ -66,13 +96,13 @@ export default function OrderDetail() {
 
   const stepIdx = STATUS_STEPS.findIndex((s) => s.key === order.status);
   const st = STATUS_STYLE[order.status] || STATUS_STYLE.pending;
-  const withinCancelWindow = Date.now() - new Date(order.created_at).getTime() < 10 * 60 * 1000;
+  const withinCancelWindow = now - new Date(order.created_at).getTime() < 10 * 60 * 1000;
   const canCancel = ['pending', 'packed'].includes(order.status) && withinCancelWindow;
 
   const deliveredAt = order.status === 'delivered' ? new Date(order.updated_at) : null;
   const returnWindowMs = 24 * 60 * 60 * 1000;
-  const canReturn = deliveredAt && (Date.now() - deliveredAt.getTime()) < returnWindowMs;
-  const returnMsLeft = deliveredAt ? Math.max(0, deliveredAt.getTime() + returnWindowMs - Date.now()) : 0;
+  const canReturn = deliveredAt && (now - deliveredAt.getTime()) < returnWindowMs;
+  const returnMsLeft = deliveredAt ? Math.max(0, deliveredAt.getTime() + returnWindowMs - now) : 0;
   const returnHrsLeft = Math.floor(returnMsLeft / (1000 * 60 * 60));
   const returnMinsLeft = Math.floor((returnMsLeft % (1000 * 60 * 60)) / (1000 * 60));
 
@@ -105,6 +135,17 @@ export default function OrderDetail() {
           {order.status}
         </span>
       </div>
+
+      {/* Unpaid online order — let the customer finish paying */}
+      {order.payment_status === 'pending' && ['online', 'upi', 'card'].includes(order.payment_method) && order.status !== 'cancelled' && (
+        <div className="card p-4 flex flex-wrap items-center justify-between gap-3 border-warning/40">
+          <div>
+            <p className="text-sm font-semibold text-warning">Payment pending</p>
+            <p className="text-xs text-muted">Complete the payment to get this order packed. Amount due: {formatPrice(order.total - (order.wallet_amount || 0))}</p>
+          </div>
+          <Button size="sm" pill loading={paying} onClick={payNow}>Pay now</Button>
+        </div>
+      )}
 
       {/* Delivery estimate — only relevant before the order has actually arrived */}
       {deliveryEstimateText && ['pending', 'packed', 'shipped'].includes(order.status) && (
@@ -196,7 +237,7 @@ export default function OrderDetail() {
       )}
 
       {/* Items */}
-      <section className="rounded-2xl overflow-hidden" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+      <section className="card rounded-2xl overflow-hidden">
         <p className="px-4 py-3 text-sm font-semibold" style={{ color: '#ddd', borderBottom: '1px solid #222' }}>
           Items ({order.items?.length})
         </p>
@@ -232,11 +273,17 @@ export default function OrderDetail() {
           </div>
           {order.discount > 0 && (
             <div className="flex justify-between text-sm" style={{ color: '#4ade80' }}>
-              <span>Discount</span><span>−{formatPrice(order.discount)}</span>
+              <span>{{ coupon: 'Coupon discount', referral: 'Referral discount', birthday: 'Birthday discount' }[order.discount_type] || 'Discount'}</span><span>−{formatPrice(order.discount)}</span>
+            </div>
+          )}
+          {order.loyalty_discount > 0 && (
+            <div className="flex justify-between text-sm" style={{ color: '#4ade80' }}>
+              <span>Loyalty points{order.loyalty_points_redeemed ? ` (${order.loyalty_points_redeemed} pts)` : ''}</span><span>−{formatPrice(order.loyalty_discount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm" style={{ color: '#777' }}>
-            <span>Shipping</span><span style={{ color: '#4ade80' }}>Free</span>
+            <span>Shipping</span>
+            {Number(order.delivery_charge) > 0 ? <span>{formatPrice(order.delivery_charge)}</span> : <span style={{ color: '#4ade80' }}>Free</span>}
           </div>
           <div className="flex justify-between font-bold text-base pt-1" style={{ borderTop: '1px solid #222', color: '#f5f5f5' }}>
             <span>Total</span><span style={{ color: '#e91e8c' }}>{formatPrice(order.total)}</span>
@@ -256,7 +303,7 @@ export default function OrderDetail() {
 
       {/* Delivery address */}
       {order.address_line1 && (
-        <section className="rounded-2xl p-4" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+        <section className="card rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <MapPin className="h-4 w-4 shrink-0" style={{ color: '#e91e8c' }} />
             <p className="text-sm font-semibold" style={{ color: '#ddd' }}>Delivery Address</p>
@@ -271,7 +318,7 @@ export default function OrderDetail() {
 
       {/* Payment method */}
       {order.payment_method && (
-        <section className="rounded-2xl p-4 flex items-center gap-2" style={{ border: '1px solid #2e2e2e', backgroundColor: '#1a1a1a' }}>
+        <section className="card rounded-2xl p-4 flex items-center gap-2">
           <CreditCard className="h-4 w-4 shrink-0" style={{ color: '#e91e8c' }} />
           <p className="text-sm" style={{ color: '#888' }}>
             Paid via <span style={{ color: '#ddd', fontWeight: 600 }}>

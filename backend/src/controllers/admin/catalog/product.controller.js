@@ -63,7 +63,7 @@ const create = async (req, res) => {
                              cost_price, price, offer_price, stock, sku, product_code, sub_category, pattern, default_rating)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
       [category_id, brand_id || null, name, description, material, type, gender, age_group,
-        cost_price || null, price, offer_price || null, stock || 0, sku || null, product_code || null,
+        cost_price || null, price, (Number(offer_price) > 0 ? offer_price : null), stock || 0, sku || null, product_code || null,
         sub_category || null, pattern || null, default_rating || null]
     );
     const product = rows[0];
@@ -141,7 +141,7 @@ const update = async (req, res) => {
     await client.query('BEGIN');
 
     const updateParams = [category_id, brand_id || null, name, description, material, type, gender, age_group,
-      cost_price || null, price, offer_price || null, stock, sku || null, product_code || null,
+      cost_price || null, price, (Number(offer_price) > 0 ? offer_price : null), stock, sku || null, product_code || null,
       sub_category || null, pattern || null, default_rating || null, req.params.id];
 
     const { rows } = await client.query(
@@ -175,12 +175,34 @@ const update = async (req, res) => {
 
     if (variants !== undefined) {
       const parsed = typeof variants === 'string' ? JSON.parse(variants) : variants;
-      await client.query('DELETE FROM product_variants WHERE product_id=$1', [req.params.id]);
+      if (!Array.isArray(parsed)) { await client.query('ROLLBACK'); return badRequest(res, 'variants must be a list'); }
+      // Upsert by id (or by size+colour for rows the form sends without an id) so open orders
+      // and carts keep their variant_id. Only variants missing from the payload are removed.
+      const { rows: existingVariants } = await client.query(
+        'SELECT id, size, color FROM product_variants WHERE product_id=$1', [req.params.id]
+      );
+      const keep = new Set();
       for (const v of parsed) {
-        await client.query(
-          'INSERT INTO product_variants (product_id, size, color, stock, sku) VALUES ($1,$2,$3,$4,$5)',
-          [req.params.id, v.size || null, v.color || null, v.stock || 0, v.sku || null]
-        );
+        const stock = Math.max(0, parseInt(v.stock, 10) || 0);
+        const match = existingVariants.find((e) => (v.id && e.id === v.id) ||
+          (!v.id && (e.size || null) === (v.size || null) && (e.color || null) === (v.color || null)));
+        if (match) {
+          await client.query(
+            'UPDATE product_variants SET size=$1, color=$2, stock=$3, sku=$4 WHERE id=$5',
+            [v.size || null, v.color || null, stock, v.sku || null, match.id]
+          );
+          keep.add(match.id);
+        } else {
+          const { rows: ins } = await client.query(
+            'INSERT INTO product_variants (product_id, size, color, stock, sku) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+            [req.params.id, v.size || null, v.color || null, stock, v.sku || null]
+          );
+          keep.add(ins[0].id);
+        }
+      }
+      const toDelete = existingVariants.filter((e) => !keep.has(e.id)).map((e) => e.id);
+      if (toDelete.length) {
+        await client.query('DELETE FROM product_variants WHERE id = ANY($1)', [toDelete]);
       }
       await client.query(
         'UPDATE products SET stock=(SELECT COALESCE(SUM(stock),0) FROM product_variants WHERE product_id=$1) WHERE id=$1',
@@ -213,9 +235,19 @@ const remove = async (req, res) => {
     return ok(res, { soft_deleted: true }, 'Product hidden (has order history — cannot be permanently deleted)');
   }
 
-  await db.query('DELETE FROM product_images WHERE product_id=$1', [id]);
-  await db.query('DELETE FROM product_variants WHERE product_id=$1', [id]);
-  await db.query('DELETE FROM products WHERE id=$1', [id]);
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM product_images WHERE product_id=$1', [id]);
+    await client.query('DELETE FROM product_variants WHERE product_id=$1', [id]);
+    await client.query('DELETE FROM products WHERE id=$1', [id]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
   ok(res, { soft_deleted: false }, 'Product deleted');
 };
 

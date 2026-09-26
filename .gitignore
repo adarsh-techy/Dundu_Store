@@ -1,35 +1,25 @@
-# Dependencies
+# dependencies & builds
 node_modules/
-.pnp
-.pnp.js
-
-# Environment variables (NEVER commit these)
-
-
-# Build outputs
 dist/
+dist-ssr/
 build/
+.expo/
+.expo-shared/
+*.tsbuildinfo
 
-# Logs
+# secrets — never commit real env files (keep the .env.example files)
+.env
+.env.*
+!.env.example
+
+# runtime data
+backend/uploads/*
+!backend/uploads/.gitkeep
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+logs/
 
-# OS
+# OS / editor
 .DS_Store
 Thumbs.db
-
-# Uploads (local files)
-backend/uploads/
-
-# IDE
 .vscode/
 .idea/
-
-# Expo / React Native
-.expo/
-android/
-ios/
-*.jks
-*.keystore

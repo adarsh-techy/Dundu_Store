@@ -57,7 +57,7 @@ const getOne = async (req, res) => {
       `SELECT csp.id AS slot_product_id, csp.sort_order,
               p.id, p.name, p.price, p.offer_price, p.sku, p.description,
               (SELECT url FROM product_images WHERE product_id=p.id AND is_primary=true LIMIT 1) AS image,
-              (SELECT json_agg(img.url) FROM product_images img WHERE img.product_id=p.id ORDER BY img.sort_order) AS images,
+              (SELECT json_agg(img.url ORDER BY img.sort_order) FROM product_images img WHERE img.product_id=p.id) AS images,
               COALESCE(
                 (SELECT json_agg(
                     json_build_object('id',pv.id,'size',pv.size,'color',pv.color,'stock',pv.stock,'sku',pv.sku)

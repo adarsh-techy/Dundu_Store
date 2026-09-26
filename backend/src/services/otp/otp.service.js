@@ -1,40 +1,64 @@
+const crypto = require('crypto');
 const db = require('../../config/db');
+const env = require('../../config/env');
 
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+const DEFAULT_TTL_MINUTES = 5;
+const MAX_ATTEMPTS = 5;
 
-// The `otps` table (see migrations/1715000000000_initial-schema.js +
-// 1780900000001_otps-identifier-unique.js) only has: id, identifier, otp,
-// expires_at, is_used, created_at — there is no `target`/`purpose` column.
-// `purpose` is accepted here for API compatibility with callers but isn't a
-// schema dimension: `identifier` is UNIQUE, so a request for a given
-// phone/email always replaces any previous OTP for it regardless of purpose
-// (login vs forgot-password), which matches the "one active OTP at a time"
-// behavior the old delete-then-insert code was going for.
-const storeOtp = async (target, otp, purpose = 'login') => {
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
+
+// The `otps` table only has: id, identifier, otp, expires_at, is_used, attempts, created_at.
+// `identifier` is UNIQUE, so a request for a given phone/email always replaces any
+// previous OTP for it ("one active OTP at a time").
+//
+// The third argument is the TTL in minutes (used for delivery PINs, which need to live
+// for hours rather than minutes). Strings such as the legacy `purpose` values are ignored.
+const storeOtp = async (target, otp, ttlMinutes = DEFAULT_TTL_MINUTES) => {
+  const ttl = Number.isFinite(Number(ttlMinutes)) && Number(ttlMinutes) > 0
+    ? Number(ttlMinutes)
+    : DEFAULT_TTL_MINUTES;
+  const expiresAt = new Date(Date.now() + ttl * 60 * 1000);
   await db.query(
-    `INSERT INTO otps (identifier, otp, expires_at, is_used)
-     VALUES ($1, $2, $3, false)
+    `INSERT INTO otps (identifier, otp, expires_at, is_used, attempts)
+     VALUES ($1, $2, $3, false, 0)
      ON CONFLICT (identifier)
-     DO UPDATE SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at, is_used = false`,
+     DO UPDATE SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at, is_used = false, attempts = 0`,
     [target, otp, expiresAt]
   );
 };
 
-const verifyOtp = async (target, otp, purpose = 'login') => {
-  if (process.env.NODE_ENV !== 'production' && otp === '123456') {
-    return true;
-  }
+const verifyOtp = async (target, otp) => {
+  if (typeof otp !== 'string' && typeof otp !== 'number') return false;
+  const supplied = String(otp).trim();
+  if (!/^\d{4,10}$/.test(supplied)) return false;
+
+  // Development-only shortcut, must be explicitly enabled via ALLOW_DEV_OTP=true and
+  // is never honoured when NODE_ENV=production (see config/env.js).
+  if (env.allowDevOtp && supplied === '123456') return true;
+
   const { rows } = await db.query(
-    'SELECT id, expires_at FROM otps WHERE identifier = $1 AND otp = $2 AND is_used = false',
-    [target, otp]
+    'SELECT id, otp, expires_at, attempts FROM otps WHERE identifier = $1 AND is_used = false',
+    [target]
   );
   if (!rows.length) return false;
-  if (new Date() > new Date(rows[0].expires_at)) {
-    await db.query('DELETE FROM otps WHERE id = $1', [rows[0].id]);
+  const row = rows[0];
+
+  if (new Date() > new Date(row.expires_at) || row.attempts >= MAX_ATTEMPTS) {
+    await db.query('DELETE FROM otps WHERE id = $1', [row.id]);
     return false;
   }
-  await db.query('DELETE FROM otps WHERE id = $1', [rows[0].id]);
+
+  const a = Buffer.from(String(row.otp));
+  const b = Buffer.from(supplied);
+  const matches = a.length === b.length && crypto.timingSafeEqual(a, b);
+
+  if (!matches) {
+    // Count the failed attempt; the OTP is invalidated after MAX_ATTEMPTS wrong guesses.
+    await db.query('UPDATE otps SET attempts = attempts + 1 WHERE id = $1', [row.id]);
+    return false;
+  }
+
+  await db.query('DELETE FROM otps WHERE id = $1', [row.id]);
   return true;
 };
 

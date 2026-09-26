@@ -2,8 +2,29 @@ const db = require('../../../config/db');
 const { ok, badRequest } = require('../../../utils/response');
 
 const getSettings = async (_req, res) => {
-  const { rows } = await db.query('SELECT key, value FROM settings');
-  ok(res, { settings: Object.fromEntries(rows.map((r) => [r.key, r.value])) });
+  const [{ rows: settingsRows }, statsRes] = await Promise.all([
+    db.query('SELECT key, value FROM settings'),
+    db.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE payment_method = 'cod')::int AS cod_orders,
+        COUNT(*) FILTER (WHERE payment_method IN ('online', 'upi', 'card'))::int AS online_orders,
+        COALESCE(SUM(total) FILTER (WHERE payment_method = 'cod' AND payment_status = 'paid'), 0)::numeric AS cod_volume,
+        COALESCE(SUM(total) FILTER (WHERE payment_method IN ('online', 'upi', 'card') AND payment_status = 'paid'), 0)::numeric AS online_volume
+      FROM orders
+    `),
+  ]);
+
+  const pStats = statsRes.rows[0] || {};
+
+  ok(res, {
+    settings: Object.fromEntries(settingsRows.map((r) => [r.key, r.value])),
+    stats: {
+      cod_orders: pStats.cod_orders || 0,
+      online_orders: pStats.online_orders || 0,
+      cod_volume: Number(pStats.cod_volume || 0),
+      online_volume: Number(pStats.online_volume || 0),
+    },
+  });
 };
 
 const updateSettings = async (req, res) => {

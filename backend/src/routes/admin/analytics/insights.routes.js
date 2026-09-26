@@ -295,7 +295,14 @@ router.get('/user-activity', ah(async (req, res) => {
   const countParams = [];
   const countWhere = buildUserWhere(countParams);
 
-  const [{ rows }, countRes] = await Promise.all([
+  const summaryParams = [];
+  let summaryLoginWhere = '';
+  if (date) {
+    summaryParams.push(date);
+    summaryLoginWhere = `WHERE created_at::date = $1::date`;
+  }
+
+  const [{ rows }, countRes, summaryRes] = await Promise.all([
     db.query(
       `WITH login_stats AS (
          SELECT user_id, COUNT(*)::int AS login_count, MAX(created_at) AS last_login_at,
@@ -318,9 +325,21 @@ router.get('/user-activity', ah(async (req, res) => {
       mainParams
     ),
     db.query(`SELECT COUNT(*)::int FROM users u ${countWhere}`, countParams),
+    db.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM users WHERE role='user') AS total_users,
+         (SELECT COUNT(*)::int FROM login_logs ${summaryLoginWhere}) AS total_logins,
+         (SELECT COUNT(*)::int FROM product_views) AS total_views,
+         (SELECT MODE() WITHIN GROUP (ORDER BY EXTRACT(HOUR FROM created_at))::int FROM login_logs ${summaryLoginWhere}) AS peak_hour`,
+      summaryParams
+    ),
   ]);
 
-  ok(res, { users: rows, total: countRes.rows[0].count });
+  ok(res, {
+    users: rows,
+    total: countRes.rows[0].count,
+    metrics: summaryRes.rows[0] || { total_users: 0, total_logins: 0, total_views: 0, peak_hour: null }
+  });
 }));
 
 module.exports = router;

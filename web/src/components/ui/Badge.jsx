@@ -1,14 +1,17 @@
-const colors = {
-  red: { backgroundColor: '#3b0a0a', color: '#f87171' },
-  green: { backgroundColor: '#0a2e1a', color: '#4ade80' },
-  yellow: { backgroundColor: '#2e2000', color: '#facc15' },
-  blue: { backgroundColor: '#0a1a3b', color: '#60a5fa' },
-  gray: { backgroundColor: '#2a2a2a', color: '#9ca3af' },
+const COLORS = {
+  pink: 'bg-primary/15 text-primary-soft border-primary/30',
+  red: 'bg-danger/15 text-danger border-danger/25',
+  green: 'bg-success/15 text-success border-success/25',
+  yellow: 'bg-warning/15 text-warning border-warning/25',
+  blue: 'bg-info/15 text-info border-info/25',
+  gray: 'bg-white/5 text-muted border-line',
+  solid: 'bg-primary text-white border-primary',
 };
 
-export default function Badge({ children, color = 'gray' }) {
+export default function Badge({ children, color = 'gray', className = '', dot = false }) {
   return (
-    <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={colors[color]}>
+    <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${COLORS[color]} ${className}`}>
+      {dot && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
       {children}
     </span>
   );

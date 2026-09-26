@@ -26,13 +26,26 @@ const CART_QUERY = `
   WHERE c.user_id=$1
 `;
 
+// Quantities must be small positive integers. Anything else (negative, zero, strings,
+// huge numbers) is rejected — a negative quantity would otherwise produce a negative
+// subtotal and *add* stock at checkout.
+const MAX_QTY = 99;
+const parseQuantity = (raw, fallback = 1) => {
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_QTY) return null;
+  return n;
+};
+
 const getCart = async (req, res) => {
   const { rows } = await db.query(CART_QUERY, [req.user.id]);
   ok(res, { cart: rows });
 };
 
 const addToCart = async (req, res) => {
-  const { product_id, variant_id, quantity = 1, combo_id, combo_selections } = req.body;
+  const { product_id, variant_id, combo_id, combo_selections } = req.body;
+  const quantity = parseQuantity(req.body.quantity);
+  if (quantity === null) return badRequest(res, `Quantity must be a whole number between 1 and ${MAX_QTY}`);
 
   // ── Combo item ──────────────────────────────────────────────────────────────
   if (combo_id) {
@@ -82,7 +95,7 @@ const addToCart = async (req, res) => {
   if (existing.length) {
     await db.query(
       'UPDATE cart SET quantity=$1, updated_at=now() WHERE id=$2',
-      [existing[0].quantity + quantity, existing[0].id]
+      [Math.min(MAX_QTY, existing[0].quantity + quantity), existing[0].id]
     );
   } else {
     await db.query(
@@ -96,8 +109,8 @@ const addToCart = async (req, res) => {
 };
 
 const updateCart = async (req, res) => {
-  const { quantity } = req.body;
-  if (quantity < 1) return badRequest(res, 'Quantity must be at least 1');
+  const quantity = parseQuantity(req.body.quantity, null);
+  if (quantity === null) return badRequest(res, `Quantity must be a whole number between 1 and ${MAX_QTY}`);
 
   const { rows } = await db.query(
     'UPDATE cart SET quantity=$1, updated_at=now() WHERE id=$2 AND user_id=$3 RETURNING id',
@@ -120,4 +133,4 @@ const clearCart = async (req, res) => {
   ok(res, { cart: [] });
 };
 
-module.exports = { getCart, addToCart, updateCart, removeFromCart, clearCart };
+module.exports = { getCart, addToCart, updateCart, removeFromCart, clearCart, parseQuantity, MAX_QTY };

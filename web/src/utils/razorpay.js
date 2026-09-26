@@ -8,7 +8,7 @@ export const loadRazorpay = () =>
     document.body.appendChild(script);
   });
 
-export const openRazorpayCheckout = ({ order, user, onSuccess, onError }) => {
+export const openRazorpayCheckout = ({ order, user, onSuccess, onError, onDismiss }) => {
   const options = {
     key: import.meta.env.VITE_RAZORPAY_KEY_ID,
     amount: order.amount,
@@ -17,11 +17,12 @@ export const openRazorpayCheckout = ({ order, user, onSuccess, onError }) => {
     description: `Order #${order.receipt}`,
     order_id: order.id,
     prefill: { name: user?.name, email: user?.email, contact: user?.phone },
-    theme: { color: '#e11d48' },
+    theme: { color: '#e91e8c' },
     handler: onSuccess,
+    // Razorpay signals a closed modal through options.modal.ondismiss, not an event.
+    modal: { ondismiss: () => onDismiss?.() },
   };
   const rzp = new window.Razorpay(options);
-  rzp.on('payment.failed', onError);
-  rzp.on('payment.dismissed', onError);
+  rzp.on('payment.failed', (resp) => onError?.(resp));
   rzp.open();
 };

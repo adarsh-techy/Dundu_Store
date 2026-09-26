@@ -4,7 +4,7 @@ import { authApi } from '../../../api';
 import toast from 'react-hot-toast';
 import { User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 import loginImage from '../../../assets/loginimage.png';
-import dunduLogo from '../../../assets/dundulogo.png';
+import dunduLogo from '../../../assets/logo.png';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -51,16 +51,12 @@ export default function Register() {
           
           {/* Brand Header */}
           <div className="space-y-3 text-center">
-            <div className="flex flex-col items-center justify-center space-y-2.5 mx-auto">
+            <div className="flex flex-col items-center justify-center mx-auto">
               <img
                 src={dunduLogo}
-                alt="Dundu Fashion"
-                className="h-14 sm:h-16 w-auto object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                alt="Dundu Store"
+                className="h-14 sm:h-16 w-auto max-w-[220px] object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
               />
-              <span className="text-xl sm:text-2xl font-black tracking-[0.18em] uppercase bg-gradient-to-r from-pink-600 via-rose-500 to-fuchsia-600 bg-clip-text text-transparent drop-shadow-xs">
-                DUNDU FASHION
-              </span>
             </div>
 
             <div className="space-y-1">

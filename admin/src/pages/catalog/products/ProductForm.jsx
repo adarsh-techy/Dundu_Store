@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Plus, Trash2, ImagePlus, Camera, Star, Pencil, Crop } from 'lucide-react';
+import {
+  X, Plus, Trash2, ImagePlus, Camera, Star, Pencil, Crop,
+  Sparkles, TrendingUp, Tag, Printer, Download, CheckCircle2,
+  HelpCircle, Layers, Boxes, Coins, Package,
+} from 'lucide-react';
 import { productApi, categoryApi, brandApi, reviewApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import ImageCropperModal from '../../../components/ui/ImageCropperModal';
@@ -832,29 +836,74 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
   };
 
   return (
-    <div className="max-w-4xl">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Sticky action bar — stays visible while scrolling the long form */}
-        <div className="sticky top-0 z-10 -mx-1 px-1 pb-3 pt-1 bg-gray-50/95 backdrop-blur-sm flex items-center justify-end gap-3 border-b border-gray-100">
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button type="submit" loading={loading}>{isEdit ? 'Update' : 'Create'} Product</Button>
+    <div className="w-full space-y-6 pb-20">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ── Sticky Action Header ────────────────────────────────────────── */}
+        <div className="sticky top-3 z-30 bg-white/95 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              <Package className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {form.name || (isEdit ? 'Edit Product' : 'New Product Listing')}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  {isEdit ? 'Active Revision' : 'Draft'}
+                </span>
+                {form.product_code && (
+                  <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">
+                    {form.product_code}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={loading} className="px-5 shadow-sm">
+              {isEdit ? 'Update Product' : 'Publish Product'}
+            </Button>
+          </div>
         </div>
 
-        {/* ── 1. Basic Info ── */}
-        <div className="rounded-xl border border-pink-200 bg-green-50 p-4">
-          <p className="text-[15px] font-bold text-pink-600 uppercase tracking-widest mb-3">Basic Info</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Input label="Product Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value.replace(/\b\w/g, c => c.toUpperCase()) }))} required placeholder="e.g. Floral Kurti Set" />
+        {/* ── 1. Basic Info ───────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+              1
             </div>
-            <Select label="Category" value={form.category_id} onChange={handleCategoryChange} required>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">General Information</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Product title, category classification, and brand</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Product Name"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value.replace(/\b\w/g, c => c.toUpperCase()) }))}
+                required
+                placeholder="e.g. Kanchipuram Pure Silk Zari Saree"
+              />
+            </div>
+
+            <Select label="Primary Category" value={form.category_id} onChange={handleCategoryChange} required>
               <option value="">Select category</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
+
             <Select label="Brand" value={form.brand_id} onChange={set('brand_id')}>
               <option value="">No brand</option>
               {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </Select>
+
             {/* Sub-Category — cascades from selected category */}
             {catSubCats.length > 0 && (
               <Select label="Sub-Category" value={form.sub_category} onChange={set('sub_category')}>
@@ -862,39 +911,79 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
                 {catSubCats.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
               </Select>
             )}
+
             {/* Type — cascades from selected category */}
             {catTypes.length > 0 && (
-              <Select label="Type" value={form.type} onChange={set('type')}>
+              <Select label="Garment Type" value={form.type} onChange={set('type')}>
                 <option value="">Select type</option>
                 {catTypes.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
               </Select>
             )}
+
             {/* Fallback type when no category-specific types */}
             {catTypes.length === 0 && form.category_id && (
-              <Select label="Type" value={form.type} onChange={set('type')}>
+              <Select label="Garment Type" value={form.type} onChange={set('type')}>
                 <option value="">Select type</option>
                 {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </Select>
             )}
-            <div className="col-span-2">
-              <Textarea label="Description" value={form.description} onChange={set('description')} rows={2} />
+
+            <div className="md:col-span-2">
+              <Textarea
+                label="Product Description"
+                value={form.description}
+                onChange={set('description')}
+                rows={3}
+                placeholder="Add fabric composition, styling notes, wash care..."
+              />
             </div>
           </div>
         </div>
 
-        {/* ── 2. Pricing & Stock ── */}
-        <div className="rounded-xl border border-pink-300 bg-green-50 p-4">
-          <p className="text-[15px] font-bold text-pink-600 uppercase tracking-widest mb-3">Pricing &amp; Stock</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <Input label="Buy Price (₹)" type="number" value={form.cost_price} onChange={set('cost_price')}
-                labelClassName="text-orange-600" placeholder="0" />
-              <p className="text-[10px] text-gray-400 mt-0.5">What you paid for this item · used to calculate profit below</p>
+        {/* ── 2. Pricing & Profit Simulator ───────────────────────────────── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold text-xs shrink-0">
+              2
             </div>
-            <Input label="Price (₹)" type="number" value={form.price} onChange={set('price')} required placeholder="0" />
-            <Input label="Offer Price (₹)" type="number" value={form.offer_price} onChange={set('offer_price')} labelClassName="text-green-600" placeholder="0" />
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Pricing &amp; Profit Margin Simulator</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Define your Buy Price (COGS), Price, and Offer Price to preview profit</p>
+            </div>
+          </div>
 
-            {/* ── Profit Preview — Buy Price vs Price & Offer Price ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Input
+                label="Buy Price / Procurement Cost (₹)"
+                type="number"
+                value={form.cost_price}
+                onChange={set('cost_price')}
+                placeholder="0"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Your purchase or manufacturing cost. Used to calculate real-time profit and margin percentage below.
+              </p>
+            </div>
+
+            <Input
+              label="Standard Retail Price (MRP ₹)"
+              type="number"
+              value={form.price}
+              onChange={set('price')}
+              required
+              placeholder="0"
+            />
+
+            <Input
+              label="Discounted Offer Price (₹)"
+              type="number"
+              value={form.offer_price}
+              onChange={set('offer_price')}
+              placeholder="0"
+            />
+
+            {/* ── Profit Preview Simulator ── */}
             {(() => {
               const buyPrice = Number(form.cost_price) || 0;
               const sellPrice = Number(form.price) || 0;
@@ -902,8 +991,9 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
 
               if (!buyPrice) {
                 return (
-                  <div className="col-span-2 rounded-xl border border-dashed border-gray-300 bg-white p-3 text-xs text-gray-400">
-                    Enter a Buy Price above to see profit &amp; profit % on Price and Offer Price
+                  <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-xs text-slate-500 flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span>Enter a <strong>Buy Price</strong> above to calculate profit in INR and gross profit margin percentage.</span>
                   </div>
                 );
               }
@@ -914,86 +1004,125 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
               const offerProfitPct = offerPrice > 0 ? (offerProfit / offerPrice) * 100 : 0;
 
               const ProfitCard = ({ label, active, profit, pct }) => (
-                <div className={`rounded-xl border p-3 ${
-                  !active ? 'border-gray-200 bg-white'
-                    : profit >= 0 ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
+                <div className={`rounded-xl border p-4 transition-all ${
+                  !active
+                    ? 'border-slate-200 bg-slate-50/50'
+                    : profit >= 0
+                    ? 'border-emerald-200 bg-emerald-50/50'
+                    : 'border-rose-200 bg-rose-50/50'
                 }`}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">{label}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    {label}
+                  </p>
                   {active ? (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Profit</p>
-                        <p className={`text-lg font-bold ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Gross Profit</p>
+                        <p className={`text-xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                           ₹{profit.toFixed(2)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Profit %</p>
-                        <p className="text-lg font-bold text-pink-800">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Profit Margin</p>
+                        <p className={`text-xl font-extrabold ${profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                           {pct.toFixed(1)}%
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1.5">Not set</p>
+                    <p className="text-xs text-slate-400 mt-1">Not configured</p>
                   )}
                 </div>
               );
 
               return (
-                <div className="col-span-2 grid grid-cols-2 gap-3">
-                  <ProfitCard label="Profit on Price" active={sellPrice > 0} profit={priceProfit} pct={priceProfitPct} />
-                  <ProfitCard label="Profit on Offer Price" active={offerPrice > 0} profit={offerProfit} pct={offerProfitPct} />
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <ProfitCard label="Standard Price Profitability" active={sellPrice > 0} profit={priceProfit} pct={priceProfitPct} />
+                  <ProfitCard label="Offer Price Profitability" active={offerPrice > 0} profit={offerProfit} pct={offerProfitPct} />
                 </div>
               );
             })()}
 
-            <div className="col-span-2">
-              <label className="block text-xs font-semibold text-yellow-600 uppercase tracking-wide mb-1">Default Rating (shown before reviews)</label>
-              <div className="flex items-center gap-2">
-                {[1,2,3,4,5].map((s) => (
-                  <button key={s} type="button"
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Default Star Rating (Shown before verified reviews)
+              </label>
+              <div className="flex items-center gap-3">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
                     onClick={() => setForm((p) => ({ ...p, default_rating: p.default_rating == s ? '' : s }))}
-                    className="text-2xl leading-none transition-transform hover:scale-110"
+                    className="text-2xl leading-none transition-transform hover:scale-110 cursor-pointer"
                     title={`${s} star${s > 1 ? 's' : ''}`}
                   >
-                    <span style={{ color: s <= (form.default_rating || 0) ? '#facc15' : '#d1d5db' }}>★</span>
+                    <span style={{ color: s <= (form.default_rating || 0) ? '#f59e0b' : '#cbd5e1' }}>★</span>
                   </button>
                 ))}
-                <input type="number" min="0" max="5" step="0.1"
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.1"
                   value={form.default_rating}
                   onChange={set('default_rating')}
-                  className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-yellow-400 text-center"
+                  className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-slate-400 text-center font-bold"
                   placeholder="0.0"
                 />
                 {form.default_rating > 0 && (
-                  <button type="button" onClick={() => setForm((p) => ({ ...p, default_rating: '' }))}
-                    className="text-xs text-gray-400 hover:text-red-500">✕ Clear</button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, default_rating: '' }))}
+                    className="text-xs text-slate-400 hover:text-rose-500 font-semibold cursor-pointer"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Optional · overridden by actual reviews once submitted</p>
             </div>
-            <div className="col-span-2">
-              <Input label="Product Code (shared across all variants)" value={form.product_code} onChange={set('product_code')}
-                placeholder={form.category_id ? 'Auto-generated' : 'Select category first'} readOnly className="bg-gray-50 cursor-not-allowed" />
+
+            <div>
+              <Input
+                label="Product Code (Shared identifier across all variants)"
+                value={form.product_code}
+                onChange={set('product_code')}
+                placeholder={form.category_id ? 'Auto-generated' : 'Select category first'}
+                readOnly
+                className="bg-slate-50 cursor-not-allowed font-mono text-xs"
+              />
               {!isEdit && form.category_id && (
-                <p className="text-[10px] text-indigo-500 mt-0.5">Auto-generated · editable · same for all variants of this product</p>
+                <p className="text-[10px] text-slate-400 mt-1">Auto-generated base SKU prefix for this product</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── 3. Product Details ── */}
-        <div className="rounded-xl border border-pink-300 bg-green-50 p-4">
-          <p className="text-[15px] font-bold text-pink-600 uppercase tracking-widest mb-3">Product Details</p>
-          <div className="grid grid-cols-2 gap-3">
-<Select label="Gender" value={form.gender} onChange={set('gender')}>
-              <option value="">Any</option>
+        {/* ── 3. Classification & Attributes ──────────────────────────────── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+              3
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Product Attributes</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Demographics, age target, and visual patterns</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select label="Target Gender" value={form.gender} onChange={set('gender')}>
+              <option value="">Any / Unisex</option>
               {['Female', 'Male', 'Unisex'].map(g => <option key={g}>{g}</option>)}
             </Select>
-            <Input label="Age Group" value={form.age_group} onChange={set('age_group')} placeholder="e.g. 0-3 months" />
-            {/* Pattern — category-specific list when available, else global list */}
-            <Select label="Pattern" value={form.pattern} onChange={set('pattern')}>
+
+            <Input
+              label="Age Group"
+              value={form.age_group}
+              onChange={set('age_group')}
+              placeholder="e.g. Adults, 2-5 Years"
+            />
+
+            <Select label="Fabric Pattern" value={form.pattern} onChange={set('pattern')}>
               <option value="">Select pattern</option>
               {catPatterns.length > 0
                 ? catPatterns.map(p => <option key={p.name} value={p.name}>{p.name}</option>)
@@ -1003,219 +1132,297 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
           </div>
         </div>
 
-        {/* ── 4. Variants & Images (merged) ── */}
-        <div className="rounded-xl border border-blue-200 bg-blue-50">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div>
-              <p className="text-[15px] font-bold text-blue-600 uppercase tracking-widest">Variants &amp; Images</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">Each colour gets multiple sizes &amp; its own images</p>
+        {/* ── 4. Variants, Colorways & Image Gallery ───────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-0">
+          <div className="flex items-center justify-between p-5 sm:p-6 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center font-bold text-xs shrink-0">
+                4
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Variants, Colorways &amp; Gallery</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Each color variant gets independent sizes, stocks, and photo galleries</p>
+              </div>
             </div>
-            <button type="button" onClick={addColorVariant}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-pink-600 text-md font-semibold hover:bg-indigo-100 transition-colors">
-              <Plus className="h-3.5 w-3.5" /> Add Colour
+
+            <button
+              type="button"
+              onClick={addColorVariant}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Color
             </button>
           </div>
 
-          {/* Colour variant cards */}
-          <div className="divide-y divide-gray-50">
+          {/* Color variant cards */}
+          <div className="divide-y divide-slate-100">
             {colorVariants.map((cv, ci) => {
               const colorHex = COLORS.find((c) => c.name === cv.color)?.hex;
               const variantImgs = images.map((img, idx) => ({ ...img, idx })).filter((img) => img.color === cv.color);
+
               return (
-                <div key={ci} className="p-4 space-y-3">
+                <div key={ci} className="p-5 sm:p-6 space-y-4 bg-slate-50/30">
                   {/* Colour picker row */}
                   <div className="flex items-end gap-3">
                     <div className="flex-1">
-                      <p className="text-[10px] text-pink-800 mb-1 font-semibold uppercase tracking-wide">Colour</p>
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Color Variant</p>
                       <ColorPicker value={cv.color} onChange={(val) => updateColorVariantColor(ci, val)} />
                     </div>
                     {colorHex && (
-                      <span className="w-6 h-6 rounded-full border border-gray-200 shrink-0 mb-2" style={{ backgroundColor: colorHex }} />
+                      <span className="w-7 h-7 rounded-full border border-slate-300 shrink-0 mb-1.5 shadow-sm" style={{ backgroundColor: colorHex }} />
                     )}
-                    <button type="button" onClick={() => removeColorVariant(ci)}
-                      className="mb-1.5 p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => removeColorVariant(ci)}
+                      className="mb-1 p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors shrink-0"
+                      title="Delete Color Variant"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
 
                   {/* Sizes sub-table */}
-                  <div className="pl-3 border-l-2 border-gray-100 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-semibold text-pink-500 uppercase tracking-wide">Sizes, Stock &amp; Code</p>
-                      <span className="text-[10px] text-gray-400">— each size gets a unique code &amp; stock</span>
+                  <div className="pl-4 border-l-2 border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Sizes, Stock &amp; Barcode SKU</p>
+                      <button
+                        type="button"
+                        onClick={() => addSize(ci)}
+                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-bold transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Size
+                      </button>
                     </div>
+
                     {cv.sizes.map((s, si) => (
-                      <div key={si} className="space-y-1">
-                        <div className="grid gap-2 items-center" style={{ gridTemplateColumns: '1.2fr 70px 1.2fr 28px' }}>
+                      <div key={si} className="space-y-1.5">
+                        <div className="grid gap-2.5 items-center" style={{ gridTemplateColumns: '1fr 90px 1.4fr 32px' }}>
                           <Select value={s.size} onChange={(e) => updateSize(ci, si, 'size', e.target.value)}>
-                            <option value="">Size</option>
+                            <option value="">Select Size</option>
                             {SIZES.map((sz) => <option key={sz}>{sz}</option>)}
                           </Select>
-                          <Input type="number" min={0} placeholder="Stock" value={s.stock}
-                            onChange={(e) => updateSize(ci, si, 'stock', Math.max(0, Number(e.target.value)))} />
-                          <Input placeholder="Auto SKU" value={s.sku}
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Stock"
+                            value={s.stock}
+                            onChange={(e) => updateSize(ci, si, 'stock', Math.max(0, Number(e.target.value)))}
+                          />
+                          <Input
+                            placeholder="Auto SKU"
+                            value={s.sku}
                             onChange={(e) => updateSize(ci, si, 'sku', e.target.value)}
-                            readOnly className="bg-gray-50 cursor-not-allowed text-gray-500 text-[11px]" />
-                          <button type="button" onClick={() => removeSize(ci, si)}
-                            className="p-1 rounded text-gray-300 hover:text-red-400 transition-colors self-center">
-                            <X className="h-3.5 w-3.5" />
+                            readOnly
+                            className="bg-slate-50 cursor-not-allowed text-slate-600 font-mono text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeSize(ci, si)}
+                            className="p-1.5 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors self-center"
+                          >
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
+
                         {s.sku && Number(s.stock) > 0 && (
-                          <div className="flex flex-wrap gap-1 pl-0.5">
-                            {Array.from({ length: Number(s.stock) }, (_, ui) => (
-                              <span key={ui} className="text-[10px] font-mono bg-indigo-50 text-indigo-600 border border-indigo-100 rounded px-1.5 py-0.5">
+                          <div className="flex flex-wrap gap-1 pl-1">
+                            {Array.from({ length: Math.min(Number(s.stock), 10) }, (_, ui) => (
+                              <span key={ui} className="text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200 rounded px-1.5 py-0.5">
                                 {s.sku}-{ui + 1}
                               </span>
                             ))}
+                            {Number(s.stock) > 10 && (
+                              <span className="text-[10px] text-slate-400 font-medium px-1">
+                                +{Number(s.stock) - 10} more labels
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
                     ))}
-                    <button type="button" onClick={() => addSize(ci)}
-                      className="flex items-center gap-1 text-[15px] text-pink-500 hover:text-indigo-700 font-semibold transition-colors mt-1">
-                      <Plus className="h-3 w-3" /> Add Size
-                    </button>
                   </div>
 
                   {/* Images for this colour */}
                   {cv.color ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-                          Images for {cv.color}
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Photos for {cv.color}
                         </span>
                         {variantImgs.length > 0 && (
-                          <span className="text-[10px] bg-green-50 text-green-600 font-semibold px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
                             {variantImgs.length} uploaded
                           </span>
                         )}
                       </div>
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-2.5 flex-wrap">
                         {variantImgs.map(({ idx, preview }) => (
-                          <div key={idx} className="relative group w-16 h-16 rounded-lg overflow-hidden border shrink-0"
-                            style={{ borderColor: idx === primaryNewIndex ? '#6366f1' : '#e5e7eb', borderWidth: idx === primaryNewIndex ? 2 : 1 }}>
+                          <div
+                            key={idx}
+                            className={`relative group w-20 h-20 rounded-xl overflow-hidden border shrink-0 transition-all ${
+                              idx === primaryNewIndex ? 'border-indigo-600 ring-2 ring-indigo-500/20' : 'border-slate-200'
+                            }`}
+                          >
                             <img src={preview} alt="" className="w-full h-full object-cover" />
                             {idx === primaryNewIndex && (
-                              <span className="absolute top-0.5 left-0.5 z-10 text-[8px] bg-indigo-500 text-white px-1 rounded font-bold">★</span>
+                              <span className="absolute top-1 left-1 z-10 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold">Primary</span>
                             )}
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5 p-0.5">
-                              <button type="button" onClick={() => openCropper(preview, idx)}
-                                className="text-[9px] text-emerald-400 font-extrabold flex items-center gap-0.5 hover:underline">
-                                <Crop className="h-2.5 w-2.5" /> Crop
+                            <div className="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                              <button
+                                type="button"
+                                onClick={() => openCropper(preview, idx)}
+                                className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5 hover:underline"
+                              >
+                                <Crop className="h-3 w-3" /> Crop
                               </button>
                               {idx !== primaryNewIndex && (
-                                <button type="button" onClick={() => setPrimaryNewIndex(idx)}
-                                  className="text-[9px] text-yellow-300 font-bold leading-tight text-center px-1">★ Primary</button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPrimaryNewIndex(idx)}
+                                  className="text-[10px] text-amber-300 font-bold leading-tight"
+                                >
+                                  Set Primary
+                                </button>
                               )}
-                              <button type="button" onClick={() => removeImage(idx)}
-                                className="text-[9px] text-red-400 font-bold">Delete</button>
+                              <button
+                                type="button"
+                                onClick={() => removeImage(idx)}
+                                className="text-[10px] text-rose-400 font-bold"
+                              >
+                                Delete
+                              </button>
                             </div>
                           </div>
                         ))}
-                        <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors shrink-0 gap-0.5">
-                          <ImagePlus className="h-4 w-4 text-gray-400" />
-                          <span className="text-[9px] text-gray-400 font-medium">Add</span>
-                          <input type="file" accept="image/*" multiple className="hidden"
-                            onChange={(e) => addImages(e.target.files, cv.color)} />
+                        <label className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors shrink-0 gap-1">
+                          <ImagePlus className="h-5 w-5 text-slate-400" />
+                          <span className="text-[10px] text-slate-500 font-bold">Add Photo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => addImages(e.target.files, cv.color)}
+                          />
                         </label>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[10px] text-amber-500 bg-amber-50 rounded-lg px-3 py-2">
-                      ⚠ Select a colour to upload images for this variant
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                      Select a color above to upload variant-specific photos
                     </p>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {/* Saved Images for edit mode */}
           {isEdit && existingImages.length > 0 && (
-            <div className="px-4 pb-4 border-t border-gray-100 pt-3">
-              <p className="text-[10px] font-semibold text-pink-800 uppercase tracking-widest mb-2">Saved Images</p>
-              <div className="flex gap-2 flex-wrap">
+            <div className="p-5 sm:p-6 border-t border-slate-100 bg-slate-50/50 space-y-3">
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Saved Product Photos</p>
+              <div className="flex gap-2.5 flex-wrap">
                 {existingImages.map((img) => (
-                  <div key={img.id} className="relative group w-16 h-16 rounded-lg overflow-hidden border shrink-0"
-                    style={{ borderColor: img.is_primary ? '#6366f1' : '#e5e7eb' }}>
+                  <div
+                    key={img.id}
+                    className={`relative group w-20 h-20 rounded-xl overflow-hidden border shrink-0 transition-all ${
+                      img.is_primary ? 'border-indigo-600 ring-2 ring-indigo-500/20' : 'border-slate-200'
+                    }`}
+                  >
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                    <div className="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
                       {!img.is_primary && (
-                        <button type="button" onClick={() => setPrimaryImage(img.id)}
-                          className="text-[9px] text-yellow-300 font-bold leading-tight text-center px-1">★ Primary</button>
+                        <button
+                          type="button"
+                          onClick={() => setPrimaryImage(img.id)}
+                          className="text-[10px] text-amber-300 font-bold"
+                        >
+                          Set Primary
+                        </button>
                       )}
-                      <button type="button" onClick={() => deleteExistingImage(img.id)}
-                        className="text-[9px] text-red-400 font-bold">Delete</button>
+                      <button
+                        type="button"
+                        onClick={() => deleteExistingImage(img.id)}
+                        className="text-[10px] text-rose-400 font-bold"
+                      >
+                        Delete
+                      </button>
                     </div>
                     {img.is_primary && (
-                      <span className="absolute top-0.5 left-0.5 text-[8px] bg-indigo-500 text-white px-1 rounded font-bold">★</span>
+                      <span className="absolute top-1 left-1 text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-bold">Primary</span>
                     )}
                     {img.color && (
-                      <span className="absolute bottom-0.5 left-0.5 right-0.5 text-[8px] bg-black/60 text-white text-center truncate rounded">{img.color}</span>
+                      <span className="absolute bottom-1 left-1 right-1 text-[8px] bg-black/70 text-white text-center truncate rounded px-1">{img.color}</span>
                     )}
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-gray-400 mt-2">Hover to delete or set primary. New uploads below will be added.</p>
+              <p className="text-[11px] text-slate-400">Hover photo to change primary status or delete from catalog.</p>
             </div>
           )}
+
+          {/* Total Stock Indicator Bar */}
+          <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Boxes className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Total Warehouse Inventory:</span>
+              <span className="text-lg font-extrabold text-slate-900">{variantTotalStock} units</span>
+            </div>
+            <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+              Automatically calculated from all variant sizes
+            </span>
+          </div>
         </div>
 
-        {/* Total Stock — shown below Variants so it updates live as stocks are entered */}
-        <div className="flex items-center gap-3 bg-green-50 border border-pink-300 rounded-xl px-4 py-2.5">
-          <span className="text-md text-gary-100 font-semibold uppercase tracking-wide">Total Stock - </span>
-          <span className="text-lg font-bold text-pink-700">{variantTotalStock}</span>
-          <span className="text-xs text-indigo-400 ml-auto">Auto-calculated from variant stocks above</span>
-        </div>
+        {/* ── 5. Visibility & Merchandising Badges (Zero Emojis) ───────────── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <div className="w-8 h-8 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 flex items-center justify-center font-bold text-xs shrink-0">
+              5
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight">Merchandising &amp; Storefront Badges</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Toggle visibility across featured collections and promotions</p>
+            </div>
+          </div>
 
-        {/* ── 5. Visibility & Labels ── */}
-        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
-          <p className="text-[11px] font-bold text-violet-700 uppercase tracking-widest mb-3">Visibility &amp; Labels</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { key: 'is_new_arrival',   label: 'New Arrival', desc: 'Show in New Arrivals',     icon: '🆕', color: '#3b82f6' },
-              { key: 'is_featured',      label: 'Trending',    desc: 'Show in Trending section', icon: '🔥', color: '#f97316' },
-              { key: 'is_offer_product', label: 'Offer',       desc: 'Show in Offers section',   icon: '⚡', color: '#22c55e' },
-            ].map(({ key, label, desc, icon, color }) => {
-              const isHiddenActive = key === 'is_hidden' && flags[key];
+              { key: 'is_new_arrival',   label: 'New Arrival', desc: 'Display in New Arrivals collection', icon: Sparkles, activeColor: 'border-sky-500 bg-sky-50/50' },
+              { key: 'is_featured',      label: 'Trending',    desc: 'Feature on homepage spotlight',      icon: TrendingUp, activeColor: 'border-amber-500 bg-amber-50/50' },
+              { key: 'is_offer_product', label: 'Special Offer', desc: 'Promote in Deals & Discounts',    icon: Tag, activeColor: 'border-rose-500 bg-rose-50/50' },
+            ].map(({ key, label, desc, icon: Icon, activeColor }) => {
+              const isActive = flags[key];
               return (
                 <button
                   key={key}
                   type="button"
                   onClick={() => toggleFlag(key)}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 border-2 transition-all text-left"
-                  style={{
-                    borderColor: flags[key] ? (isHiddenActive ? '#ef4444' : '#8b5cf6') : 'transparent',
-                    backgroundColor: isHiddenActive ? '#ef4444' : flags[key] ? '#fff' : 'rgba(255,255,255,0.6)',
-                    opacity: flags[key] ? 1 : 0.6,
-                    boxShadow: flags[key] ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-                  }}
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                    isActive ? activeColor : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
                 >
-                  {/* Toggle pill */}
-                  <span
-                    className="w-10 h-6 rounded-full relative transition-colors flex-shrink-0"
-                    style={{ backgroundColor: flags[key] ? (isHiddenActive ? '#fff' : color) : '#d1d5db' }}
-                  >
-                    <span
-                      className="absolute top-1 w-4 h-4 rounded-full shadow transition-all"
-                      style={{
-                        backgroundColor: isHiddenActive ? '#ef4444' : '#fff',
-                        left: flags[key] ? '1.25rem' : '0.25rem',
-                      }}
-                    />
-                  </span>
-                  <span className="text-lg leading-none">{icon}</span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-bold" style={{ color: isHiddenActive ? '#fff' : '#1f2937' }}>{label}</span>
-                    <span className="block text-[11px]" style={{ color: isHiddenActive ? 'rgba(255,255,255,0.8)' : '#9ca3af' }}>{desc}</span>
-                  </span>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isActive ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-900">{label}</span>
+                    <span className="block text-[11px] text-slate-500 mt-0.5">{desc}</span>
+                    <span className={`inline-block text-[10px] font-bold mt-2 px-2 py-0.5 rounded-full border ${
+                      isActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-100 text-slate-600 border-slate-200'
+                    }`}>
+                      {isActive ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* ── 6. Barcode Generator ── */}
+        {/* ── 6. Barcode Generator & Printing (Zero Emojis) ────────────────── */}
         {(() => {
           const activeVariants = colorVariants.flatMap((cv) =>
             cv.sizes.map((s) => ({ color: cv.color, size: s.size, sku: s.sku, stock: Number(s.stock) || 0 }))
@@ -1229,42 +1436,49 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
           const totalLabels = activeVariants.reduce((sum, v) => sum + getPrintQty(v), 0);
 
           return (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-indigo-100 pb-3">
-                <div>
-                  <p className="text-[15px] font-bold text-indigo-700 uppercase tracking-widest">Barcode Generator</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Set how many labels to print per variant, then print them all in one bulk PDF</p>
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    6
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900 tracking-tight">Barcode &amp; Label Production</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">Generate Code-39 barcodes and download thermal bulk print sheets</p>
+                  </div>
                 </div>
-                <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">Preview</span>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {totalLabels} Labels Configured
+                </span>
               </div>
 
               <div className="flex flex-col lg:flex-row gap-6 items-start">
-                {/* Left Column: Variant quantity list + Controls */}
-                <div className="flex-grow w-full space-y-4">
+                {/* Left: Variant quantity list */}
+                <div className="flex-1 w-full space-y-3">
                   {activeVariants.length === 0 ? (
-                    <p className="text-xs text-gray-400 bg-white rounded-xl border border-gray-200 p-3">
-                      No colour/size variants added yet — add them in the Variants &amp; Images tab first.
+                    <p className="text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                      Add color and size variants above to configure barcode printing.
                     </p>
                   ) : (
-                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                      <div className="grid grid-cols-[1fr_92px] gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                        <span>Variant · No. of Products</span>
-                        <span className="text-right">Qty to Print</span>
+                    <div className="bg-slate-50/50 rounded-xl border border-slate-200 overflow-hidden">
+                      <div className="grid grid-cols-[1fr_100px] gap-2 px-4 py-2.5 bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        <span>Variant SKU</span>
+                        <span className="text-right">Print Qty</span>
                       </div>
-                      <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                      <div className="divide-y divide-slate-100 max-h-56 overflow-y-auto">
                         {activeVariants.map((v, idx) => (
                           <div
                             key={v.sku || idx}
                             onClick={() => setSelectedVariantIndex(idx)}
-                            className={`grid grid-cols-[1fr_92px] gap-2 px-3 py-2.5 items-center cursor-pointer transition-colors ${
-                              selectedVariantIndex === idx ? 'bg-indigo-50' : 'hover:bg-gray-50'
+                            className={`grid grid-cols-[1fr_100px] gap-2 px-4 py-2.5 items-center cursor-pointer transition-colors ${
+                              selectedVariantIndex === idx ? 'bg-indigo-50/60' : 'hover:bg-white'
                             }`}
                           >
                             <div className="min-w-0">
-                              <p className="text-xs font-semibold text-gray-800 truncate">
-                                {v.color ? `${v.color} · ` : ''}{v.size || 'Free Size'}
+                              <p className="text-xs font-bold text-slate-900 truncate">
+                                {v.color ? `${v.color} · ` : ''}{v.size || 'Standard'}
                               </p>
-                              <p className="text-[10px] text-gray-400 font-mono truncate">{v.sku || '—'} · Stock: {v.stock}</p>
+                              <p className="text-[10px] text-slate-400 font-mono truncate">{v.sku || '—'} · Stock: {v.stock}</p>
                             </div>
                             <input
                               type="number"
@@ -1272,7 +1486,7 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
                               value={getPrintQty(v)}
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) => setPrintQty((p) => ({ ...p, [v.sku]: Math.max(0, parseInt(e.target.value) || 0) }))}
-                              className="w-full text-sm text-right border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-400"
+                              className="w-full text-xs text-right border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-slate-400 bg-white font-bold"
                             />
                           </div>
                         ))}
@@ -1280,28 +1494,28 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
                     </div>
                   )}
 
-                  {/* Export Buttons */}
-                  <div className="flex flex-wrap gap-2.5 pt-1">
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3 pt-1">
                     <button
                       type="button"
                       onClick={() => handlePrintTags('single')}
-                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 transition-colors shadow-sm"
+                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors shadow-sm"
                     >
-                      📥 Download 1 Test Label
+                      <Download className="h-4 w-4" /> Download 1 Sample Label
                     </button>
                     <button
                       type="button"
                       onClick={() => handlePrintTags('sheet')}
                       disabled={totalLabels === 0}
-                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 min-w-[150px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      🖨 Print All ({totalLabels}) — Bulk PDF
+                      <Printer className="h-4 w-4" /> Print All ({totalLabels}) Bulk Sheet
                     </button>
                   </div>
                 </div>
 
-                {/* Right Column: Live Barcode Preview */}
-                <div className="w-full lg:w-auto flex justify-center shrink-0 p-6 border border-dashed border-indigo-200 rounded-2xl bg-white">
+                {/* Right: Live Preview */}
+                <div className="w-full lg:w-auto flex justify-center shrink-0 p-6 border border-slate-200 rounded-2xl bg-slate-50/50">
                   <div className="w-56">
                     <Barcode value={previewCode} />
                   </div>
@@ -1311,72 +1525,89 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
           );
         })()}
 
-        {/* ── Reviews ── */}
-        <div className="border-t border-green-600 pt-5">
-          <label className="text-xs font-medium text-yellow-600 uppercase tracking-wide block mb-1">
-            Customer Reviews &amp; Ratings
-          </label>
-          {!isEdit && (
-            <p className="text-[10px] text-gray-400 mb-3">Reviews added here are saved together with the product once you hit Create.</p>
-          )}
+        {/* ── 7. Customer Reviews & Ratings ───────────────────────────────── */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center font-bold text-xs shrink-0">
+                7
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight">Customer Reviews &amp; Testimonials</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Manage customer feedback or pre-seed social proof ratings</p>
+              </div>
+            </div>
+            {!isEdit && (
+              <span className="text-[10px] text-slate-400 font-semibold">Saved upon product creation</span>
+            )}
+          </div>
 
           {/* Add / Edit review form */}
-          <div className={`rounded-xl p-4 mb-4 space-y-3 ${editingReview ? 'bg-indigo-50 border border-indigo-200' : 'bg-gray-50'}`}>
+          <div className={`rounded-xl p-4 space-y-3 border ${editingReview ? 'bg-indigo-50/50 border-indigo-200' : 'bg-slate-50 border-slate-200'}`}>
             {editingReview && (
-              <p className="text-xs font-semibold text-indigo-600">
+              <p className="text-xs font-bold text-indigo-700">
                 Editing review by {editingReview.isLocal ? pendingReviews[editingReview.index]?.reviewer_name : editingReview.user_name}
               </p>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <p className="text-xs text-gray-500 mb-1">Reviewer Name</p>
+                <p className="text-xs font-bold text-slate-700 mb-1">Customer / Reviewer Name</p>
                 <input
                   value={reviewForm.reviewer_name}
                   onChange={(e) => setReviewForm((p) => ({ ...p, reviewer_name: e.target.value }))}
-                  placeholder="e.g. Priya from Mumbai"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-400"
+                  placeholder="e.g. Priya Sharma"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400 bg-white"
                 />
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Rating</p>
+                <p className="text-xs font-bold text-slate-700 mb-1">Star Rating</p>
                 <StarPicker value={reviewForm.rating} onChange={(v) => setReviewForm((p) => ({ ...p, rating: v }))} />
               </div>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Review Text (optional)</p>
+              <p className="text-xs font-bold text-slate-700 mb-1">Review Commentary</p>
               <textarea
                 value={reviewForm.review}
                 onChange={(e) => setReviewForm((p) => ({ ...p, review: e.target.value }))}
-                placeholder="Write the review..."
+                placeholder="Share customer thoughts on fabric quality, fit, and delivery..."
                 rows={2}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-indigo-400"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:border-slate-400 bg-white"
               />
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Photo (optional)</p>
+              <p className="text-xs font-bold text-slate-700 mb-1">Customer Photo (Optional)</p>
               <div className="flex items-center gap-3">
                 {(reviewForm.imagePreview || reviewForm.existingImageUrl) ? (
-                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-200 shrink-0">
                     <img src={reviewForm.imagePreview || reviewForm.existingImageUrl} alt="" className="w-full h-full object-cover" />
-                    <button type="button" onClick={removeReviewImage}
-                      className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors">
+                    <button
+                      type="button"
+                      onClick={removeReviewImage}
+                      className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white rounded-full p-0.5 transition-colors"
+                    >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ) : (
-                  <label className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-colors shrink-0 gap-0.5">
-                    <ImagePlus className="h-4 w-4 text-gray-400" />
-                    <span className="text-[9px] text-gray-400 font-medium">Add</span>
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={(e) => handleReviewImagePick(e.target.files?.[0])} />
+                  <label className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 hover:bg-white transition-colors shrink-0 gap-0.5">
+                    <ImagePlus className="h-4 w-4 text-slate-400" />
+                    <span className="text-[9px] text-slate-400 font-bold">Add</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleReviewImagePick(e.target.files?.[0])}
+                    />
                   </label>
                 )}
-                <p className="text-[10px] text-gray-400">Optional customer photo shown alongside this review</p>
+                <p className="text-[11px] text-slate-400">Optional photo displayed next to review</p>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-1">
               {editingReview && (
-                <Button type="button" size="sm" variant="outline" onClick={cancelEditReview}>Cancel</Button>
+                <Button type="button" size="sm" variant="outline" onClick={cancelEditReview}>
+                  Cancel
+                </Button>
               )}
               <Button type="button" size="sm" loading={reviewLoading} onClick={handleAddReview}>
                 {editingReview ? 'Save Changes' : <><Plus className="h-3.5 w-3.5" /> Add Review</>}
@@ -1384,41 +1615,47 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
             </div>
           </div>
 
-          {/* Reviews list — saved ones in edit mode, queued ones in add mode */}
+          {/* Reviews list */}
           {isEdit ? (
             productReviews.length > 0 && (
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {productReviews.map((r) => (
-                  <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-white">
+                  <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
                     {r.image_url ? (
-                      <img src={r.image_url} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200" />
+                      <img src={r.image_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-indigo-600 font-bold text-xs">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 text-slate-700 font-bold text-xs">
                         {r.user_name?.[0]?.toUpperCase() || '?'}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-700">{r.user_name}</span>
+                        <span className="text-xs font-bold text-slate-900">{r.user_name}</span>
                         <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map((s) => (
-                            <Star key={s} className="h-3 w-3"
-                              style={{ fill: s <= r.rating ? '#facc15' : 'transparent', color: s <= r.rating ? '#facc15' : '#d1d5db' }} />
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className="h-3 w-3"
+                              style={{ fill: s <= r.rating ? '#f59e0b' : 'transparent', color: s <= r.rating ? '#f59e0b' : '#cbd5e1' }}
+                            />
                           ))}
                         </div>
-                        {r.is_admin_created && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-500 font-medium">Admin</span>
-                        )}
                       </div>
-                      {r.review && <p className="text-xs text-gray-500 mt-0.5 truncate">{r.review}</p>}
+                      {r.review && <p className="text-xs text-slate-600 mt-0.5 truncate">{r.review}</p>}
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button type="button" onClick={() => startEditReview(r)}
-                        className="p-1 rounded text-gray-300 hover:text-indigo-500 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => startEditReview(r)}
+                        className="p-1 rounded text-slate-400 hover:text-slate-900 transition-colors"
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => handleDeleteReview(r.id)}
-                        className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteReview(r.id)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1428,36 +1665,45 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
             )
           ) : (
             pendingReviews.length > 0 && (
-              <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {pendingReviews.map((r, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-gray-100 bg-white">
+                  <div key={idx} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
                     {r.imagePreview ? (
-                      <img src={r.imagePreview} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-gray-200" />
+                      <img src={r.imagePreview} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200" />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-indigo-600 font-bold text-xs">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 text-slate-700 font-bold text-xs">
                         {r.reviewer_name?.[0]?.toUpperCase() || '?'}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-700">{r.reviewer_name}</span>
+                        <span className="text-xs font-bold text-slate-900">{r.reviewer_name}</span>
                         <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map((s) => (
-                            <Star key={s} className="h-3 w-3"
-                              style={{ fill: s <= r.rating ? '#facc15' : 'transparent', color: s <= r.rating ? '#facc15' : '#d1d5db' }} />
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className="h-3 w-3"
+                              style={{ fill: s <= r.rating ? '#f59e0b' : 'transparent', color: s <= r.rating ? '#f59e0b' : '#cbd5e1' }}
+                            />
                           ))}
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">Pending save</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-bold">Pending Save</span>
                       </div>
-                      {r.review && <p className="text-xs text-gray-500 mt-0.5 truncate">{r.review}</p>}
+                      {r.review && <p className="text-xs text-slate-600 mt-0.5 truncate">{r.review}</p>}
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button type="button" onClick={() => startEditReview(r, idx)}
-                        className="p-1 rounded text-gray-300 hover:text-indigo-500 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => startEditReview(r, idx)}
+                        className="p-1 rounded text-slate-400 hover:text-slate-900 transition-colors"
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => removePendingReview(idx)}
-                        className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => removePendingReview(idx)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1480,3 +1726,4 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
     </div>
   );
 }
+

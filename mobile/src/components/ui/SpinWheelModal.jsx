@@ -24,6 +24,12 @@ import Svg, {
 } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../../config';
+
+// Prize endpoints identify the customer from the JWT, so every call must carry it.
+const authHeaders = async () => {
+  const token = (await AsyncStorage.getItem('dundu_token')) || (await AsyncStorage.getItem('velora_token'));
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 import useAuthStore from '../../store/auth.store';
 
 import useSpinWheelStore from '../../store/spinWheel.store';
@@ -224,11 +230,7 @@ export default function SpinWheelModal() {
         return;
       }
 
-      const phone = user?.phone || '';
-      const userId = user?.id || '';
-      const res = await fetch(
-        `${API_URL}/spin-wheel/config?phone=${encodeURIComponent(phone)}&user_id=${encodeURIComponent(userId)}`
-      );
+      const res = await fetch(`${API_URL}/spin-wheel/config`, { headers: await authHeaders() });
       const data = await res.json();
       if (!data?.success || !data?.data) return;
 
@@ -291,12 +293,10 @@ export default function SpinWheelModal() {
     setWinner(null);
 
     try {
-      const phone = user?.phone || '';
-      const userId = user?.id || '';
       const res = await fetch(`${API_URL}/spin-wheel/spin`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, user_id: userId }),
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
 

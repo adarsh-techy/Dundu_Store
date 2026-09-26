@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Settings, X, Table, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Settings, X, Table, Tag, ChevronUp, ChevronDown } from 'lucide-react';
 import { categoryApi, brandApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -695,10 +695,10 @@ export default function Categories() {
   const activeBrands = brands.filter((b) => b.is_active).length;
 
   const FilterTabs = ({ value, onChange }) => (
-    <div className="flex bg-gray-100 rounded-lg p-1 text-xs font-medium">
+    <div className="flex bg-slate-100 rounded-xl p-1 text-xs font-semibold">
       {[['all', 'All'], ['active', 'Active'], ['inactive', 'Inactive']].map(([v, l]) => (
         <button key={v} onClick={() => onChange(v)}
-          className={`px-3 py-1 rounded-md transition-colors ${value === v ? 'bg-pink-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${value === v ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
           {l}
         </button>
       ))}
@@ -706,64 +706,131 @@ export default function Categories() {
   );
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-xl font-bold text-gray-900">Categories & Brands</h1>
+    <div className="w-full space-y-6 pb-16">
+      {/* ── Top Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-sm shrink-0">
+              <Tag className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                  Categories & Brand Taxonomy
+                </h1>
+                <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">
+                  {categories.length} Categories · {brands.length} Brands
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Organize storefront navigation, size charts, sub-category tags, and designer brands
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI Metric Strip ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+            <Tag className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Categories</p>
+            <p className="text-xl font-bold text-slate-900">{categories.length}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 shrink-0">
+            <Eye className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Active Categories</p>
+            <p className="text-xl font-bold text-slate-900">{activeCats}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Brands</p>
+            <p className="text-xl font-bold text-slate-900">{brands.length}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-700 shrink-0">
+            <Eye className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Active Brands</p>
+            <p className="text-xl font-bold text-slate-900">{activeBrands}</p>
+          </div>
+        </div>
+      </div>
 
       {/* ── Categories ── */}
-      <section className="bg-pink-50 rounded-2xl border border-pink-300 shadow-sm p-6">
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-pink-700">Categories</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+      <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-slate-900">Product Categories</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
               {categories.length} total · {activeCats} active · {categories.length - activeCats} inactive
             </p>
           </div>
-          <FilterTabs value={catFilter} onChange={setCatFilter} />
-          <Button size="sm" variant="outline" onClick={() => setModal('quick-add')}>
-            <Sparkles className="h-4 w-4" /> Quick Add
-          </Button>
-          <Button size="sm" onClick={() => { setSelected(null); setModal('new-cat'); }}>
-            <Plus className="h-4 w-4" /> Add
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <FilterTabs value={catFilter} onChange={setCatFilter} />
+            <Button size="sm" variant="outline" onClick={() => setModal('quick-add')} className="rounded-xl">
+              <Sparkles className="h-4 w-4 mr-1 text-indigo-600" /> Quick Add
+            </Button>
+            <Button size="sm" onClick={() => { setSelected(null); setModal('new-cat'); }} className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl">
+              <Plus className="h-4 w-4 mr-1" /> Add Category
+            </Button>
+          </div>
         </div>
 
         {catLoading ? <Spinner /> : filteredCats.length === 0 ? (
-          <p className="text-sm text-gray-400">No categories{catFilter !== 'all' ? ` (${catFilter})` : ''} yet.</p>
+          <p className="text-sm text-slate-400 py-8 text-center">No categories{catFilter !== 'all' ? ` (${catFilter})` : ''} found.</p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredCats.map((c) => (
               <div key={c.id}
-                className={`rounded-xl border p-4 transition-colors ${c.is_active ? 'border-pink-300 bg-gray-50' : 'border-dashed border-gray-200 bg-white opacity-60'}`}>
+                className={`rounded-2xl border p-4 transition-all ${c.is_active ? 'border-slate-200/90 bg-white shadow-xs hover:border-slate-300 hover:shadow-sm' : 'border-dashed border-slate-200 bg-slate-50/50 opacity-60'}`}>
                 <div className="flex items-center gap-3 mb-3">
                   {c.image_url
-                    ? <img src={c.image_url} alt={c.name} className="w-10 h-10 rounded-lg object-cover bg-gray-100 shrink-0" />
-                    : <div className="w-10 h-10 rounded-lg bg-indigo-50 shrink-0 flex items-center justify-center text-indigo-600 font-bold text-base">{c.name[0]}</div>
+                    ? <img src={c.image_url} alt={c.name} className="w-11 h-11 rounded-xl object-cover bg-slate-100 shrink-0 border border-slate-200/60" />
+                    : <div className="w-11 h-11 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center text-slate-700 font-bold text-base">{c.name[0]}</div>
                   }
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm text-gray-900 truncate">{c.name}</p>
-                    <p className="text-xs text-gray-400 truncate">/{c.slug}</p>
+                    <p className="font-bold text-sm text-slate-900 truncate">{c.name}</p>
+                    <p className="text-xs text-slate-400 truncate font-mono mt-0.5">/{c.slug}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                   <button
                     onClick={() => handleToggleCat(c)}
-                    title={c.is_active ? 'Deactivate' : 'Activate'}
-                    className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors
+                    title={c.is_active ? 'Deactivate category' : 'Activate category'}
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer
                       ${c.is_active
-                        ? 'bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600'
-                        : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}`}
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100'
+                        : 'bg-slate-100 text-slate-600 border border-slate-200/60 hover:bg-slate-200'}`}
                   >
-                    {c.is_active ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                    {c.is_active ? <Eye className="h-3 w-3 text-emerald-600" /> : <EyeOff className="h-3 w-3 text-slate-400" />}
                     {c.is_active ? 'Active' : 'Inactive'}
                   </button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <button
                       onClick={() => handleReorderCat(c, 'up')}
                       disabled={categories.indexOf(c) === 0}
                       title="Move up"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
                     </button>
@@ -771,30 +838,30 @@ export default function Categories() {
                       onClick={() => handleReorderCat(c, 'down')}
                       disabled={categories.indexOf(c) === categories.length - 1}
                       title="Move down"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setMetaCat(c)}
                       title="Manage Sub-Categories & Types"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                     >
                       <Settings className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setSizeChartCat(c)}
                       title="Manage Size Chart"
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                     >
                       <Table className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={() => { setSelected(c); setModal('edit-cat'); }}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={() => handleDeleteCat(c)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -824,51 +891,53 @@ export default function Categories() {
       )}
 
       {/* ── Brands ── */}
-      <section className="bg-blue-50 rounded-2xl border border-blue-300 shadow-sm p-6">
-        <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex-1 min-w-0">
-            <h2 className=" text-lg font-bold text-pink-600">Brands</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+      <section className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-slate-100">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-slate-900">Partner Brands & Designers</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
               {brands.length} total · {activeBrands} active · {brands.length - activeBrands} inactive
             </p>
           </div>
-          <FilterTabs value={brandFilter} onChange={setBrandFilter} />
-          <Button size="sm" onClick={() => { setSelected(null); setModal('new-brand'); }}>
-            <Plus className="h-4 w-4" /> Add
-          </Button>
+          <div className="flex items-center gap-2">
+            <FilterTabs value={brandFilter} onChange={setBrandFilter} />
+            <Button size="sm" onClick={() => { setSelected(null); setModal('new-brand'); }} className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl">
+              <Plus className="h-4 w-4 mr-1" /> Add Brand
+            </Button>
+          </div>
         </div>
 
         {brandLoading ? <Spinner /> : filteredBrands.length === 0 ? (
-          <p className="text-sm text-gray-400">No brands{brandFilter !== 'all' ? ` (${brandFilter})` : ''} yet.</p>
+          <p className="text-sm text-slate-400 py-8 text-center">No brands{brandFilter !== 'all' ? ` (${brandFilter})` : ''} found.</p>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-slate-100">
             {filteredBrands.map((b) => (
-              <div key={b.id} className={`flex items-center justify-between py-3 ${!b.is_active ? 'opacity-50' : ''}`}>
+              <div key={b.id} className={`flex items-center justify-between py-3.5 ${!b.is_active ? 'opacity-50' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-sm shrink-0 border border-slate-200/60">
                     {b.name[0].toUpperCase()}
                   </div>
-                  <span className="font-medium text-sm text-gray-800">{b.name}</span>
+                  <span className="font-semibold text-sm text-slate-900">{b.name}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleToggleBrand(b)}
-                    title={b.is_active ? 'Deactivate' : 'Activate'}
-                    className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors
+                    title={b.is_active ? 'Deactivate brand' : 'Activate brand'}
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer
                       ${b.is_active
-                        ? 'bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600'
-                        : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}`}
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100'
+                        : 'bg-slate-100 text-slate-600 border border-slate-200/60 hover:bg-slate-200'}`}
                   >
-                    {b.is_active ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                    {b.is_active ? <Eye className="h-3 w-3 text-emerald-600" /> : <EyeOff className="h-3 w-3 text-slate-400" />}
                     {b.is_active ? 'Active' : 'Inactive'}
                   </button>
                   <button onClick={() => { setSelected(b); setModal('edit-brand'); }}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={() => handleDeleteBrand(b)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>

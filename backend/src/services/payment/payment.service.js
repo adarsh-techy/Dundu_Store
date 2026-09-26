@@ -26,7 +26,8 @@ const verifySignature = (orderId, paymentId, signature) => {
     .createHmac('sha256', env.razorpay.keySecret)
     .update(body)
     .digest('hex');
-  return expected === signature;
+  if (typeof signature !== 'string' || signature.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 };
 
 // Refund (fully or partially) a captured Razorpay payment — used for "original payment

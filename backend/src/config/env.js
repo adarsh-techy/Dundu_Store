@@ -1,12 +1,33 @@
 require('dotenv').config();
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+
+// Secrets that must never run in production with a placeholder / missing value.
+const PLACEHOLDER_RE = /^(your[_-]|change[_-]?me|xxx|placeholder|dundu_default)/i;
+const requireSecret = (name, devFallback) => {
+  const value = process.env[name];
+  if (value && !PLACEHOLDER_RE.test(value)) return value;
+  if (isProduction) {
+    throw new Error(`${name} must be set to a real value when NODE_ENV=production`);
+  }
+  if (!value) console.warn(`⚠️  ${name} not set — using an insecure development fallback`);
+  else console.warn(`⚠️  ${name} looks like a placeholder — using an insecure development fallback`);
+  return devFallback;
+};
+
 const env = {
   port: parseInt(process.env.PORT || '5000', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
+  isProduction,
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:1234@localhost:5432/dundu',
-  jwtSecret: process.env.JWT_SECRET || 'dundu_default_secret_key_2026',
+  jwtSecret: requireSecret('JWT_SECRET', 'dundu_dev_only_jwt_secret'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  
+
+  // Explicit opt-in for the fixed "123456" OTP used in local development.
+  // Never honoured in production regardless of the flag.
+  allowDevOtp: !isProduction && process.env.ALLOW_DEV_OTP === 'true',
+
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',

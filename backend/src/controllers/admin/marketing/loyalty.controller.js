@@ -169,7 +169,7 @@ const create = async (req, res) => {
        total_spent = EXCLUDED.total_spent,
        updated_at  = now()
      RETURNING *`,
-    [cleanPhone, name || null, parseInt(points), parseFloat(total_spent)]
+    [cleanPhone, name || null, Math.max(0, parseInt(points, 10) || 0), Math.max(0, parseFloat(total_spent) || 0)]
   );
   ok(res, { card: rows[0] }, 'Loyalty card saved');
 };
@@ -183,9 +183,9 @@ const update = async (req, res) => {
   const updates = [];
   const vals = [];
   if (name !== undefined)               { vals.push(name);                                          updates.push(`name=$${vals.length}`); }
-  if (points !== undefined)             { vals.push(Math.max(0, parseInt(points)));                  updates.push(`points=$${vals.length}`); }
-  else if (points_delta !== undefined)  { vals.push(Math.max(0, existing[0].points + parseInt(points_delta))); updates.push(`points=$${vals.length}`); }
-  if (total_spent !== undefined)        { vals.push(parseFloat(total_spent));                        updates.push(`total_spent=$${vals.length}`); }
+  if (points !== undefined)             { vals.push(Math.max(0, parseInt(points, 10) || 0));                  updates.push(`points=$${vals.length}`); }
+  else if (points_delta !== undefined)  { vals.push(Math.max(0, existing[0].points + (parseInt(points_delta, 10) || 0))); updates.push(`points=$${vals.length}`); }
+  if (total_spent !== undefined)        { vals.push(Math.max(0, parseFloat(total_spent) || 0));                        updates.push(`total_spent=$${vals.length}`); }
 
   if (!updates.length) return badRequest(res, 'Nothing to update');
   updates.push('updated_at=now()');

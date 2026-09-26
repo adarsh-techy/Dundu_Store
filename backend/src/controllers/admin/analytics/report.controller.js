@@ -106,10 +106,10 @@ const financeReport = async (req, res) => {
   const refundQuery = `
     SELECT
       COUNT(rr.id)::int AS return_count,
-      COALESCE(SUM(o.total), 0)::numeric AS total_refunded
+      COALESCE(SUM(COALESCE(rr.refund_amount, o.total)), 0)::numeric AS total_refunded
     FROM return_requests rr
     JOIN orders o ON rr.order_id = o.id
-    WHERE rr.status = 'approved'
+    WHERE rr.status = 'approved' AND COALESCE(rr.refund_method, 'wallet') <> 'replacement'
   `;
 
   // 3. Monthly Financial Breakdown (Past 12 Months)
@@ -246,7 +246,7 @@ const updateProductCostPrice = async (req, res) => {
   const { id } = req.params;
   const { cost_price } = req.body;
 
-  if (cost_price === undefined || isNaN(parseFloat(cost_price))) {
+  if (cost_price === undefined || isNaN(parseFloat(cost_price)) || parseFloat(cost_price) < 0) {
     return badRequest(res, 'Valid cost price is required');
   }
 

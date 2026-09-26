@@ -187,7 +187,8 @@ export const birthdayApi = {
 
 export const whatsappApi = {
   getUsers: (search) => client.get('/admin/whatsapp/users', { params: search ? { search } : {} }),
-  getLogs:  ()       => client.get('/admin/whatsapp/logs'),
+  getLogs:  (params) => client.get('/admin/whatsapp/logs', { params }),
+  getStats: ()       => client.get('/admin/whatsapp/stats'),
   send:     (data)   => client.post('/admin/whatsapp/send', data),
 };
 

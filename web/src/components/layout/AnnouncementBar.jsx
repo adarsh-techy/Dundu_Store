@@ -20,23 +20,16 @@ export default function AnnouncementBar() {
   return (
     <div>
       {announcements.map((a) => (
-        <div key={a.id}
-          style={{ backgroundColor: a.bg_color, color: a.text_color, overflow: 'hidden', position: 'relative' }}>
-          <div style={{ display: 'flex', whiteSpace: 'nowrap', animation: 'marquee 22s linear infinite' }}>
-            {[...Array(4)].map((_, i) => (
-              <span key={i} style={{ padding: '7px 48px', fontSize: '13px', fontWeight: 600, flexShrink: 0 }}>
+        <div key={a.id} className="overflow-hidden relative" style={{ backgroundColor: a.bg_color, color: a.text_color }}>
+          <div className="marquee">
+            {[...Array(6)].map((_, i) => (
+              <span key={i} className="shrink-0 px-12 py-1.5 text-[12.5px] font-semibold tracking-wide">
                 {a.text}
               </span>
             ))}
           </div>
         </div>
       ))}
-      <style>{`
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }

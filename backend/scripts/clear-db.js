@@ -34,7 +34,6 @@ const db = require('../src/config/db');
       products,
       brands,
       categories,
-      branches,
       users
     RESTART IDENTITY CASCADE
   `);
@@ -42,14 +41,14 @@ const db = require('../src/config/db');
   console.log('All tables cleared.');
 
   // Re-create the super admin so the panel is immediately usable.
-  const hash = await bcrypt.hash('admin123', 10);
+  const hash = await bcrypt.hash('123456', 10);
   await db.query(
     `INSERT INTO users (name, email, password_hash, role)
-     VALUES ('Super Admin', 'admin@dundu.com', $1, 'super_admin')`,
+     VALUES ('Super Admin', 'superadmin@gmail.com', $1, 'super_admin')`,
     [hash]
   );
 
-  console.log('Super admin ready:  admin@dundu.com  /  admin123');
+  console.log('Super admin ready:  superadmin@gmail.com  /  123456');
   console.log('Start the backend once to auto-seed product_materials.');
   process.exit(0);
 })().catch((err) => {

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { RotateCcw, Truck } from 'lucide-react';
+import { RotateCcw, Truck, ShieldAlert, AlertCircle, Coins, Sliders } from 'lucide-react';
 import { settingsApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
+import Spinner from '../../../components/ui/Spinner';
 import { anyChanged } from '../../../utils/dirty';
 import toast from 'react-hot-toast';
 
@@ -14,7 +15,7 @@ function Toggle({ enabled, onChange, loading }) {
       onClick={onChange}
       disabled={loading}
       className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-        enabled ? 'bg-green-500' : 'bg-gray-300'
+        enabled ? 'bg-slate-900' : 'bg-slate-200'
       } ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
       <span
@@ -52,9 +53,12 @@ export default function ReturnSettings() {
     try {
       await settingsApi.update({ return_abuse_block_cod: !blockCodOnAbuse });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
-      toast.success(`COD block on frequent returners ${!blockCodOnAbuse ? 'enabled' : 'disabled'}`);
-    } catch { toast.error('Failed to update'); }
-    finally { setSaving(null); }
+      toast.success(`COD restriction for high returners ${!blockCodOnAbuse ? 'enabled' : 'disabled'}`);
+    } catch {
+      toast.error('Failed to update setting');
+    } finally {
+      setSaving(null);
+    }
   }
 
   async function handleToggleBlockReturn() {
@@ -62,9 +66,12 @@ export default function ReturnSettings() {
     try {
       await settingsApi.update({ return_abuse_block_return: !blockReturnOnAbuse });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
-      toast.success(`Return block on frequent returners ${!blockReturnOnAbuse ? 'enabled' : 'disabled'}`);
-    } catch { toast.error('Failed to update'); }
-    finally { setSaving(null); }
+      toast.success(`Return request restriction ${!blockReturnOnAbuse ? 'enabled' : 'disabled'}`);
+    } catch {
+      toast.error('Failed to update setting');
+    } finally {
+      setSaving(null);
+    }
   }
 
   async function handleSaveCourierCharge() {
@@ -73,8 +80,11 @@ export default function ReturnSettings() {
       await settingsApi.update({ return_courier_charge: form.return_courier_charge });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
       toast.success('Return courier charge saved');
-    } catch { toast.error('Failed to save'); }
-    finally { setSaving(null); }
+    } catch {
+      toast.error('Failed to save charge');
+    } finally {
+      setSaving(null);
+    }
   }
 
   async function handleSaveThreshold() {
@@ -83,125 +93,154 @@ export default function ReturnSettings() {
       await settingsApi.update({ return_abuse_threshold: form.return_abuse_threshold });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
       toast.success('Return threshold saved');
-    } catch { toast.error('Failed to save'); }
-    finally { setSaving(null); }
+    } catch {
+      toast.error('Failed to save threshold');
+    } finally {
+      setSaving(null);
+    }
   }
 
-  if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Spinner />
+        <p className="text-xs font-semibold text-slate-500">Loading return configuration...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <RotateCcw className="h-6 w-6 text-indigo-500" />
-          Return Settings
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Configure return charges and abuse protection rules.
-        </p>
+    <div className="w-full space-y-6 pb-16">
+      {/* ── Top Header ───────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm shadow-slate-900/20">
+            <RotateCcw className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              Return & Refund Policies
+            </h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Configure reverse logistics courier fees, abuse prevention rules, and threshold triggers
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Charges ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Return Charges</h2>
-
-        <div className="space-y-1.5 max-w-xs">
-          <Input
-            label="Courier Return Charge (₹)"
-            type="number"
-            min={0}
-            value={form.return_courier_charge}
-            onChange={(e) => setForm((p) => ({ ...p, return_courier_charge: e.target.value }))}
-            placeholder="0"
-          />
-          <p className="text-xs text-gray-400">Deducted from the refund to cover courier pickup. Set to 0 for no charge.</p>
-        </div>
-        {courierChargeDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" loading={saving === 'courier'} onClick={handleSaveCourierCharge}>
-              Save Courier Charge
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Abuse Protection ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5">
-        <div>
-          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Abuse Protection</h2>
-          <p className="text-xs text-gray-400 mt-1">
-            Once a customer's completed returns reach this count, apply the restrictions below.
-          </p>
-        </div>
-
-        <div className="space-y-1.5 max-w-xs">
-          <Input
-            label="Block after this many returns"
-            type="number"
-            min={1}
-            value={form.return_abuse_threshold}
-            onChange={(e) => setForm((p) => ({ ...p, return_abuse_threshold: e.target.value }))}
-            placeholder="3"
-          />
-          <p className="text-xs text-gray-400">e.g. 3 means the 4th return attempt is blocked</p>
-        </div>
-        {thresholdDirty && (
-          <div className="flex justify-end">
-            <Button size="sm" loading={saving === 'threshold'} onClick={handleSaveThreshold}>
-              Save Threshold
-            </Button>
-          </div>
-        )}
-
-        {/* Block COD toggle */}
-        <div className={`flex items-center justify-between p-4 rounded-xl border ${
-          blockCodOnAbuse ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-        }`}>
-          <div className="flex items-center gap-3">
-            <Truck className={`h-5 w-5 ${blockCodOnAbuse ? 'text-green-600' : 'text-gray-400'}`} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ── Reverse Logistics Courier Charges ───────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <Coins className="h-5 w-5 text-slate-700" />
             <div>
-              <p className="font-semibold text-sm text-gray-800">Block Cash on Delivery</p>
-              <p className="text-xs text-gray-500 mt-0.5">Frequent returners must pay online instead of COD</p>
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                Reverse Shipping Fee
+              </h2>
+              <p className="text-xs text-slate-400">Deduction applied to customer refund</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              blockCodOnAbuse ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-            }`}>
-              {blockCodOnAbuse ? 'On' : 'Off'}
-            </span>
-            <Toggle enabled={blockCodOnAbuse} onChange={handleToggleBlockCod} loading={saving === 'block-cod'} />
+
+          <div className="space-y-2">
+            <Input
+              label="Courier Return Pickup Charge (₹)"
+              type="number"
+              min={0}
+              value={form.return_courier_charge}
+              onChange={(e) => setForm((p) => ({ ...p, return_courier_charge: e.target.value }))}
+              placeholder="0"
+            />
+            <p className="text-xs text-slate-500 leading-relaxed">
+              This amount is automatically subtracted from the customer's gross order total during return calculation to offset reverse freight courier expenses. Set to 0 for free customer returns.
+            </p>
           </div>
+
+          {courierChargeDirty && (
+            <div className="flex justify-end pt-2">
+              <Button size="sm" loading={saving === 'courier'} onClick={handleSaveCourierCharge}>
+                Save Courier Charge
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Block Returns toggle */}
-        <div className={`flex items-center justify-between p-4 rounded-xl border ${
-          blockReturnOnAbuse ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-        }`}>
-          <div className="flex items-center gap-3">
-            <RotateCcw className={`h-5 w-5 ${blockReturnOnAbuse ? 'text-green-600' : 'text-gray-400'}`} />
+        {/* ── Return Abuse Protection Rules ───────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+            <ShieldAlert className="h-5 w-5 text-slate-700" />
             <div>
-              <p className="font-semibold text-sm text-gray-800">Block Further Returns</p>
-              <p className="text-xs text-gray-500 mt-0.5">Frequent returners can no longer submit new return requests</p>
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                Abuse Prevention & Limits
+              </h2>
+              <p className="text-xs text-slate-400">Automated guardrails against excessive claims</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              blockReturnOnAbuse ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-            }`}>
-              {blockReturnOnAbuse ? 'On' : 'Off'}
-            </span>
-            <Toggle enabled={blockReturnOnAbuse} onChange={handleToggleBlockReturn} loading={saving === 'block-return'} />
+
+          <div className="space-y-2">
+            <Input
+              label="Trigger threshold (Number of completed returns)"
+              type="number"
+              min={1}
+              value={form.return_abuse_threshold}
+              onChange={(e) => setForm((p) => ({ ...p, return_abuse_threshold: e.target.value }))}
+              placeholder="3"
+            />
+            <p className="text-xs text-slate-500 leading-relaxed">
+              When a customer accounts for this many completed return claims, the automated restriction flags below take immediate effect.
+            </p>
+          </div>
+
+          {thresholdDirty && (
+            <div className="flex justify-end pt-2">
+              <Button size="sm" loading={saving === 'threshold'} onClick={handleSaveThreshold}>
+                Save Threshold
+              </Button>
+            </div>
+          )}
+
+          {/* Block COD toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <div className="flex items-center gap-3">
+              <Truck className={`h-5 w-5 ${blockCodOnAbuse ? 'text-slate-900' : 'text-slate-400'}`} />
+              <div>
+                <p className="font-bold text-xs text-slate-900">Block Cash on Delivery (COD)</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Frequent returners are restricted to prepaid online payment methods</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                blockCodOnAbuse ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+              }`}>
+                {blockCodOnAbuse ? 'ACTIVE' : 'DISABLED'}
+              </span>
+              <Toggle enabled={blockCodOnAbuse} onChange={handleToggleBlockCod} loading={saving === 'block-cod'} />
+            </div>
+          </div>
+
+          {/* Block Returns toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
+            <div className="flex items-center gap-3">
+              <RotateCcw className={`h-5 w-5 ${blockReturnOnAbuse ? 'text-slate-900' : 'text-slate-400'}`} />
+              <div>
+                <p className="font-bold text-xs text-slate-900">Disallow Further Returns</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Subsequent return requests are blocked at the customer app level</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                blockReturnOnAbuse ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+              }`}>
+                {blockReturnOnAbuse ? 'ACTIVE' : 'DISABLED'}
+              </span>
+              <Toggle enabled={blockReturnOnAbuse} onChange={handleToggleBlockReturn} loading={saving === 'block-return'} />
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 leading-relaxed">
+            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>Enable at least one restriction toggle above for the return abuse threshold to enforce protective measures.</span>
           </div>
         </div>
-
-        <p className="text-xs text-gray-400 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-          ⚠️ Toggle at least one option above — the threshold alone does nothing unless COD, returns, or both are set to block.
-        </p>
       </div>
     </div>
   );

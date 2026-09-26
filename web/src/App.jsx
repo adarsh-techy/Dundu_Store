@@ -13,6 +13,8 @@ import useSettingsStore from './store/settings.store';
 import Home from './pages/home/home/Home';
 import Products from './pages/products/product-list/Products';
 import ProductDetail from './pages/products/product-detail/ProductDetail';
+import Combos from './pages/combos/Combos';
+import ComboDetail from './pages/combos/ComboDetail';
 import Orders from './pages/orders/order-list/Orders';
 import OrderDetail from './pages/orders/order-detail/OrderDetail';
 import ReturnRequest from './pages/orders/return-request/ReturnRequest';
@@ -22,10 +24,13 @@ import Wishlist from './pages/account/wishlist/Wishlist';
 import Login from './pages/auth/login/Login';
 import Signup from './pages/auth/signup/Signup';
 import ForgotPassword from './pages/auth/forgot-password/ForgotPassword';
+import AuthCallback from './pages/auth/callback/AuthCallback';
 import LoyaltyCard from './pages/account/loyalty-card/LoyaltyCard';
 import Wallet from './pages/account/wallet/Wallet';
+import HelpPage from './pages/help/HelpPage';
+import NotFound from './pages/not-found/NotFound';
 
-const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
+const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000, refetchOnWindowFocus: false } } });
 
 function KeyedProductDetail() {
   const { id } = useParams();
@@ -34,7 +39,7 @@ function KeyedProductDetail() {
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname, search]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [pathname, search]);
   return null;
 }
 
@@ -56,9 +61,15 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<KeyedProductDetail />} />
+        <Route path="/combos" element={<Combos />} />
+        <Route path="/combos/:id" element={<ComboDetail />} />
+        <Route path="/help" element={<HelpPage />} />
+        <Route path="/help/:topic" element={<HelpPage />} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
@@ -69,12 +80,7 @@ function AppRoutes() {
         <Route path="/loyalty-card" element={<LoyaltyCard />} />
         <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
 
-        <Route path="*" element={
-          <div className="text-center py-32" style={{ color: '#555' }}>
-            <p className="text-6xl mb-4">404</p>
-            <p>Page not found</p>
-          </div>
-        } />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
   );
@@ -86,9 +92,10 @@ export default function App() {
       <BrowserRouter>
         <ScrollToTop />
         <AppRoutes />
-        <Toaster position="top-right" toastOptions={{
-          style: { background: '#1a1a1a', color: '#f5f5f5', border: '1px solid #2e2e2e' },
-          className: 'text-sm font-medium',
+        <Toaster position="top-center" toastOptions={{
+          duration: 2800,
+          style: { background: '#1a1a1d', color: '#f4f4f5', border: '1px solid #26262b', borderRadius: 14, fontSize: 14, fontWeight: 500 },
+          success: { iconTheme: { primary: '#e91e8c', secondary: '#fff' } },
         }} />
       </BrowserRouter>
     </QueryClientProvider>

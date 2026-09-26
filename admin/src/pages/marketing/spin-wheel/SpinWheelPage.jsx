@@ -1,565 +1,143 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  Sparkles,
+  Trophy,
+  History,
+  RotateCcw,
+  CheckCircle2,
+  Plus,
+  Edit3,
+  Trash2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Check,
+  Smartphone,
+  Copy,
+  Tag,
+  Zap,
+  Clock,
+  X,
+  Gift,
+  Coins,
+  Percent,
+  Compass
+} from 'lucide-react';
 import { spinWheelApi } from '../../../api';
-import NotificationModal from '../../../components/ui/NotificationModal';
-import ToastNotification, { useToasts } from '../../../components/ui/ToastNotification';
-import './SpinWheelPage.css';
+import Button from '../../../components/ui/Button';
+import Input from '../../../components/ui/Input';
+import Spinner from '../../../components/ui/Spinner';
+import toast from 'react-hot-toast';
 
-// Vibrant 12-color auto-palette for wheel slices
 const SLICE_PALETTE = [
-  '#E91E8C', // Vivid Pink
-  '#FF6B35', // Orange
-  '#3B82F6', // Blue
-  '#10B981', // Emerald
-  '#8B5CF6', // Purple
-  '#F59E0B', // Amber
-  '#EF4444', // Red
-  '#06B6D4', // Cyan
-  '#EC4899', // Hot Pink
-  '#14B8A6', // Teal
-  '#F97316', // Vivid Orange
-  '#6366F1', // Indigo
+  '#E91E8C', '#FF6B35', '#3B82F6', '#10B981',
+  '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4',
+  '#EC4899', '#14B8A6', '#F97316', '#6366F1',
 ];
 
-const FALLING_ITEMS = ['🎁', '🎉', '✨', '🥳', '⭐', '💎', '👑', '💰', '🎈', '🏆', '🎊', '🌟'];
-
-function LiveWheelPreview({ segments, title, subtitle }) {
-  const [rotation, setRotation] = useState(0);
-  const [spinning, setSpinning] = useState(false);
-  const [testWinner, setTestWinner] = useState(null);
-  const [showWinnerModal, setShowWinnerModal] = useState(false);
-
-  const activeSegments = (segments || []).filter((s) => s.is_active);
-  const numSlices = activeSegments.length;
-
-  const getSliceColor = (seg, idx) => seg.color || SLICE_PALETTE[idx % SLICE_PALETTE.length];
-
-  const handleTestSpin = () => {
-    if (spinning || numSlices === 0) return;
-    setSpinning(true);
-    setTestWinner(null);
-    setShowWinnerModal(false);
-
-    const randomIndex = Math.floor(Math.random() * numSlices);
-    const winningSeg = activeSegments[randomIndex];
-    const sliceAngle = 360 / numSlices;
-    const targetSliceAngle = (numSlices - randomIndex - 0.5) * sliceAngle;
-    const newRotation = rotation + 1800 + targetSliceAngle - (rotation % 360);
-
-    setRotation(newRotation);
-
-    setTimeout(() => {
-      setSpinning(false);
-      setTestWinner(winningSeg);
-      setShowWinnerModal(true);
-    }, 4600);
-  };
-
-  const R = 125;
-  const CX = 140;
-  const CY = 140;
-  const sliceAngle = numSlices > 0 ? 360 / numSlices : 360;
-
-  // 20 perimeter bulbs — 3 alternating colors
-  const renderBulbPegs = () => {
-    const pegs = [];
-    const numPegs = 20;
-    const pegDist = 133;
-    const bulbColors = ['#FFFFFF', '#FFD700', '#FF6B35'];
-    for (let i = 0; i < numPegs; i++) {
-      const angle = (i * 360) / numPegs - 90;
-      const rad = (angle * Math.PI) / 180;
-      const px = CX + pegDist * Math.cos(rad);
-      const py = CY + pegDist * Math.sin(rad);
-      pegs.push(
-        <circle
-          key={i}
-          cx={px}
-          cy={py}
-          r="5"
-          fill={bulbColors[i % 3]}
-          stroke="#B8860B"
-          strokeWidth="1"
-          style={{ filter: `drop-shadow(0 0 4px ${bulbColors[i % 3]})` }}
-        />
-      );
-    }
-    return pegs;
-  };
-
-  // Gold spoke lines between slices
-  const renderSpokes = () => {
-    if (numSlices <= 1) return null;
-    const spokes = [];
-    for (let i = 0; i < numSlices; i++) {
-      const angle = (i * sliceAngle - 90) * (Math.PI / 180);
-      const x2 = CX + R * Math.cos(angle);
-      const y2 = CY + R * Math.sin(angle);
-      spokes.push(
-        <line
-          key={i}
-          x1={CX} y1={CY}
-          x2={x2} y2={y2}
-          stroke="rgba(255,215,0,0.75)"
-          strokeWidth="1.5"
-          style={{ filter: 'drop-shadow(0 0 2px #FFD700)' }}
-        />
-      );
-    }
-    return spokes;
-  };
-
-  return (
-    <div className="phone-mockup-wrapper">
-      <div className="phone-header-bar">
-        <div className="phone-camera-notch" />
-      </div>
-
-      <div className="phone-screen">
-
-        {/* ── Main Wheel UI ── */}
-        <div className="mobile-modal-overlay">
-          <div className="mobile-popup-card">
-            <span className="live-preview-badge">✨ LIVE 3D SIMULATOR ✨</span>
-            <h4 className="mobile-popup-title">{title || 'Spin & Win Real Rewards! 🎉'}</h4>
-            <p className="mobile-popup-subtitle">{subtitle || 'Spin the wheel and win exclusive rewards!'}</p>
-
-            <div className="mobile-wheel-stage">
-              {/* Pointer */}
-              <div className="mobile-wheel-pointer">
-                <div className="pointer-shadow-3d" />
-                <div className="pointer-arrow-3d" />
-                <div className="pointer-gem-3d" />
-              </div>
-
-              <svg
-                width="280"
-                height="280"
-                viewBox="0 0 280 280"
-                className="mobile-svg-wheel"
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  transition: spinning ? 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' : 'none',
-                }}
-              >
-                <defs>
-                  {/* Per-slice radial gradient for 3D depth */}
-                  {activeSegments.map((seg, idx) => {
-                    const base = getSliceColor(seg, idx);
-                    return (
-                      <radialGradient key={`rg-${idx}`} id={`sliceGrad-${idx}`} cx="35%" cy="35%" r="70%">
-                        <stop offset="0%" stopColor={base} stopOpacity="1" />
-                        <stop offset="60%" stopColor={base} stopOpacity="0.9" />
-                        <stop offset="100%" stopColor={base} stopOpacity="0.65" />
-                      </radialGradient>
-                    );
-                  })}
-                  <radialGradient id="goldRimGrad" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stopColor="#FFF176" />
-                    <stop offset="55%" stopColor="#FFD700" />
-                    <stop offset="85%" stopColor="#FFA000" />
-                    <stop offset="100%" stopColor="#7A5200" />
-                  </radialGradient>
-                  <radialGradient id="hubGrad" cx="40%" cy="35%" r="65%">
-                    <stop offset="0%" stopColor="#FF6B9D" />
-                    <stop offset="50%" stopColor="#E91E8C" />
-                    <stop offset="100%" stopColor="#880E4F" />
-                  </radialGradient>
-                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                  </filter>
-                  <filter id="wheelShadow" x="-10%" y="-10%" width="120%" height="120%">
-                    <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="#000000" floodOpacity="0.5" />
-                  </filter>
-                </defs>
-
-                {/* Outer shadow behind wheel */}
-                <circle cx={CX} cy={CY} r="140" fill="rgba(0,0,0,0.3)" transform="translate(3,5)" />
-
-                {/* 3D Gold Outer Ring */}
-                <circle cx={CX} cy={CY} r="138" fill="url(#goldRimGrad)" stroke="#7A5200" strokeWidth="3" filter="url(#wheelShadow)" />
-                {/* Bright inner ring border */}
-                <circle cx={CX} cy={CY} r="128" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
-                {/* Dark inner edge for depth */}
-                <circle cx={CX} cy={CY} r="127" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="1.5" />
-
-                {/* Perimeter Bulbs */}
-                {renderBulbPegs()}
-
-                {/* Pie Slices */}
-                {numSlices === 0 ? (
-                  <text x={CX} y={CY} fill="#64748b" fontSize="12" textAnchor="middle" dominantBaseline="middle">
-                    No Active Slices
-                  </text>
-                ) : (
-                  activeSegments.map((seg, idx) => {
-                    const startAngle = idx * sliceAngle - 90;
-                    const endAngle = (idx + 1) * sliceAngle - 90;
-                    const midAngle = (idx + 0.5) * sliceAngle - 90;
-
-                    const rad1 = (startAngle * Math.PI) / 180;
-                    const rad2 = (endAngle * Math.PI) / 180;
-                    const radMid = (midAngle * Math.PI) / 180;
-
-                    const x1 = CX + R * Math.cos(rad1);
-                    const y1 = CY + R * Math.sin(rad1);
-                    const x2 = CX + R * Math.cos(rad2);
-                    const y2 = CY + R * Math.sin(rad2);
-
-                    const tx = CX + (R * 0.64) * Math.cos(radMid);
-                    const ty = CY + (R * 0.64) * Math.sin(radMid);
-
-                    // Highlight arc at top 30% of slice
-                    const hR = R * 0.95;
-                    const hR2 = R * 0.55;
-                    const hx1 = CX + hR2 * Math.cos(rad1);
-                    const hy1 = CY + hR2 * Math.sin(rad1);
-                    const hx2 = CX + hR * Math.cos(rad1);
-                    const hy2 = CY + hR * Math.sin(rad1);
-                    const hx3 = CX + hR * Math.cos(rad2);
-                    const hy3 = CY + hR * Math.sin(rad2);
-                    const hx4 = CX + hR2 * Math.cos(rad2);
-                    const hy4 = CY + hR2 * Math.sin(rad2);
-
-                    const largeArc = sliceAngle > 180 ? 1 : 0;
-                    const pathData = numSlices === 1
-                      ? `M ${CX - R} ${CY} A ${R} ${R} 0 1 0 ${CX + R} ${CY} A ${R} ${R} 0 1 0 ${CX - R} ${CY}`
-                      : `M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-                    const highlightPath = numSlices > 1
-                      ? `M ${hx1} ${hy1} L ${hx2} ${hy2} A ${hR} ${hR} 0 ${largeArc} 1 ${hx3} ${hy3} L ${hx4} ${hy4} A ${hR2} ${hR2} 0 ${largeArc} 0 ${hx1} ${hy1} Z`
-                      : null;
-
-                    return (
-                      <g key={seg.id || idx}>
-                        {/* Base slice with radial gradient */}
-                        <path
-                          d={pathData}
-                          fill={`url(#sliceGrad-${idx})`}
-                          stroke="rgba(255,255,255,0.9)"
-                          strokeWidth="1.5"
-                        />
-                        {/* Glossy highlight overlay */}
-                        {highlightPath && (
-                          <path
-                            d={highlightPath}
-                            fill="rgba(255,255,255,0.18)"
-                            stroke="none"
-                          />
-                        )}
-                        {/* Label */}
-                        <text
-                          x={tx}
-                          y={ty}
-                          fill={seg.text_color || '#FFFFFF'}
-                          fontSize="10.5"
-                          fontWeight="900"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          transform={`rotate(${midAngle + 90}, ${tx}, ${ty})`}
-                          style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.7))' }}
-                        >
-                          {seg.label}
-                        </text>
-                      </g>
-                    );
-                  })
-                )}
-
-                {/* Gold spoke dividers */}
-                {renderSpokes()}
-
-                {/* 3-layer center hub */}
-                <circle cx={CX} cy={CY} r="32" fill="#FFD700" stroke="#B8860B" strokeWidth="2" />
-                <circle cx={CX} cy={CY} r="28" fill="url(#hubGrad)" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
-                <text x={CX} y={CY - 4} fill="#FFFFFF" fontSize="9" fontWeight="900" textAnchor="middle" dominantBaseline="middle"
-                  style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>
-                  SPIN
-                </text>
-                <text x={CX} y={CY + 6} fill="rgba(255,255,255,0.85)" fontSize="7" fontWeight="700" textAnchor="middle" dominantBaseline="middle">
-                  NOW
-                </text>
-              </svg>
-            </div>
-
-            <button
-              type="button"
-              className="spin-test-btn"
-              onClick={handleTestSpin}
-              disabled={spinning || numSlices === 0}
-            >
-              {spinning ? '🌀 Wheel Spinning...' : '🎲 TEST SPIN NOW'}
-            </button>
-          </div>
-        </div>
-
-        {/* ── Winner Overlay (covers full phone screen) ── */}
-        {showWinnerModal && testWinner && (
-          <div className="winner-phone-overlay">
-            {/* Falling gifts ABOVE winner card */}
-            <div className="falling-gifts-container">
-              {Array.from({ length: 32 }).map((_, idx) => {
-                const emoji = FALLING_ITEMS[idx % FALLING_ITEMS.length];
-                const left = ((idx * 29 + (idx * 11) % 70) % 90);
-                const duration = 5.0 + (idx % 6) * 0.6;
-                const delay = (idx * 0.18) % 2.8;
-                const size = 18 + (idx % 5) * 5;
-                return (
-                  <span
-                    key={idx}
-                    className="falling-gift-particle"
-                    style={{
-                      left: `${left}%`,
-                      fontSize: `${size}px`,
-                      animationDuration: `${duration}s`,
-                      animationDelay: `${delay}s`,
-                    }}
-                  >
-                    {emoji}
-                  </span>
-                );
-              })}
-            </div>
-
-            {/* Winner card */}
-            <div className="winner-phone-card">
-              <div className="winner-phone-ribbon">
-                <span>{testWinner.type === 'no_prize' ? '😅 Better Luck!' : '🎉 YOU WON!'}</span>
-              </div>
-
-              <div className="winner-phone-emoji">
-                {testWinner.type === 'no_prize' ? '😅' :
-                  testWinner.type === 'free_shipping' ? '🚚' : '🎁'}
-              </div>
-
-              <p className="winner-phone-title">
-                {testWinner.type === 'no_prize' ? 'Try Again Next Time' : 'Congratulations! 🥳'}
-              </p>
-              <p className="winner-phone-prize">{testWinner.label}</p>
-
-              {testWinner.type === 'free_shipping' && (
-                <div className="winner-phone-free">
-                  <span>🚚 FREE DELIVERY</span>
-                  <small>Applied on your next order!</small>
-                </div>
-              )}
-
-              {testWinner.coupon_code && testWinner.type !== 'free_shipping' && (
-                <div className="winner-phone-coupon">
-                  <small>🎫 COUPON CODE</small>
-                  <strong>{testWinner.coupon_code}</strong>
-                  <small>Auto-applied at checkout 🛍️</small>
-                </div>
-              )}
-
-              <button
-                className="winner-phone-close-btn"
-                onClick={() => { setShowWinnerModal(false); setTestWinner(null); }}
-              >
-                {testWinner.type === 'no_prize' ? 'OK, Got It' : '🛍️ Claim & Shop Now'}
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
-
 export default function SpinWheelPage() {
-  const [activeTab, setActiveTab] = useState('segments');
+  const [activeSection, setActiveSection] = useState('settings'); // 'settings' | 'slices' | 'history'
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const initialDataRef = useRef(null);
+
   const [data, setData] = useState({
     enabled: true,
     cooldown_hours: 24,
-    title: 'Spin & Win Real Rewards! 🎉',
+    delay_seconds: 3,
+    max_per_day: 1,
+    min_orders: 0,
+    title: 'Spin & Win Real Rewards!',
     subtitle: 'Spin the wheel today and win exclusive discounts & gift rewards!',
     total_spins: 0,
     segments: [],
-    user_targets: [],
-    min_orders: 0,
-    active_from: '',
-    active_until: '',
   });
 
-  // Quick permission rules local edit state (separate from main settings)
-  const [rulesForm, setRulesForm] = useState({ min_orders: 0, active_from: '', active_until: '', max_per_day: 1, cooldown_hours: 24 });
-  const [rulesSaving, setRulesSaving] = useState(false);
+  // Preview Simulation
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [testWinner, setTestWinner] = useState(null);
+  const [showWinnerCard, setShowWinnerCard] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  // Modal Segment State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSegment, setEditingSegment] = useState(null);
-  const [formData, setFormData] = useState({
-    label: '',
-    type: 'coupon',
-    value: 10,
-    coupon_code: '',
-    color: '#E91E8C',
-    text_color: '#FFFFFF',
-    probability: 15,
-    is_active: true,
-    sort_order: 1,
-    target_user_type: 'all',
+  // Slice Modal
+  const [sliceModalOpen, setSliceModalOpen] = useState(false);
+  const [editingSlice, setEditingSlice] = useState(null);
+  const [sliceForm, setSliceForm] = useState({
+    label: '', type: 'coupon', value: 50, coupon_code: '',
+    color: '#E91E8C', text_color: '#FFFFFF', probability: 15,
+    is_active: true, sort_order: 1,
   });
 
-  // Modal User Target State
-  const [isUserTargetModalOpen, setIsUserTargetModalOpen] = useState(false);
-  const [userTargetForm, setUserTargetForm] = useState({
-    phone: '',
-    segment_id: '',
-    custom_prize_label: '',
-    custom_prize_type: 'coupon',
-    custom_prize_value: 50,
-    custom_coupon_code: '',
-  });
-
-  // Customer Spin Permissions State
-  const [userList, setUserList] = useState([]);
-  const [userListLoading, setUserListLoading] = useState(false);
-  const [userSearch, setUserSearch] = useState('');
-  const [userPage, setUserPage] = useState(1);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [selectedUserIds, setSelectedUserIds] = useState([]);
-
-  // Logs State
+  // History
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalLogs, setTotalLogs] = useState(0);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logSearch, setLogSearch] = useState('');
 
-  // Settings Snapshot State
-  const [initialSettings, setInitialSettings] = useState(null);
-
-  // ── Toast notifications (success / error / warning / info) ──────────────
-  const { toasts, addToast, removeToast } = useToasts();
-
-  // ── Confirm modal (blocking dialog for destructive / confirm actions) ───
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    type: 'confirm',
-    title: '',
-    message: '',
-    confirmText: 'Yes, Confirm',
-    cancelText: 'Cancel',
-    onConfirm: null,
-  });
-
-  /**
-   * showConfirm — open the blocking confirm dialog.
-   * Only use for destructive / irreversible actions.
-   */
-  const showConfirm = ({
-    type = 'confirm',
-    title = '',
-    message = '',
-    confirmText = 'Yes, Confirm',
-    cancelText = 'Cancel',
-    onConfirm = null,
-  }) => {
-    setConfirmModal({ isOpen: true, type, title, message, confirmText, cancelText, onConfirm });
-  };
-
-  const closeConfirm = () => {
-    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-  };
-
+  // ─── Data Fetching ──────────────────────────────────────────────────────────
   const fetchConfig = async () => {
     try {
       setLoading(true);
       const res = await spinWheelApi.getConfig();
       const resData = res.data || res;
       setData(resData);
-      setInitialSettings(JSON.stringify({
-        enabled: resData.enabled,
-        cooldown_hours: resData.cooldown_hours,
-        delay_seconds: resData.delay_seconds,
-        max_per_day: resData.max_per_day,
-        start_time: resData.start_time,
-        end_time: resData.end_time,
-        require_login: resData.require_login,
-        time_slot_mode: resData.time_slot_mode,
-        morning_start: resData.morning_start,
-        morning_end: resData.morning_end,
-        evening_start: resData.evening_start,
-        evening_end: resData.evening_end,
-        night_start: resData.night_start,
-        night_end: resData.night_end,
-        title: resData.title,
-        subtitle: resData.subtitle,
-      }));
-      // Sync quick rules form from fetched config
-      setRulesForm({
-        min_orders: resData.min_orders ?? 0,
-        active_from: resData.active_from || '',
-        active_until: resData.active_until || '',
-        max_per_day: resData.max_per_day ?? 1,
+      initialDataRef.current = JSON.stringify({
+        enabled: resData.enabled !== false,
         cooldown_hours: resData.cooldown_hours ?? 24,
+        delay_seconds: resData.delay_seconds ?? 3,
+        max_per_day: resData.max_per_day ?? 1,
+        min_orders: resData.min_orders ?? 0,
+        title: resData.title || '',
+        subtitle: resData.subtitle || '',
       });
     } catch (err) {
-      addToast({ type: 'error', title: 'Error Loading Settings', message: err.response?.data?.message || 'Failed to load spin wheel settings' });
+      toast.error(err?.response?.data?.message || 'Failed to load spin wheel configuration.');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUsersPermissions = async (p = 1, search = userSearch, silent = false) => {
+  const fetchLogs = async (pageNo = 1) => {
     try {
-      if (!silent) setUserListLoading(true);
-      const res = await spinWheelApi.getUsersPermissions({ page: p, limit: 15, search });
-      const resData = res.data || res;
-      setUserList(resData.users || []);
-      setTotalUsers(resData.total || 0);
-      setUserPage(p);
-    } catch (err) {
-      // ignore
-    } finally {
-      if (!silent) setUserListLoading(false);
-    }
-  };
-
-  const fetchLogs = async (p = 1, silent = false) => {
-    try {
-      if (!silent) setLogsLoading(true);
-      const res = await spinWheelApi.getLogs({ page: p, limit: 15 });
+      setLogsLoading(true);
+      const res = await spinWheelApi.getLogs({ page: pageNo });
       const resData = res.data || res;
       setLogs(resData.logs || []);
-      setTotalLogs(resData.total || 0);
-      setPage(p);
-    } catch (err) {
-      // ignore log fetch error
+      setLogsPage(pageNo);
+    } catch {
+      // silent
     } finally {
-      if (!silent) setLogsLoading(false);
+      setLogsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
+  useEffect(() => { fetchConfig(); }, []);
+  useEffect(() => { if (activeSection === 'history') fetchLogs(logsPage); }, [activeSection, logsPage]);
 
-  useEffect(() => {
-    let interval;
-    if (activeTab === 'users-permissions') {
-      // First load: show spinner
-      fetchUsersPermissions(userPage, userSearch, false);
-      // Background polls: silent — no spinner, just swap data
-      interval = setInterval(() => {
-        fetchUsersPermissions(userPage, userSearch, true);
-      }, 5000);
-    } else if (activeTab === 'logs') {
-      fetchLogs(page, false);
-      interval = setInterval(() => {
-        fetchLogs(page, true);
-      }, 5000);
+  // ─── Dirty State ────────────────────────────────────────────────────────────
+  const isDirty = initialDataRef.current !== null && JSON.stringify({
+    enabled: data.enabled !== false,
+    cooldown_hours: data.cooldown_hours ?? 24,
+    delay_seconds: data.delay_seconds ?? 3,
+    max_per_day: data.max_per_day ?? 1,
+    min_orders: data.min_orders ?? 0,
+    title: data.title || '',
+    subtitle: data.subtitle || '',
+  }) !== initialDataRef.current;
+
+  const handleDiscard = () => {
+    if (initialDataRef.current) {
+      const parsed = JSON.parse(initialDataRef.current);
+      setData((prev) => ({ ...prev, ...parsed }));
+      toast('Changes discarded', { icon: '↩️' });
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [activeTab, userPage, userSearch, page]);
+  };
 
   const handleSaveSettings = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       setSaving(true);
       await spinWheelApi.updateSettings({
@@ -567,1743 +145,896 @@ export default function SpinWheelPage() {
         cooldown_hours: data.cooldown_hours,
         delay_seconds: data.delay_seconds,
         max_per_day: data.max_per_day,
-        start_time: data.start_time,
-        end_time: data.end_time,
-        require_login: data.require_login,
-        time_slot_mode: data.time_slot_mode,
-        morning_start: data.morning_start,
-        morning_end: data.morning_end,
-        evening_start: data.evening_start,
-        evening_end: data.evening_end,
-        night_start: data.night_start,
-        night_end: data.night_end,
         title: data.title,
         subtitle: data.subtitle,
       });
-      addToast({
-        type: 'success',
-        title: 'Settings Saved! 💾',
-        message: 'Spin wheel timing & login settings saved successfully!',
+      toast.success('Spin wheel settings saved successfully!');
+      initialDataRef.current = JSON.stringify({
+        enabled: data.enabled !== false,
+        cooldown_hours: data.cooldown_hours ?? 24,
+        delay_seconds: data.delay_seconds ?? 3,
+        max_per_day: data.max_per_day ?? 1,
+        min_orders: data.min_orders ?? 0,
+        title: data.title || '',
+        subtitle: data.subtitle || '',
       });
       fetchConfig();
     } catch (err) {
-      addToast({ type: 'error', title: 'Error Saving Settings', message: err.response?.data?.message || 'Failed to save settings' });
+      toast.error(err?.response?.data?.message || 'Failed to save settings.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleOpenModal = (segment = null) => {
-    if (segment) {
-      setEditingSegment(segment);
-      setFormData({
-        label: segment.label,
-        type: segment.type,
-        value: segment.value,
-        coupon_code: segment.coupon_code || '',
-        color: segment.color || '#E91E8C',
-        text_color: segment.text_color || '#FFFFFF',
-        probability: segment.probability,
-        is_active: segment.is_active,
-        sort_order: segment.sort_order,
-        target_user_type: segment.target_user_type || 'all',
-      });
-    } else {
-      setEditingSegment(null);
-      setFormData({
-        label: '',
-        type: 'coupon',
-        value: 10,
-        coupon_code: '',
-        color: '#E91E8C',
-        text_color: '#FFFFFF',
-        probability: 15,
-        is_active: true,
-        sort_order: data.segments.length + 1,
-        target_user_type: 'all',
-      });
-    }
-    setIsModalOpen(true);
+  // ─── Slices Management ──────────────────────────────────────────────────────
+  const openAddSliceModal = () => {
+    setEditingSlice(null);
+    const nextColor = SLICE_PALETTE[(data.segments || []).length % SLICE_PALETTE.length];
+    setSliceForm({
+      label: '', type: 'coupon', value: 50, coupon_code: '',
+      color: nextColor, text_color: '#FFFFFF', probability: 15,
+      is_active: true, sort_order: (data.segments || []).length + 1,
+    });
+    setSliceModalOpen(true);
   };
 
-  const handleSaveSegment = async (e) => {
+  const openEditSliceModal = (slice) => {
+    setEditingSlice(slice);
+    setSliceForm({
+      label: slice.label, type: slice.type, value: slice.value,
+      coupon_code: slice.coupon_code || '', color: slice.color || '#E91E8C',
+      text_color: slice.text_color || '#FFFFFF', probability: slice.probability || 10,
+      is_active: slice.is_active !== false, sort_order: slice.sort_order || 1,
+    });
+    setSliceModalOpen(true);
+  };
+
+  const handleSaveSlice = async (e) => {
     e.preventDefault();
     try {
-      setSaving(true);
-      if (editingSegment) {
-        await spinWheelApi.updateSegment(editingSegment.id, formData);
-        addToast({ type: 'success', title: 'Slice Updated! 🎯', message: 'Wheel slice updated successfully!' });
+      if (editingSlice) {
+        await spinWheelApi.updateSegment(editingSlice.id, sliceForm);
+        toast.success('Wheel slice updated!');
       } else {
-        await spinWheelApi.createSegment(formData);
-        addToast({ type: 'success', title: 'Slice Created! 🎯', message: 'New wheel slice created successfully!' });
+        await spinWheelApi.createSegment(sliceForm);
+        toast.success('Wheel slice added!');
       }
-      setIsModalOpen(false);
+      setSliceModalOpen(false);
       fetchConfig();
     } catch (err) {
-      addToast({ type: 'error', title: 'Save Failed', message: err.response?.data?.message || 'Failed to save wheel segment' });
-    } finally {
-      setSaving(false);
+      toast.error(err?.response?.data?.message || 'Failed to save slice.');
     }
   };
 
-  const handleDeleteSegment = async (id) => {
-    showConfirm({
-      type: 'confirm',
-      title: 'Delete Prize Slice?',
-      message: 'Are you sure you want to delete this prize segment from the wheel?',
-      confirmText: 'Yes, Delete',
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          await spinWheelApi.deleteSegment(id);
-          addToast({ type: 'success', title: 'Slice Deleted ✓', message: 'Prize segment removed successfully.' });
-          fetchConfig();
-        } catch (err) {
-          addToast({ type: 'error', title: 'Delete Failed', message: err.response?.data?.message || 'Failed to delete segment' });
-        }
-      },
-    });
-  };
-
-  const handleToggleSegmentActive = async (segment) => {
+  const handleDeleteSlice = async (id) => {
+    if (!window.confirm('Delete this slice from the wheel?')) return;
     try {
-      await spinWheelApi.updateSegment(segment.id, {
-        ...segment,
-        is_active: !segment.is_active,
-      });
+      await spinWheelApi.deleteSegment(id);
+      toast.success('Wheel slice removed.');
       fetchConfig();
     } catch (err) {
-      addToast({ type: 'error', title: 'Error', message: 'Failed to toggle segment' });
+      toast.error(err?.response?.data?.message || 'Failed to delete slice.');
     }
   };
 
-  const handleSaveUserTarget = async (e) => {
-    e.preventDefault();
+  const handleToggleSliceActive = async (slice) => {
     try {
-      setSaving(true);
-      await spinWheelApi.createUserTarget(userTargetForm);
-      setIsUserTargetModalOpen(false);
+      await spinWheelApi.updateSegment(slice.id, { ...slice, is_active: !slice.is_active });
+      toast.success(`Slice ${!slice.is_active ? 'enabled' : 'disabled'}`);
       fetchConfig();
-      addToast({
-        type: 'success',
-        title: 'VIP Target Rule Created! 🎁',
-        message: 'Guaranteed reward rule created successfully for target user!',
-      });
-    } catch (err) {
-      addToast({ type: 'error', title: 'Save Failed', message: err.response?.data?.message || 'Failed to save user target rule' });
-    } finally {
-      setSaving(false);
+    } catch {
+      toast.error('Failed to toggle slice.');
     }
   };
 
-  const handleDeleteUserTarget = async (id) => {
-    showConfirm({
-      type: 'confirm',
-      title: 'Remove Target Rule?',
-      message: 'Are you sure you want to remove this VIP user target rule?',
-      confirmText: 'Yes, Remove',
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          await spinWheelApi.deleteUserTarget(id);
-          addToast({ type: 'success', title: 'Rule Removed ✓', message: 'VIP target rule removed successfully.' });
-          fetchConfig();
-        } catch (err) {
-          addToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to delete rule' });
-        }
-      },
-    });
-  };
-
-  // ── Quick Eligibility Rules save handler ────────────────────────────────
-  const handleSavePermissionRules = async () => {
+  const handleForceAllUsers = async () => {
+    if (!window.confirm('Trigger the Spin Wheel popup for all active users on their next app opening?')) return;
     try {
-      setRulesSaving(true);
-      await spinWheelApi.updatePermissionRules({
-        min_orders: parseInt(rulesForm.min_orders, 10) || 0,
-        active_from: rulesForm.active_from || '',
-        active_until: rulesForm.active_until || '',
-        max_per_day: parseInt(rulesForm.max_per_day, 10) || 1,
-        cooldown_hours: parseFloat(rulesForm.cooldown_hours) || 24,
-      });
-      // Sync back to data so the live status badge + main data reacts
-      setData((prev) => ({
-        ...prev,
-        min_orders: parseInt(rulesForm.min_orders, 10) || 0,
-        active_from: rulesForm.active_from || '',
-        active_until: rulesForm.active_until || '',
-        max_per_day: parseInt(rulesForm.max_per_day, 10) || 1,
-        cooldown_hours: parseFloat(rulesForm.cooldown_hours) || 24,
-      }));
-      addToast({ type: 'success', title: 'Rules Saved ✓', message: 'Eligibility rules updated successfully!' });
-    } catch (err) {
-      addToast({ type: 'error', title: 'Save Failed', message: err.response?.data?.message || 'Failed to save eligibility rules' });
-    } finally {
-      setRulesSaving(false);
+      await spinWheelApi.forceAllUsersSpinPopup();
+      toast.success('Spin wheel forced for all shoppers!');
+    } catch {
+      toast.error('Failed to trigger spin wheel.');
     }
   };
 
-  // Toggle user spin popup permission
-  const handleToggleUserPermission = async (userObj) => {
-    // Optimistic update — feels instant, no blink
-    const newStatus = !userObj.spin_wheel_enabled;
-    setUserList((prev) => prev.map((u) => (u.id === userObj.id ? { ...u, spin_wheel_enabled: newStatus } : u)));
-    try {
-      await spinWheelApi.toggleUserSpinPermission(userObj.id, newStatus);
-      // Silent refresh to confirm final server state
-      fetchUsersPermissions(userPage, userSearch, true);
-    } catch (err) {
-      // Revert optimistic update on failure
-      setUserList((prev) => prev.map((u) => (u.id === userObj.id ? { ...u, spin_wheel_enabled: !newStatus } : u)));
-      addToast({ type: 'error', title: 'Error', message: 'Failed to toggle user spin permission' });
-    }
+  const handleCopyCode = (code) => {
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
-  const handleBulkToggleUserPermissions = async (enabledStatus) => {
-    try {
-      setSaving(true);
-      await spinWheelApi.bulkToggleUserSpinPermission(
-        selectedUserIds.length > 0 ? selectedUserIds : null,
-        enabledStatus
-      );
-      addToast({
-        type: 'success',
-        title: 'Permissions Updated ✓',
-        message: `Spin popup ${enabledStatus ? 'enabled' : 'disabled'} successfully!`,
-      });
-      setSelectedUserIds([]);
-      fetchUsersPermissions(userPage, userSearch, true);
-    } catch (err) {
-      addToast({ type: 'error', title: 'Error', message: 'Failed to update user permissions' });
-    } finally {
-      setSaving(false);
-    }
+  // ─── Test Spin ──────────────────────────────────────────────────────────────
+  const activeSlices = (data.segments || []).filter((s) => s.is_active !== false);
+  const numSlices = activeSlices.length;
+
+  const handleTestSpin = () => {
+    if (isSpinning || numSlices === 0) return;
+    setIsSpinning(true);
+    setTestWinner(null);
+    setShowWinnerCard(false);
+
+    const randomIndex = Math.floor(Math.random() * numSlices);
+    const winningSeg = activeSlices[randomIndex];
+    const sliceAng = 360 / numSlices;
+    const targetSliceAngle = (numSlices - randomIndex - 0.5) * sliceAng;
+    const newRotation = wheelRotation + 1800 + targetSliceAngle - (wheelRotation % 360);
+
+    setWheelRotation(newRotation);
+
+    setTimeout(() => {
+      setIsSpinning(false);
+      setTestWinner(winningSeg);
+      setShowWinnerCard(true);
+    }, 4600);
   };
 
-  const handleForceUserPopup = async (userId = null) => {
-    // Early validation BEFORE setting saving=true, to avoid getting stuck
-    const ids = userId ? [userId] : (selectedUserIds.length > 0 ? selectedUserIds : null);
-    if (!ids) {
-      addToast({ type: 'warning', title: 'No User Selected', message: 'Please select at least one user to force the popup!' });
-      return;
-    }
-    // Optimistic update — instantly flip button to ⋯ Pending Spin...
-    setUserList((prev) =>
-      prev.map((u) => ids.includes(u.id) ? { ...u, force_spin_popup: true, spin_wheel_enabled: true } : u)
+  // Filter logs
+  const filteredLogs = logs.filter((log) => {
+    if (!logSearch) return true;
+    const q = logSearch.toLowerCase();
+    return (
+      (log.user_name && log.user_name.toLowerCase().includes(q)) ||
+      (log.phone && log.phone.includes(q)) ||
+      (log.segment_label && log.segment_label.toLowerCase().includes(q)) ||
+      (log.coupon_code && log.coupon_code.toLowerCase().includes(q))
     );
-    try {
-      setSaving(true);
-      await spinWheelApi.forceUserSpinPopup(userId || null, ids);
-      addToast({
-        type: 'success',
-        title: '⚡ Spin Popup Forced!',
-        message: `Spin popup forced for ${ids.length} user(s). They’ll see it on next app open.`,
-      });
-      // Silent refresh to confirm server state
-      fetchUsersPermissions(userPage, userSearch, true);
-    } catch (err) {
-      // Revert optimistic update on failure
-      setUserList((prev) =>
-        prev.map((u) => ids.includes(u.id) ? { ...u, force_spin_popup: false } : u)
-      );
-      addToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to force user spin popup' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  /**
-   * Cancel / un-force a pending forced spin popup for a specific user.
-   * Only visible when force_spin_popup === true (user hasn’t spun yet).
-   * Once the user spins, the backend resets force_spin_popup = false automatically,
-   * and the 5s silent poll picks up the change, switching the button back.
-   */
-  const handleCancelForcePopup = async (userId) => {
-    // Optimistic update — instantly revert button to ⋯ Force Popup
-    setUserList((prev) =>
-      prev.map((u) => u.id === userId ? { ...u, force_spin_popup: false } : u)
-    );
-    try {
-      setSaving(true);
-      await spinWheelApi.cancelForceUserSpinPopup([userId]);
-      addToast({
-        type: 'info',
-        title: 'Force Cancelled',
-        message: 'Pending forced popup has been cancelled for this user.',
-      });
-      fetchUsersPermissions(userPage, userSearch, true);
-    } catch (err) {
-      // Revert optimistic update on failure
-      setUserList((prev) =>
-        prev.map((u) => u.id === userId ? { ...u, force_spin_popup: true } : u)
-      );
-      addToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to cancel forced popup' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleForceAllUsersPopup = async () => {
-    showConfirm({
-      type: 'warning',
-      title: '⚡ Force Popup to ALL Users?',
-      message: 'Are you sure you want to FORCE the Spin Wheel Popup to ALL registered users globally right now?',
-      confirmText: 'Yes, Force All Now',
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          setSaving(true);
-          await spinWheelApi.forceAllUsersSpinPopup();
-          addToast({
-            type: 'success',
-            title: '⚡ Global Force Activated!',
-            message: 'Spin Wheel popup successfully forced for ALL users globally!',
-          });
-          fetchConfig();
-          fetchUsersPermissions(userPage, userSearch, true);
-        } catch (err) {
-          addToast({ type: 'error', title: 'Error', message: 'Failed to force spin popup globally' });
-        } finally {
-          setSaving(false);
-        }
-      },
-    });
-  };
-
-  const handleSelectAllUsers = (e) => {
-    if (e.target.checked) {
-      setSelectedUserIds(userList.map((u) => u.id));
-    } else {
-      setSelectedUserIds([]);
-    }
-  };
-
-  const handleToggleUserCheckbox = (userId) => {
-    if (selectedUserIds.includes(userId)) {
-      setSelectedUserIds(selectedUserIds.filter((id) => id !== userId));
-    } else {
-      setSelectedUserIds([...selectedUserIds, userId]);
-    }
-  };
-
-  const totalWeight = data.segments
-    .filter((s) => s.is_active)
-    .reduce((sum, s) => sum + (parseInt(s.probability, 10) || 0), 0);
-
-  const activeSlicesCount = data.segments.filter((s) => s.is_active).length;
-  const userTargetsCount = (data.user_targets || []).filter((t) => !t.is_claimed).length;
-
-  const previewSegments = isModalOpen
-    ? (editingSegment
-        ? data.segments.map((s) => (s.id === editingSegment.id ? { ...s, ...formData } : s))
-        : [...data.segments, { ...formData, id: 'temp-preview' }])
-    : data.segments;
-
-  const currentSettingsSnapshot = JSON.stringify({
-    enabled: data.enabled,
-    cooldown_hours: data.cooldown_hours,
-    delay_seconds: data.delay_seconds,
-    max_per_day: data.max_per_day,
-    start_time: data.start_time,
-    end_time: data.end_time,
-    require_login: data.require_login,
-    time_slot_mode: data.time_slot_mode,
-    morning_start: data.morning_start,
-    morning_end: data.morning_end,
-    evening_start: data.evening_start,
-    evening_end: data.evening_end,
-    night_start: data.night_start,
-    night_end: data.night_end,
-    title: data.title,
-    subtitle: data.subtitle,
   });
 
-  const isSettingsChanged = initialSettings !== null && currentSettingsSnapshot !== initialSettings;
+  const totalPoolProbability = (data.segments || []).reduce((sum, s) => sum + (Number(s.probability) || 0), 0);
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-32">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // Wheel Geometry
+  const WHEEL_R = 115;
+  const WHEEL_CX = 130;
+  const WHEEL_CY = 130;
+  const wheelSliceAngle = numSlices > 0 ? 360 / numSlices : 360;
+
+  // Bulb pegs for the mobile-accurate wheel
+  const renderBulbPegs = () => {
+    const pegs = [];
+    const numPegs = 20;
+    const pegDist = 122;
+    const bulbColors = ['#FFFFFF', '#FFD700', '#FF6B35'];
+    for (let i = 0; i < numPegs; i++) {
+      const angle = (i * 360) / numPegs - 90;
+      const rad = (angle * Math.PI) / 180;
+      const px = WHEEL_CX + pegDist * Math.cos(rad);
+      const py = WHEEL_CY + pegDist * Math.sin(rad);
+      pegs.push(
+        <circle key={i} cx={px} cy={py} r="4" fill={bulbColors[i % 3]} stroke="#B8860B" strokeWidth="0.8" />
+      );
+    }
+    return pegs;
+  };
+
+  // Gold spoke dividers
+  const renderSpokes = () => {
+    if (numSlices <= 1) return null;
+    const spokes = [];
+    for (let i = 0; i < numSlices; i++) {
+      const angle = (i * wheelSliceAngle - 90) * (Math.PI / 180);
+      const x2 = WHEEL_CX + WHEEL_R * Math.cos(angle);
+      const y2 = WHEEL_CY + WHEEL_R * Math.sin(angle);
+      spokes.push(
+        <line key={i} x1={WHEEL_CX} y1={WHEEL_CY} x2={x2} y2={y2} stroke="rgba(255,215,0,0.75)" strokeWidth="1.2" />
+      );
+    }
+    return spokes;
+  };
 
   return (
-    <div className="spin-page-container">
-      {/* Top Banner Header */}
-      <div className="spin-page-header">
+    <div className="w-full space-y-6 pb-16">
+      {/* ─── Page Header ─────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-rose-500/15 p-6 rounded-3xl border border-amber-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="header-title">Spin & Win Lucky Wheel</h1>
-          <p className="header-subtitle">
-            Configure gift slices, probability odds, user permissions, target specific users, and manage mobile popup timing.
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-500 via-orange-500 to-purple-600 text-white px-3 py-1 rounded-full shadow-xs">
+              <Sparkles className="h-3 w-3" />
+              Gamified Rewards
+            </span>
+            {data.enabled ? (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-1 rounded-full border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                Live
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-slate-500 bg-slate-200/80 px-2.5 py-1 rounded-full">
+                Disabled
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
+            Spin & Win Lucky Wheel
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Reward shoppers with gamified spins to win instant coupons and discounts.
           </p>
         </div>
 
-        <div className="header-actions-group">
-          <button className="secondary-btn" onClick={() => setIsUserTargetModalOpen(true)}>
-            🎯 Target Specific User
-          </button>
-          <button className="primary-action-btn" onClick={() => handleOpenModal()}>
-            <span>+ Add Wheel Slice</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Top Summary Stat Cards */}
-      <div className="stats-summary-grid">
-        <div className="stat-card">
-          <div className="stat-icon-wrapper active-bg">🟢</div>
-          <div>
-            <div className="stat-label">POPUP STATUS</div>
-            <div className="stat-value">{data.enabled ? 'Active in App' : 'Disabled'}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper total-spins-bg">🎰</div>
-          <div>
-            <div className="stat-label">TOTAL SPINS</div>
-            <div className="stat-value">{data.total_spins}</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper slices-bg">🎯</div>
-          <div>
-            <div className="stat-label">ACTIVE SLICES & VIP RULES</div>
-            <div className="stat-value">{activeSlicesCount} Slices · {userTargetsCount} VIP Rules</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon-wrapper frequency-bg">⏳</div>
-          <div>
-            <div className="stat-label">SPIN FREQUENCY</div>
-            <div className="stat-value">
-              {data.cooldown_hours === 0 ? 'Unlimited' : `Every ${data.cooldown_hours} Hours`}
+        <div className="flex items-center gap-3">
+          {isDirty && (
+            <button type="button" onClick={handleDiscard}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-slate-300 text-slate-700 bg-white font-semibold text-xs hover:bg-slate-50 transition-colors shadow-xs cursor-pointer">
+              <RotateCcw className="h-3.5 w-3.5" /> Discard
+            </button>
+          )}
+          {isDirty ? (
+            <button type="button" onClick={handleSaveSettings} disabled={saving}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer animate-fadeIn">
+              <Save className="h-4 w-4 text-white" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs font-semibold shadow-xs">
+              <Check className="h-3.5 w-3.5 text-blue-600" /> Saved
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="tab-bar">
-        <button
-          className={`tab-link ${activeTab === 'segments' ? 'active' : ''}`}
-          onClick={() => setActiveTab('segments')}
-        >
-          🎯 Wheel Slices ({data.segments.length})
-        </button>
-        <button
-          className={`tab-link ${activeTab === 'users-permissions' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users-permissions')}
-        >
-          👥 Customer Spin Permissions
-        </button>
-        <button
-          className={`tab-link ${activeTab === 'user-targets' ? 'active' : ''}`}
-          onClick={() => setActiveTab('user-targets')}
-        >
-          🎁 User Target Rewards ({data.user_targets?.length || 0})
-        </button>
-        <button
-          className={`tab-link ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          ⚙️ Wheel & Popup Settings
-        </button>
-        <button
-          className={`tab-link ${activeTab === 'logs' ? 'active' : ''}`}
-          onClick={() => setActiveTab('logs')}
-        >
-          📜 Spin Audit Logs
-        </button>
+      {/* ─── Section Tabs ────────────────────────────────────────────────── */}
+      <div className="bg-white p-1.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap gap-2 max-w-fit">
+        {[
+          { id: 'settings', label: 'Wheel Settings', icon: Compass, color: 'from-purple-600 to-indigo-600 shadow-purple-500/20' },
+          { id: 'slices', label: `Slices (${(data.segments || []).length})`, icon: Trophy, color: 'from-amber-500 to-orange-500 shadow-amber-500/20' },
+          { id: 'history', label: 'Winners History', icon: History, color: 'from-emerald-600 to-teal-600 shadow-emerald-500/20' },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const active = activeSection === tab.id;
+          return (
+            <button key={tab.id} type="button" onClick={() => setActiveSection(tab.id)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                active ? `bg-gradient-to-r ${tab.color} text-white shadow-md` : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}>
+              <Icon className="h-4 w-4" /> {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {loading ? (
-        <div className="loading-container">
-          <div className="spinner" />
-          <span>Loading Spin & Win settings...</span>
-        </div>
-      ) : activeTab === 'segments' ? (
-        /* WHEEL SLICES TAB: 2-COLUMN LAYOUT WITH PHONE PREVIEW */
-        <div className="content-grid-layout">
-          {/* LEFT PANEL */}
-          <div className="left-content-panel">
-            <div className="panel-card">
-              <div className="section-toolbar">
-                <div>
-                  <h3 className="panel-title">Configured Wheel Segments</h3>
-                  <p className="panel-sub">
-                    Total probability weight: <strong>{totalWeight}</strong> points. Slices with higher weight win more frequently.
-                  </p>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* SECTION 1: SETTINGS + MOBILE PREVIEW                              */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {activeSection === 'settings' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left: Simple Settings Form */}
+          <form onSubmit={handleSaveSettings} className="lg:col-span-7 space-y-5">
+            {/* Card: Enable + Title/Subtitle */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
+                    <Compass className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Enable Wheel</h2>
+                    <p className="text-xs text-slate-500">Show spin wheel in the mobile app</p>
+                  </div>
                 </div>
-                <button className="primary-action-btn" onClick={() => handleOpenModal()}>
-                  + Add Slice
+                <button type="button" onClick={() => setData((p) => ({ ...p, enabled: !p.enabled }))}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors cursor-pointer ${data.enabled ? 'bg-emerald-500' : 'bg-slate-200'}`}>
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${data.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
 
-              <div className="table-wrapper">
-                <table className="styled-table">
-                  <thead>
-                    <tr>
-                      <th>Color</th>
-                      <th>Prize Label</th>
-                      <th>Target Audience</th>
-                      <th>Reward Type</th>
-                      <th>Value</th>
-                      <th>Coupon Code</th>
-                      <th>Weight</th>
-                      <th>Win Rate</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.segments.length === 0 ? (
-                      <tr>
-                        <td colSpan="10" className="empty-table">
-                          No prize slices configured. Click "+ Add Wheel Slice" to build your wheel!
-                        </td>
-                      </tr>
-                    ) : (
-                      data.segments.map((seg) => {
-                        const chance = totalWeight > 0 && seg.is_active
-                          ? ((parseInt(seg.probability, 10) / totalWeight) * 100).toFixed(1) + '%'
-                          : '0%';
-
-                        return (
-                          <tr key={seg.id} className={!seg.is_active ? 'row-inactive' : ''}>
-                            <td>
-                              <div
-                                className="slice-color-dot"
-                                style={{ backgroundColor: seg.color, color: seg.text_color }}
-                              >
-                                {seg.sort_order || seg.id}
-                              </div>
-                            </td>
-                            <td>
-                              <strong className="prize-name">{seg.label}</strong>
-                            </td>
-                            <td>
-                              <span className="audience-pill">
-                                {seg.target_user_type === 'new_users' && '🆕 New Users'}
-                                {seg.target_user_type === 'existing_users' && '🛍️ Existing Users'}
-                                {seg.target_user_type === 'vip_users' && '👑 VIP Customers'}
-                                {(!seg.target_user_type || seg.target_user_type === 'all') && '🌍 All Users'}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`reward-badge ${seg.type}`}>
-                                {seg.type === 'coupon' && '🏷️ Coupon'}
-                                {seg.type === 'loyalty_points' && '⭐ Points'}
-                                {seg.type === 'free_shipping' && '🚚 Free Shipping'}
-                                {seg.type === 'no_prize' && '❌ No Prize'}
-                              </span>
-                            </td>
-                            <td>{seg.value ? `₹${seg.value}` : '-'}</td>
-                            <td>
-                              {seg.coupon_code ? (
-                                <code className="code-pill">{seg.coupon_code}</code>
-                              ) : (
-                                <span className="muted-text">-</span>
-                              )}
-                            </td>
-                            <td><strong>{seg.probability}</strong></td>
-                            <td>
-                              <span className="chance-pill">{chance}</span>
-                            </td>
-                            <td>
-                              <button
-                                className={`switch-badge ${seg.is_active ? 'active' : 'disabled'}`}
-                                onClick={() => handleToggleSegmentActive(seg)}
-                              >
-                                {seg.is_active ? 'Active' : 'Disabled'}
-                              </button>
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <div className="btn-group-end">
-                                <button className="icon-btn edit-btn" onClick={() => handleOpenModal(seg)} title="Edit Slice">
-                                  ✏️
-                                </button>
-                                <button className="icon-btn delete-btn" onClick={() => handleDeleteSegment(seg.id)} title="Delete Slice">
-                                  🗑️
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Popup Heading</label>
+                <Input value={data.title} onChange={(e) => setData({ ...data, title: e.target.value })}
+                  placeholder="e.g. Spin & Win Real Rewards!" className="font-bold text-slate-900" required />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Popup Subtitle</label>
+                <Input value={data.subtitle} onChange={(e) => setData({ ...data, subtitle: e.target.value })}
+                  placeholder="e.g. Spin the wheel today..." className="text-slate-800 text-sm" required />
               </div>
             </div>
-          </div>
 
-          {/* RIGHT PANEL: PHONE PREVIEW SIMULATOR */}
-          <div className="right-content-panel">
-            <LiveWheelPreview
-              segments={previewSegments}
-              title={data.title}
-              subtitle={data.subtitle}
-            />
-          </div>
-        </div>
-      ) : (
-        /* OTHER TABS: FULL WIDTH CLEAN PANELS */
-        <div className="full-width-panel">
-          {/* TAB: CUSTOMER SPIN PERMISSIONS (CHECKBOX USER LIST) */}
-          {activeTab === 'users-permissions' && (
-            <div className="panel-card">
-              {/* ── QUICK ELIGIBILITY RULES PANEL ── */}
-              {(() => {
-                const today = new Date().toISOString().split('T')[0];
-                const from = data.active_from || '';
-                const until = data.active_until || '';
-                let statusLabel = '🟢 Always Active';
-                let statusColor = '#15803d';
-                let statusBg = '#f0fdf4';
-                if (from && today < from) {
-                  statusLabel = `⏰ Scheduled — starts ${from}`;
-                  statusColor = '#b45309';
-                  statusBg = '#fefce8';
-                } else if (until && today > until) {
-                  statusLabel = '🔴 Expired — event ended';
-                  statusColor = '#b91c1c';
-                  statusBg = '#fff5f5';
-                } else if (from || until) {
-                  statusLabel = `🟢 Active Now${until ? ` — ends ${until}` : ''}`;
-                  statusColor = '#15803d';
-                  statusBg = '#f0fdf4';
-                }
-                return (
-                  <div style={{
-                    margin: '0 0 22px 0',
-                    borderRadius: '14px',
-                    border: '1.5px solid #e0e7ff',
-                    background: 'linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%)',
-                    padding: '20px 24px',
-                    boxShadow: '0 2px 12px rgba(99,102,241,0.07)',
-                  }}>
-                    {/* Header row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '20px' }}>🛡️</span>
-                        <div>
-                          <div style={{ fontWeight: '800', fontSize: '14px', color: '#1e1b4b' }}>Quick Eligibility Rules</div>
-                          <div style={{ fontSize: '11.5px', color: '#6366f1', fontWeight: '600' }}>Control who can see & spin the wheel</div>
-                        </div>
-                      </div>
-                      <span style={{
-                        padding: '5px 14px',
-                        borderRadius: '20px',
-                        background: statusBg,
-                        color: statusColor,
-                        fontSize: '11.5px',
-                        fontWeight: '800',
-                        border: `1px solid ${statusColor}33`,
-                        letterSpacing: '0.2px',
-                      }}>
-                        {statusLabel}
-                      </span>
-                    </div>
+            {/* Card: Rules */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                  <Coins className="h-4 w-4" />
+                </div>
+                <h2 className="text-sm font-bold text-slate-900">Spin Rules</h2>
+              </div>
 
-                    {/* Rule inputs */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'end' }}>
-
-                      {/* Min Orders */}
-                      <div>
-                        <label style={{ display: 'block', fontWeight: '700', fontSize: '12px', color: '#4338ca', marginBottom: '6px' }}>
-                          🛎️ Min. Completed Orders
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={rulesForm.min_orders}
-                            onChange={(e) => setRulesForm((f) => ({ ...f, min_orders: e.target.value }))}
-                            style={{
-                              width: '100%',
-                              padding: '9px 12px',
-                              borderRadius: '10px',
-                              border: '1.5px solid #c7d2fe',
-                              background: '#fff',
-                              fontSize: '14px',
-                              fontWeight: '700',
-                              color: '#1e1b4b',
-                              outline: 'none',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                        </div>
-                        <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '4px 0 0 2px' }}>
-                          {rulesForm.min_orders == 0 ? 'All users (no minimum)' : `User must have ≥${rulesForm.min_orders} order(s)`}
-                        </p>
-                      </div>
-
-                      {/* Active From */}
-                      <div>
-                        <label style={{ display: 'block', fontWeight: '700', fontSize: '12px', color: '#4338ca', marginBottom: '6px' }}>
-                          📅 Active From Date
-                        </label>
-                        <input
-                          type="date"
-                          value={rulesForm.active_from}
-                          onChange={(e) => setRulesForm((f) => ({ ...f, active_from: e.target.value }))}
-                          style={{
-                            width: '100%',
-                            padding: '9px 12px',
-                            borderRadius: '10px',
-                            border: '1.5px solid #c7d2fe',
-                            background: '#fff',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            color: '#1e1b4b',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                        <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '4px 0 0 2px' }}>
-                          {rulesForm.active_from ? `Wheel visible from ${rulesForm.active_from}` : 'No start limit'}
-                        </p>
-                      </div>
-
-                      {/* Active Until */}
-                      <div>
-                        <label style={{ display: 'block', fontWeight: '700', fontSize: '12px', color: '#4338ca', marginBottom: '6px' }}>
-                          📅 Active Until Date
-                        </label>
-                        <input
-                          type="date"
-                          value={rulesForm.active_until}
-                          onChange={(e) => setRulesForm((f) => ({ ...f, active_until: e.target.value }))}
-                          style={{
-                            width: '100%',
-                            padding: '9px 12px',
-                            borderRadius: '10px',
-                            border: '1.5px solid #c7d2fe',
-                            background: '#fff',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            color: '#1e1b4b',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                        <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '4px 0 0 2px' }}>
-                          {rulesForm.active_until ? `Wheel stops after ${rulesForm.active_until}` : 'No end limit'}
-                        </p>
-                      </div>
-
-                      {/* Spins Per Day */}
-                      <div>
-                        <label style={{ display: 'block', fontWeight: '700', fontSize: '12px', color: '#4338ca', marginBottom: '6px' }}>
-                          🎰 Max Spins Per Day
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          value={rulesForm.max_per_day}
-                          onChange={(e) => setRulesForm((f) => ({ ...f, max_per_day: e.target.value }))}
-                          style={{
-                            width: '100%',
-                            padding: '9px 12px',
-                            borderRadius: '10px',
-                            border: '1.5px solid #c7d2fe',
-                            background: '#fff',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            color: '#1e1b4b',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                        <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '4px 0 0 2px' }}>
-                          {rulesForm.max_per_day == 1 ? '1 spin per day per user' : `Up to ${rulesForm.max_per_day} spins per day`}
-                        </p>
-                      </div>
-
-                      {/* Cooldown Hours */}
-                      <div>
-                        <label style={{ display: 'block', fontWeight: '700', fontSize: '12px', color: '#4338ca', marginBottom: '6px' }}>
-                          ⏳ Cooldown Between Spins
-                        </label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <input
-                            type="number"
-                            min="0"
-                            max="168"
-                            step="0.5"
-                            value={rulesForm.cooldown_hours}
-                            onChange={(e) => setRulesForm((f) => ({ ...f, cooldown_hours: e.target.value }))}
-                            style={{
-                              flex: 1,
-                              padding: '9px 12px',
-                              borderRadius: '10px',
-                              border: '1.5px solid #c7d2fe',
-                              background: '#fff',
-                              fontSize: '14px',
-                              fontWeight: '700',
-                              color: '#1e1b4b',
-                              outline: 'none',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                          <span style={{ fontSize: '12px', color: '#6366f1', fontWeight: '700', whiteSpace: 'nowrap' }}>hrs</span>
-                        </div>
-                        <p style={{ fontSize: '10.5px', color: '#6b7280', margin: '4px 0 0 2px' }}>
-                          {rulesForm.cooldown_hours == 0 ? 'No cooldown' : rulesForm.cooldown_hours < 1 ? `${rulesForm.cooldown_hours * 60} min between spins` : rulesForm.cooldown_hours == 24 ? '1 spin per day' : `${rulesForm.cooldown_hours}h wait between spins`}
-                        </p>
-                      </div>
-
-                      {/* Save button */}
-                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                        <button
-                          onClick={handleSavePermissionRules}
-                          disabled={rulesSaving}
-                          style={{
-                            width: '100%',
-                            padding: '10px 18px',
-                            borderRadius: '10px',
-                            background: rulesSaving ? '#a5b4fc' : 'linear-gradient(135deg, #4338ca, #6366f1)',
-                            color: '#fff',
-                            fontWeight: '800',
-                            fontSize: '13px',
-                            border: 'none',
-                            cursor: rulesSaving ? 'not-allowed' : 'pointer',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '7px',
-                          }}
-                        >
-                          {rulesSaving ? '⏳ Saving...' : '💾 Save Rules'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Quick reference pills */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #e0e7ff' }}>
-                      <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: '600' }}>Min Orders:</span>
-                      {[
-                        { label: 'Anyone', val: 0 },
-                        { label: '1+', val: 1 },
-                        { label: '2+', val: 2 },
-                        { label: '3+ (VIP)', val: 3 },
-                        { label: '5+', val: 5 },
-                      ].map(({ label, val }) => (
-                        <button
-                          key={val}
-                          onClick={() => setRulesForm((f) => ({ ...f, min_orders: val }))}
-                          style={{
-                            padding: '3px 10px',
-                            borderRadius: '12px',
-                            border: `1.5px solid ${rulesForm.min_orders == val ? '#4338ca' : '#c7d2fe'}`,
-                            background: rulesForm.min_orders == val ? '#4338ca' : '#fff',
-                            color: rulesForm.min_orders == val ? '#fff' : '#4338ca',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: '600', marginLeft: '8px' }}>Cooldown:</span>
-                      {[
-                        { label: 'None', val: 0 },
-                        { label: '1h', val: 1 },
-                        { label: '6h', val: 6 },
-                        { label: '12h', val: 12 },
-                        { label: '24h', val: 24 },
-                        { label: '48h', val: 48 },
-                      ].map(({ label, val }) => (
-                        <button
-                          key={val}
-                          onClick={() => setRulesForm((f) => ({ ...f, cooldown_hours: val }))}
-                          style={{
-                            padding: '3px 10px',
-                            borderRadius: '12px',
-                            border: `1.5px solid ${rulesForm.cooldown_hours == val ? '#7c3aed' : '#c7d2fe'}`,
-                            background: rulesForm.cooldown_hours == val ? '#7c3aed' : '#fff',
-                            color: rulesForm.cooldown_hours == val ? '#fff' : '#7c3aed',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                      {(rulesForm.active_from || rulesForm.active_until) && (
-                        <button
-                          onClick={() => setRulesForm((f) => ({ ...f, active_from: '', active_until: '' }))}
-                          style={{
-                            padding: '3px 10px',
-                            borderRadius: '12px',
-                            border: '1.5px solid #fca5a5',
-                            background: '#fff5f5',
-                            color: '#b91c1c',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          ✕ Clear Dates
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="section-toolbar">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="panel-title">👥 Customer Spin Popup Permissions</h3>
-                  <p className="panel-sub">
-                    Control which registered customers can see and spin the wheel popup. Uncheck the checkbox to disable the spin popup for a user.
-                  </p>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Max Spins / Day</label>
+                  <Input type="number" min="1" max="10" value={data.max_per_day}
+                    onChange={(e) => setData({ ...data, max_per_day: parseInt(e.target.value, 10) || 1 })} className="font-bold" />
                 </div>
-
-                <div className="bulk-actions-group" style={{ flexWrap: 'wrap' }}>
-                  <button
-                    className="primary-action-btn"
-                    style={{ background: 'linear-gradient(135deg, #7c3aed, #4c1d95)' }}
-                    onClick={handleForceAllUsersPopup}
-                    disabled={saving}
-                  >
-                    ⚡ FORCE POPUP TO ALL USERS NOW
-                  </button>
-                  {selectedUserIds.length > 0 && (
-                    <button
-                      className="secondary-btn"
-                      style={{ color: '#7c3aed', borderColor: '#c4b5fd' }}
-                      onClick={() => handleForceUserPopup(null)}
-                      disabled={saving}
-                    >
-                      ⚡ Force Popup for {selectedUserIds.length} Selected
-                    </button>
-                  )}
-                  <button
-                    className="secondary-btn"
-                    onClick={() => handleBulkToggleUserPermissions(true)}
-                    disabled={saving}
-                  >
-                    🟢 Enable Spin
-                  </button>
-                  <button
-                    className="secondary-btn"
-                    style={{ color: '#b91c1c', borderColor: '#fca5a5' }}
-                    onClick={() => handleBulkToggleUserPermissions(false)}
-                    disabled={saving}
-                  >
-                    🔴 Disable Spin
-                  </button>
-                </div>
-              </div>
-
-              {/* Search Bar */}
-              <div style={{ marginBottom: '20px' }}>
-                <input
-                  type="text"
-                  placeholder="🔍 Search customer by name, email, or phone..."
-                  value={userSearch}
-                  onChange={(e) => {
-                    setUserSearch(e.target.value);
-                    fetchUsersPermissions(1, e.target.value);
-                  }}
-                  className="field-input"
-                />
-              </div>
-
-              {userListLoading ? (
-                <div className="loading-container">
-                  <div className="spinner" />
-                  <span>Loading customer permissions list...</span>
-                </div>
-              ) : (
-                <div className="table-wrapper">
-                  <table className="styled-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '40px' }}>
-                          <input
-                            type="checkbox"
-                            checked={userList.length > 0 && selectedUserIds.length === userList.length}
-                            onChange={handleSelectAllUsers}
-                          />
-                        </th>
-                        <th>Customer Name & Email</th>
-                        <th>Phone Number</th>
-                        <th>Total Spins</th>
-                        <th>Registered Date</th>
-                        <th style={{ textAlign: 'right' }}>Spin Popup Permission & Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {userList.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" className="empty-table">
-                            No customers found.
-                          </td>
-                        </tr>
-                      ) : (
-                        userList.map((userObj) => {
-                          const isSelected = selectedUserIds.includes(userObj.id);
-                          const isEnabled = userObj.spin_wheel_enabled !== false;
-                          const isUserForced = userObj.force_spin_popup === true;
-
-                          return (
-                            <tr key={userObj.id} className={!isEnabled ? 'row-inactive' : ''}>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => handleToggleUserCheckbox(userObj.id)}
-                                />
-                              </td>
-                              <td>
-                                <strong>{userObj.name || 'Customer'}</strong>
-                                <br />
-                                <span className="muted-text">{userObj.email || '-'}</span>
-                              </td>
-                              <td>
-                                <code className="code-pill">{userObj.phone || '-'}</code>
-                              </td>
-                              <td><strong>{userObj.total_spins || 0} Spins</strong></td>
-                              <td>{new Date(userObj.created_at).toLocaleDateString()}</td>
-                              <td style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-
-                                  {isUserForced ? (
-                                    /* ── Already forced — show status pill + cancel button ── */
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                      <span style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                        padding: '4px 10px',
-                                        borderRadius: '16px',
-                                        background: 'linear-gradient(135deg, #7c3aed, #9333ea)',
-                                        color: '#fff',
-                                        fontSize: '11px',
-                                        fontWeight: '800',
-                                        letterSpacing: '0.2px',
-                                      }}>
-                                        ⚡ Pending Spin...
-                                      </span>
-                                      <button
-                                        className="secondary-btn"
-                                        style={{
-                                          padding: '4px 10px',
-                                          fontSize: '11px',
-                                          fontWeight: '700',
-                                          borderRadius: '16px',
-                                          color: '#b91c1c',
-                                          borderColor: '#fca5a5',
-                                          background: '#fff5f5',
-                                          cursor: 'pointer',
-                                        }}
-                                        onClick={() => handleCancelForcePopup(userObj.id)}
-                                        disabled={saving}
-                                        title="Cancel this pending forced popup"
-                                      >
-                                        ✕ Cancel Force
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    /* ── Not forced — show Force Popup button ── */
-                                    <button
-                                      className="secondary-btn"
-                                      style={{
-                                        padding: '5px 12px',
-                                        fontSize: '11.5px',
-                                        fontWeight: '800',
-                                        borderRadius: '16px',
-                                        color: '#7c3aed',
-                                        borderColor: '#c4b5fd',
-                                        background: '#faf5ff',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease',
-                                      }}
-                                      onClick={() => handleForceUserPopup(userObj.id)}
-                                      disabled={saving}
-                                      title="Force Wheel Popup to show immediately on user next app open"
-                                    >
-                                      ⚡ Force Popup
-                                    </button>
-                                  )}
-
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isEnabled}
-                                      onChange={() => handleToggleUserPermission(userObj)}
-                                      style={{ width: '18px', height: '18px', accentColor: '#db2777' }}
-                                    />
-                                    <span className={`switch-badge ${isEnabled ? 'active' : 'disabled'}`}>
-                                      {isEnabled ? 'Spin Allowed' : 'Spin Blocked'}
-                                    </span>
-                                  </label>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-
-                  <div className="pagination-bar">
-                    <button
-                      disabled={userPage <= 1}
-                      onClick={() => fetchUsersPermissions(userPage - 1, userSearch)}
-                      className="secondary-btn"
-                    >
-                      Previous
-                    </button>
-                    <span className="page-indicator">Page {userPage} of {Math.ceil(totalUsers / 15) || 1}</span>
-                    <button
-                      disabled={userPage * 15 >= totalUsers}
-                      onClick={() => fetchUsersPermissions(userPage + 1, userSearch)}
-                      className="secondary-btn"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 2: USER TARGET SPECIFIC REWARDS */}
-          {activeTab === 'user-targets' && (
-            <div className="panel-card">
-              <div className="section-toolbar">
                 <div>
-                  <h3 className="panel-title">🎯 User-Specific Guaranteed Rewards ("VIP Gifts")</h3>
-                  <p className="panel-sub">
-                    Assign a specific gift or prize slice to a customer's phone number or user ID. When this specific customer spins the wheel next, they are 100% guaranteed to land on and win this assigned prize!
-                  </p>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Cooldown Hours</label>
+                  <Input type="number" min="1" max="168" value={data.cooldown_hours}
+                    onChange={(e) => setData({ ...data, cooldown_hours: parseFloat(e.target.value) || 24 })} className="font-bold" />
                 </div>
-                <button className="primary-action-btn" onClick={() => setIsUserTargetModalOpen(true)}>
-                  + Target Specific Phone / User
-                </button>
-              </div>
-
-              <div className="table-wrapper">
-                <table className="styled-table">
-                  <thead>
-                    <tr>
-                      <th>Rule ID</th>
-                      <th>Target Phone / User</th>
-                      <th>Guaranteed Gift Slice / Custom Prize</th>
-                      <th>Reward Type</th>
-                      <th>Value</th>
-                      <th>Coupon Code</th>
-                      <th>Status</th>
-                      <th>Date Assigned</th>
-                      <th style={{ textAlign: 'right' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(!data.user_targets || data.user_targets.length === 0) ? (
-                      <tr>
-                        <td colSpan="9" className="empty-table">
-                          No user target rules created yet. Click "+ Target Specific Phone / User" to assign a guaranteed gift to a specific customer!
-                        </td>
-                      </tr>
-                    ) : (
-                      data.user_targets.map((target) => (
-                        <tr key={target.id} className={target.is_claimed ? 'row-inactive' : ''}>
-                          <td>#{target.id}</td>
-                          <td>
-                            <strong>{target.user_name || 'Target Phone'}</strong>
-                            <br />
-                            <span className="code-pill">{target.phone || target.user_id}</span>
-                          </td>
-                          <td>
-                            <strong style={{ color: '#E91E8C' }}>
-                              {target.segment_label || target.custom_prize_label || 'Assigned Gift'}
-                            </strong>
-                          </td>
-                          <td>
-                            <span className={`reward-badge ${target.custom_prize_type || 'coupon'}`}>
-                              {target.custom_prize_type || 'coupon'}
-                            </span>
-                          </td>
-                          <td>{target.custom_prize_value ? `₹${target.custom_prize_value}` : '-'}</td>
-                          <td>
-                            {target.custom_coupon_code ? <code>{target.custom_coupon_code}</code> : <span className="muted-text">-</span>}
-                          </td>
-                          <td>
-                            <span className={`switch-badge ${target.is_claimed ? 'disabled' : 'active'}`}>
-                              {target.is_claimed ? '✅ Claimed (Spun)' : '⏳ Pending Next Spin'}
-                            </span>
-                          </td>
-                          <td>{new Date(target.created_at).toLocaleDateString()}</td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button
-                              className="icon-btn delete-btn"
-                              onClick={() => handleDeleteUserTarget(target.id)}
-                              title="Remove Target Rule"
-                            >
-                              🗑️
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Popup Delay (sec)</label>
+                  <Input type="number" min="1" max="30" value={data.delay_seconds}
+                    onChange={(e) => setData({ ...data, delay_seconds: parseInt(e.target.value, 10) || 3 })} className="font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Min Orders</label>
+                  <select value={data.min_orders} onChange={(e) => setData({ ...data, min_orders: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 focus:outline-none focus:border-purple-500">
+                    <option value={0}>All Shoppers</option>
+                    <option value={1}>After 1 Order</option>
+                    <option value={2}>After 2 Orders</option>
+                    <option value={3}>After 3 Orders</option>
+                  </select>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* TAB 3: SETTINGS */}
-          {activeTab === 'settings' && (
-            <div className="panel-card">
-              <form onSubmit={handleSaveSettings}>
-                <h3 className="panel-title">Wheel Popup, User Login & Timing Settings</h3>
-                <p className="panel-sub">Manage global wheel behavior, login enforcement, morning/evening/night time slots, and text content.</p>
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 text-center">
+                <p className="text-2xl font-black text-slate-900">{Number(data.total_spins || 0).toLocaleString()}</p>
+                <p className="text-[11px] font-bold text-purple-700 mt-1">Total Spins</p>
+              </div>
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 text-center">
+                <p className="text-2xl font-black text-slate-900">{activeSlices.length}</p>
+                <p className="text-[11px] font-bold text-amber-700 mt-1">Active Slices</p>
+              </div>
+              <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-center">
+                <p className="text-2xl font-black text-slate-900">{totalPoolProbability}%</p>
+                <p className="text-[11px] font-bold text-emerald-700 mt-1">Total Odds</p>
+              </div>
+            </div>
 
-                <div className="form-row-2col" style={{ marginBottom: '22px' }}>
-                  <div className="setting-box" style={{ margin: 0 }}>
-                    <label className="toggle-switch-label">
-                      <input
-                        type="checkbox"
-                        checked={data.enabled}
-                        onChange={(e) => setData({ ...data, enabled: e.target.checked })}
-                      />
-                      <div className="switch-slider" />
-                      <span className="switch-title">Enable Spin & Win Wheel in Mobile App</span>
-                    </label>
-                    <p className="form-help">Turn this toggle ON to show the lucky gift wheel popup in the mobile app.</p>
-                  </div>
+            {/* Inline Save Bar */}
+            {isDirty && (
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-blue-600 shrink-0" />
+                  <p className="text-xs font-bold text-blue-950">You have unsaved changes</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={handleDiscard}
+                    className="px-4 py-2 rounded-xl border border-blue-300 text-blue-800 bg-white font-semibold text-xs hover:bg-blue-50 cursor-pointer">
+                    Discard
+                  </button>
+                  <button type="submit" disabled={saving}
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer">
+                    <Save className="h-3.5 w-3.5 text-white" />
+                    {saving ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
 
-                  <div className="setting-box" style={{ margin: 0 }}>
-                    <label className="toggle-switch-label">
-                      <input
-                        type="checkbox"
-                        checked={data.require_login !== false}
-                        onChange={(e) => setData({ ...data, require_login: e.target.checked })}
-                      />
-                      <div className="switch-slider" />
-                      <span className="switch-title">Require User Login to Spin</span>
-                    </label>
-                    <p className="form-help">Only logged-in registered customers will see the spin wheel popup.</p>
+          {/* ─── Right: EXACT Mobile App Preview ─────────────────────────── */}
+          <div className="lg:col-span-5 sticky top-6">
+            <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col items-center">
+              <div className="w-full flex items-center gap-2 pb-4 border-b border-slate-100 mb-4">
+                <Smartphone className="h-4 w-4 text-purple-600" />
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Mobile App Preview
+                </span>
+              </div>
+
+              {/* ── Smartphone Frame ── */}
+              <div className="relative w-[300px] h-[600px] rounded-[40px] border-[8px] border-slate-900 shadow-2xl overflow-hidden bg-[rgba(5,10,28,0.82)] flex items-center justify-center select-none">
+                {/* Dynamic Island */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-slate-900 rounded-full z-30" />
+
+                {/* Status Bar */}
+                <div className="absolute top-0 left-0 right-0 pt-2.5 px-5 pb-1 flex items-center justify-between text-[10px] font-bold text-white/60 z-20">
+                  <span>9:41</span>
+                  <div className="flex items-center gap-1 text-[9px]">
+                    <span>5G</span>
+                    <div className="w-3.5 h-1.5 rounded-xs border border-current flex items-center p-px">
+                      <div className="w-full h-full bg-current rounded-sm" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="form-row-2col">
-                  <div className="form-field-group">
-                    <label className="field-label">Spin Cooldown Frequency</label>
-                    <select
-                      value={data.cooldown_hours}
-                      onChange={(e) => setData({ ...data, cooldown_hours: parseFloat(e.target.value) })}
-                      className="field-input"
-                    >
-                      <option value={24}>Every 24 Hours (Once per day - Recommended)</option>
-                      <option value={12}>Every 12 Hours</option>
-                      <option value={6}>Every 6 Hours</option>
-                      <option value={1}>Every 1 Hour</option>
-                      <option value={0}>Unlimited (No Cooldown)</option>
-                    </select>
-                    <p className="form-help">Once a user spins and receives a prize result, popup is hidden until cooldown expires!</p>
-                  </div>
-
-                  <div className="form-field-group">
-                    <label className="field-label">Daily Time Slot Triggering</label>
-                    <select
-                      value={data.time_slot_mode || 'anytime'}
-                      onChange={(e) => setData({ ...data, time_slot_mode: e.target.value })}
-                      className="field-input"
-                    >
-                      <option value="anytime">☀️ Anytime / All Day (24 Hours)</option>
-                      <option value="morning">🌅 Morning Slot Only</option>
-                      <option value="evening">🌆 Evening Slot Only</option>
-                      <option value="night">🌙 Night Slot Only</option>
-                      <option value="morning_evening_night">🌅🌆🌙 Morning, Evening & Night Slots</option>
-                    </select>
-                    <p className="form-help">Controls during which time period of the day the popup will appear.</p>
-                  </div>
-                </div>
-
-                {/* TIME SLOTS CONFIGURATION */}
-                {data.time_slot_mode === 'morning_evening_night' ? (
-                  <div className="setting-box">
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: '15px' }}>🌅 Morning, 🌆 Evening & 🌙 Night Time Windows</h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                      <div>
-                        <label className="field-label">🌅 Morning Slot</label>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="time"
-                            value={data.morning_start || '06:00'}
-                            onChange={(e) => setData({ ...data, morning_start: e.target.value })}
-                            className="field-input"
-                          />
-                          <span style={{ alignSelf: 'center' }}>-</span>
-                          <input
-                            type="time"
-                            value={data.morning_end || '12:00'}
-                            onChange={(e) => setData({ ...data, morning_end: e.target.value })}
-                            className="field-input"
-                          />
-                        </div>
+                {/* ── Winner Celebration Overlay ── */}
+                {showWinnerCard && testWinner && (
+                  <div className="absolute inset-0 bg-[rgba(5,10,28,0.88)] z-50 flex items-center justify-center p-4 animate-fadeIn">
+                    <div className="w-full max-w-[260px] bg-white rounded-[24px] overflow-hidden border-2 border-amber-400 shadow-2xl text-center" style={{ boxShadow: '0 10px 40px rgba(255,215,0,0.35)' }}>
+                      {/* Gold Ribbon */}
+                      <div className="w-full bg-[#E91E8C] py-2.5">
+                        <p className="text-[13px] font-black text-white tracking-wider">
+                          {testWinner.type === 'no_prize' ? 'Oops!' : 'YOU WON!'}
+                        </p>
                       </div>
 
-                      <div>
-                        <label className="field-label">🌆 Evening Slot</label>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="time"
-                            value={data.evening_start || '16:00'}
-                            onChange={(e) => setData({ ...data, evening_start: e.target.value })}
-                            className="field-input"
-                          />
-                          <span style={{ alignSelf: 'center' }}>-</span>
-                          <input
-                            type="time"
-                            value={data.evening_end || '20:00'}
-                            onChange={(e) => setData({ ...data, evening_end: e.target.value })}
-                            className="field-input"
-                          />
-                        </div>
-                      </div>
+                      <div className="p-5 space-y-3">
+                        <p className="text-4xl">{testWinner.type === 'no_prize' ? '😅' : testWinner.type === 'free_shipping' ? '🚚' : '🎁'}</p>
+                        <p className="text-sm font-black text-slate-900">
+                          {testWinner.type === 'no_prize' ? 'Better Luck Next Time!' : 'Congratulations!'}
+                        </p>
+                        <p className="text-lg font-black text-[#E91E8C]">{testWinner.label}</p>
 
-                      <div>
-                        <label className="field-label">🌙 Night Slot</label>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="time"
-                            value={data.night_start || '20:00'}
-                            onChange={(e) => setData({ ...data, night_start: e.target.value })}
-                            className="field-input"
-                          />
-                          <span style={{ alignSelf: 'center' }}>-</span>
-                          <input
-                            type="time"
-                            value={data.night_end || '23:59'}
-                            onChange={(e) => setData({ ...data, night_end: e.target.value })}
-                            className="field-input"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="form-row-2col">
-                    <div className="form-field-group">
-                      <label className="field-label">Popup Show Delay (Seconds)</label>
-                      <select
-                        value={data.delay_seconds || 3}
-                        onChange={(e) => setData({ ...data, delay_seconds: parseInt(e.target.value, 10) })}
-                        className="field-input"
-                      >
-                        <option value={0}>0 Seconds (Immediately on App Open)</option>
-                        <option value={1}>1 Second</option>
-                        <option value={3}>3 Seconds (Recommended)</option>
-                        <option value={5}>5 Seconds</option>
-                        <option value={10}>10 Seconds</option>
-                      </select>
-                    </div>
+                        {testWinner.type === 'free_shipping' && (
+                          <div className="bg-blue-50 border-2 border-blue-500 rounded-xl px-4 py-3">
+                            <p className="text-xs font-black text-blue-700 tracking-wide">FREE DELIVERY</p>
+                            <p className="text-[10px] text-blue-500 font-semibold mt-1">Auto-applied on your next order!</p>
+                          </div>
+                        )}
 
-                    <div className="form-field-group">
-                      <label className="field-label">Max Popup Displays Per Day</label>
-                      <select
-                        value={data.max_per_day || 1}
-                        onChange={(e) => setData({ ...data, max_per_day: parseInt(e.target.value, 10) })}
-                        className="field-input"
-                      >
-                        <option value={1}>1 Time Per Day (Recommended)</option>
-                        <option value={2}>2 Times Per Day</option>
-                        <option value={3}>3 Times Per Day</option>
-                        <option value={0}>Unlimited (Every Session)</option>
-                      </select>
+                        {testWinner.coupon_code && testWinner.type !== 'free_shipping' && (
+                          <div className="bg-green-50 border-2 border-green-500 border-dashed rounded-xl px-4 py-3" onClick={() => handleCopyCode(testWinner.coupon_code)}>
+                            <p className="text-[9px] font-black text-green-700 tracking-widest">YOUR COUPON CODE</p>
+                            <p className="text-xl font-black text-slate-900 tracking-widest my-1 font-mono">{testWinner.coupon_code}</p>
+                            <p className="text-[10px] text-green-600 font-semibold">Auto-applied at checkout</p>
+                          </div>
+                        )}
+
+                        <button type="button" onClick={() => setShowWinnerCard(false)}
+                          className="w-full py-3 rounded-full bg-[#E91E8C] text-white font-black text-xs tracking-wide shadow-lg cursor-pointer hover:bg-[#D1177D] transition-colors"
+                          style={{ boxShadow: '0 6px 20px rgba(233,30,140,0.4)' }}>
+                          {testWinner.type === 'no_prize' ? 'OK, Got It' : 'CLAIM & SHOP NOW'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <div className="form-field-group">
-                  <label className="field-label">Popup Header Title</label>
-                  <input
-                    type="text"
-                    value={data.title}
-                    onChange={(e) => setData({ ...data, title: e.target.value })}
-                    className="field-input"
-                    placeholder="Spin & Win Real Rewards! 🎉"
-                  />
-                </div>
-
-                <div className="form-field-group">
-                  <label className="field-label">Popup Description Subtitle</label>
-                  <textarea
-                    rows={3}
-                    value={data.subtitle}
-                    onChange={(e) => setData({ ...data, subtitle: e.target.value })}
-                    className="field-input"
-                    placeholder="Spin the wheel today and win exclusive discounts & gift rewards!"
-                  />
-                </div>
-
-                {isSettingsChanged && (
-                  <div className="form-actions-bar">
-                    <button type="submit" className="primary-action-btn" disabled={saving}>
-                      {saving ? 'Saving...' : '💾 Save Settings'}
-                    </button>
+                {/* ── Spin Wheel Modal Card (Exact Mobile Match) ── */}
+                <div className="w-[270px] bg-white rounded-[24px] overflow-hidden border-2 border-amber-400 flex flex-col items-center pb-4 relative" style={{ boxShadow: '0 8px 30px rgba(255,215,0,0.35)' }}>
+                  {/* Top Pink Ribbon */}
+                  <div className="w-full bg-[#E91E8C] py-2 flex items-center justify-center">
+                    <div className="bg-white/15 px-4 py-0.5 rounded-full">
+                      <p className="text-[9px] font-black text-white tracking-[2px]">LUCKY REWARD WHEEL</p>
+                    </div>
                   </div>
-                )}
-              </form>
-            </div>
-          )}
 
-          {/* TAB 4: LOGS */}
-          {activeTab === 'logs' && (
-            <div className="panel-card">
-              <h3 className="panel-title">Customer Spin Audit Logs</h3>
-              <p className="panel-sub">Complete history of customer spins and claimed coupons.</p>
+                  {/* Close Button */}
+                  <button type="button" className="absolute top-1.5 right-2 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white z-10">
+                    <X className="h-3 w-3" />
+                  </button>
 
-              {logsLoading ? (
-                <div className="loading-container">
-                  <div className="spinner" />
-                  <span>Loading spin logs...</span>
-                </div>
-              ) : (
-                <div className="table-wrapper">
-                  <table className="styled-table">
-                    <thead>
-                      <tr>
-                        <th>Log ID</th>
-                        <th>Customer</th>
-                        <th>Prize Won</th>
-                        <th>Reward Type</th>
-                        <th>Value</th>
-                        <th>Coupon Code</th>
-                        <th>Spin Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" className="empty-table">
-                            No spin history recorded yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        logs.map((log) => (
-                          <tr key={log.id}>
-                            <td>#{log.id}</td>
-                            <td>
-                              <strong>{log.user_name || 'Guest User'}</strong>
-                              <br />
-                              <span className="muted-text">{log.phone || '-'}</span>
-                            </td>
-                            <td><strong style={{ color: '#E91E8C' }}>{log.prize_label}</strong></td>
-                            <td>
-                              <span className={`reward-badge ${log.prize_type}`}>
-                                {log.prize_type}
-                              </span>
-                            </td>
-                            <td>{log.prize_value ? `₹${log.prize_value}` : '-'}</td>
-                            <td>
-                              {log.coupon_code ? <code>{log.coupon_code}</code> : <span className="muted-text">-</span>}
-                            </td>
-                            <td>{new Date(log.created_at).toLocaleString()}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                  {/* Title & Subtitle */}
+                  <h3 className="text-[14px] font-black text-slate-900 text-center mt-3 px-3 leading-tight">
+                    {data.title || 'Spin & Win Real Rewards!'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 text-center px-4 font-semibold leading-tight mt-1 line-clamp-2">
+                    {data.subtitle || 'Spin the wheel today and win exclusive discounts!'}
+                  </p>
 
-                  <div className="pagination-bar">
-                    <button
-                      disabled={page <= 1}
-                      onClick={() => fetchLogs(page - 1)}
-                      className="secondary-btn"
-                    >
-                      Previous
-                    </button>
-                    <span className="page-indicator">Page {page} of {Math.ceil(totalLogs / 15) || 1}</span>
-                    <button
-                      disabled={page * 15 >= totalLogs}
-                      onClick={() => fetchLogs(page + 1)}
-                      className="secondary-btn"
-                    >
-                      Next
-                    </button>
+                  {/* ── Wheel Stage ── */}
+                  <div className="relative my-3 flex flex-col items-center justify-center">
+                    {/* Pointer Arrow */}
+                    <div className="absolute -top-2.5 z-30 flex flex-col items-center">
+                      <div className="w-0 h-0" style={{
+                        borderLeft: '10px solid transparent',
+                        borderRight: '10px solid transparent',
+                        borderTop: '22px solid #FFD700',
+                        filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))',
+                      }} />
+                      <div className="absolute top-1 w-2.5 h-2.5 rounded-full bg-[#E91E8C] border-2 border-white" style={{ boxShadow: '0 0 8px rgba(233,30,140,0.8)' }} />
+                    </div>
+
+                    {/* SVG Wheel */}
+                    <div className="relative w-[220px] h-[220px]">
+                      <svg width="260" height="260" viewBox="0 0 260 260" className="w-full h-full"
+                        style={{
+                          transform: `rotate(${wheelRotation}deg)`,
+                          transition: isSpinning ? 'transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1)' : 'none',
+                        }}>
+                        <defs>
+                          {activeSlices.map((seg, idx) => {
+                            const base = seg.color || SLICE_PALETTE[idx % SLICE_PALETTE.length];
+                            return (
+                              <radialGradient key={`rg-${idx}`} id={`adminSliceGrad-${idx}`} cx="35%" cy="35%" r="70%">
+                                <stop offset="0%" stopColor={base} stopOpacity="1" />
+                                <stop offset="60%" stopColor={base} stopOpacity="0.9" />
+                                <stop offset="100%" stopColor={base} stopOpacity="0.65" />
+                              </radialGradient>
+                            );
+                          })}
+                          <radialGradient id="adminGoldRim" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stopColor="#FFF176" />
+                            <stop offset="55%" stopColor="#FFD700" />
+                            <stop offset="85%" stopColor="#FFA000" />
+                            <stop offset="100%" stopColor="#7A5200" />
+                          </radialGradient>
+                          <radialGradient id="adminHubGrad" cx="40%" cy="35%" r="65%">
+                            <stop offset="0%" stopColor="#FF6B9D" />
+                            <stop offset="50%" stopColor="#E91E8C" />
+                            <stop offset="100%" stopColor="#880E4F" />
+                          </radialGradient>
+                        </defs>
+
+                        {/* Shadow */}
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="128" fill="rgba(0,0,0,0.25)" transform="translate(2,4)" />
+
+                        {/* Gold Outer Ring */}
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="127" fill="url(#adminGoldRim)" stroke="#7A5200" strokeWidth="2.5" />
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="118" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="117" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
+
+                        {/* Bulb Pegs */}
+                        {renderBulbPegs()}
+
+                        {/* Pie Slices */}
+                        {numSlices === 0 ? (
+                          <circle cx={WHEEL_CX} cy={WHEEL_CY} r={WHEEL_R} fill="#334155" />
+                        ) : (
+                          activeSlices.map((seg, idx) => {
+                            const startAngle = idx * wheelSliceAngle - 90;
+                            const endAngle = (idx + 1) * wheelSliceAngle - 90;
+                            const midAngle = (idx + 0.5) * wheelSliceAngle - 90;
+
+                            const rad1 = (startAngle * Math.PI) / 180;
+                            const rad2 = (endAngle * Math.PI) / 180;
+                            const radMid = (midAngle * Math.PI) / 180;
+
+                            const x1 = WHEEL_CX + WHEEL_R * Math.cos(rad1);
+                            const y1 = WHEEL_CY + WHEEL_R * Math.sin(rad1);
+                            const x2 = WHEEL_CX + WHEEL_R * Math.cos(rad2);
+                            const y2 = WHEEL_CY + WHEEL_R * Math.sin(rad2);
+
+                            const tx = WHEEL_CX + (WHEEL_R * 0.62) * Math.cos(radMid);
+                            const ty = WHEEL_CY + (WHEEL_R * 0.62) * Math.sin(radMid);
+
+                            const largeArc = wheelSliceAngle > 180 ? 1 : 0;
+                            const pathData = numSlices === 1
+                              ? `M ${WHEEL_CX - WHEEL_R} ${WHEEL_CY} A ${WHEEL_R} ${WHEEL_R} 0 1 0 ${WHEEL_CX + WHEEL_R} ${WHEEL_CY} A ${WHEEL_R} ${WHEEL_R} 0 1 0 ${WHEEL_CX - WHEEL_R} ${WHEEL_CY}`
+                              : `M ${WHEEL_CX} ${WHEEL_CY} L ${x1} ${y1} A ${WHEEL_R} ${WHEEL_R} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                            // Glossy highlight
+                            const hR = WHEEL_R * 0.95;
+                            const hR2 = WHEEL_R * 0.55;
+                            const hx1 = WHEEL_CX + hR2 * Math.cos(rad1);
+                            const hy1 = WHEEL_CY + hR2 * Math.sin(rad1);
+                            const hx2 = WHEEL_CX + hR * Math.cos(rad1);
+                            const hy2 = WHEEL_CY + hR * Math.sin(rad1);
+                            const hx3 = WHEEL_CX + hR * Math.cos(rad2);
+                            const hy3 = WHEEL_CY + hR * Math.sin(rad2);
+                            const hx4 = WHEEL_CX + hR2 * Math.cos(rad2);
+                            const hy4 = WHEEL_CY + hR2 * Math.sin(rad2);
+                            const highlightPath = numSlices > 1
+                              ? `M ${hx1} ${hy1} L ${hx2} ${hy2} A ${hR} ${hR} 0 ${largeArc} 1 ${hx3} ${hy3} L ${hx4} ${hy4} A ${hR2} ${hR2} 0 ${largeArc} 0 ${hx1} ${hy1} Z`
+                              : null;
+
+                            return (
+                              <g key={seg.id || idx}>
+                                <path d={pathData} fill={`url(#adminSliceGrad-${idx})`} stroke="rgba(255,255,255,0.8)" strokeWidth="1.2" />
+                                {highlightPath && <path d={highlightPath} fill="rgba(255,255,255,0.15)" stroke="none" />}
+                                <text x={tx} y={ty} fill={seg.text_color || '#FFFFFF'} fontSize="8.5" fontWeight="900"
+                                  textAnchor="middle" dominantBaseline="central"
+                                  transform={`rotate(${midAngle + 90}, ${tx}, ${ty})`}>
+                                  {seg.label?.length > 10 ? `${seg.label.slice(0, 9)}...` : seg.label}
+                                </text>
+                              </g>
+                            );
+                          })
+                        )}
+
+                        {/* Spokes */}
+                        {renderSpokes()}
+
+                        {/* Center Hub */}
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="28" fill="#FFD700" stroke="#B8860B" strokeWidth="1.5" />
+                        <circle cx={WHEEL_CX} cy={WHEEL_CY} r="24" fill="url(#adminHubGrad)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                        <text x={WHEEL_CX} y={WHEEL_CY - 3} fill="#FFFFFF" fontSize="8" fontWeight="900" textAnchor="middle" dominantBaseline="central">SPIN</text>
+                        <text x={WHEEL_CX} y={WHEEL_CY + 5} fill="rgba(255,255,255,0.85)" fontSize="6" fontWeight="700" textAnchor="middle" dominantBaseline="central">NOW</text>
+                      </svg>
+
+                      {/* SPIN Button overlay */}
+                      <button type="button" onClick={handleTestSpin} disabled={isSpinning || numSlices === 0}
+                        className="absolute inset-0 m-auto w-12 h-12 rounded-full cursor-pointer z-20" style={{ background: 'transparent' }} />
+                    </div>
                   </div>
+
+                  {/* Tip Text */}
+                  <p className="text-[10px] text-slate-400 font-semibold">
+                    Spin once every {data.cooldown_hours || 24}h
+                  </p>
+
+                  {/* Test Spin Button */}
+                  <button type="button" onClick={handleTestSpin} disabled={isSpinning || numSlices === 0}
+                    className="mt-2 px-6 py-1.5 rounded-full bg-[#E91E8C] text-white font-black text-[10px] tracking-wide shadow-md cursor-pointer hover:bg-[#D1177D] transition-colors disabled:opacity-50"
+                    style={{ boxShadow: '0 4px 14px rgba(233,30,140,0.35)' }}>
+                    {isSpinning ? 'Spinning...' : 'TAP TO SPIN'}
+                  </button>
                 </div>
-              )}
+
+                {/* Home Indicator */}
+                <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-20 h-1 bg-white/30 rounded-full" />
+              </div>
+
+              <p className="text-[11px] text-slate-500 font-medium mt-3 text-center">
+                This preview matches your mobile app exactly
+              </p>
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* CREATE / EDIT SLICE MODAL */}
-      {isModalOpen && (
-        <div className="dialog-overlay">
-          <div className="dialog-card">
-            <div className="dialog-header">
-              <h3>{editingSegment ? 'Edit Wheel Slice' : 'Add New Wheel Slice'}</h3>
-              <button className="dialog-close-btn" onClick={() => setIsModalOpen(false)}>✕</button>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* SECTION 2: WHEEL SLICES                                           */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {activeSection === 'slices' && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  {(data.segments || []).length} Segments
+                </span>
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  totalPoolProbability === 100 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-900 border border-amber-200'
+                }`}>
+                  Total Odds: {totalPoolProbability}%
+                </span>
+              </div>
+              <h2 className="text-lg font-extrabold text-slate-900 mt-1">Wheel Slices</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Customize each slice label, coupon, color, and probability.</p>
+            </div>
+            <Button type="button" onClick={openAddSliceModal}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs shadow-md cursor-pointer">
+              <Plus className="h-4 w-4" /> Add Slice
+            </Button>
+          </div>
+
+          {/* Slices Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(data.segments || []).map((slice, index) => {
+              const badgeColor = slice.type === 'coupon' ? 'bg-purple-100 text-purple-800 border-purple-200'
+                : slice.type === 'cashback' ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                : slice.type === 'free_shipping' ? 'bg-sky-100 text-sky-800 border-sky-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200';
+
+              return (
+                <div key={slice.id || index}
+                  className={`bg-white rounded-2xl border p-4 shadow-sm space-y-3 hover:shadow-md transition-all ${
+                    slice.is_active ? 'border-slate-200/80' : 'border-slate-200 opacity-60'
+                  }`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border ${badgeColor}`}>
+                      {slice.type.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      {slice.probability}% chance
+                    </span>
+                  </div>
+
+                  {/* Color card */}
+                  <div className="relative overflow-hidden p-3 rounded-xl flex items-center justify-between"
+                    style={{ backgroundColor: slice.color || '#E91E8C', color: slice.text_color || '#FFFFFF' }}>
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full blur-xl pointer-events-none" />
+                    <div>
+                      <p className="font-extrabold text-sm leading-snug line-clamp-1">{slice.label}</p>
+                      {slice.coupon_code && (
+                        <p className="text-[10px] font-mono opacity-80 mt-0.5">{slice.coupon_code}</p>
+                      )}
+                    </div>
+                    <span className="text-base font-black">{slice.value ? `₹${slice.value}` : ''}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <button type="button" onClick={() => handleToggleSliceActive(slice)}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-lg cursor-pointer ${
+                        slice.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                      {slice.is_active ? 'Active' : 'Disabled'}
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => openEditSliceModal(slice)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                        <Edit3 className="h-3 w-3 text-purple-600" /> Edit
+                      </button>
+                      <button type="button" onClick={() => handleDeleteSlice(slice.id)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer">
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* SECTION 3: WINNERS HISTORY                                        */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {activeSection === 'history' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Recent Winners</h2>
+              <p className="text-xs text-slate-500 mt-0.5">{data.total_spins || 0} total spins recorded</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={handleForceAllUsers}
+                className="px-4 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold cursor-pointer">
+                Force Popup For All
+              </button>
+              <div className="relative min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <input value={logSearch} onChange={(e) => setLogSearch(e.target.value)}
+                  placeholder="Search winner, phone..."
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-purple-500" />
+              </div>
+            </div>
+          </div>
+
+          {logsLoading ? (
+            <div className="py-20 flex justify-center"><Spinner size="lg" /></div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 text-sm">No spin history found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/75 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <tr>
+                    <th className="py-3 px-5">Customer</th>
+                    <th className="py-3 px-5">Reward</th>
+                    <th className="py-3 px-5">Coupon Code</th>
+                    <th className="py-3 px-5 text-right">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredLogs.map((log) => {
+                    const initials = (log.user_name || 'C')
+                      .split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-white font-bold text-[10px] flex items-center justify-center">
+                              {initials}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900 text-xs">{log.user_name || 'Customer'}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">{log.phone || '-'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-5">
+                          <span className="font-bold text-slate-900 text-xs">{log.segment_label}</span>
+                        </td>
+                        <td className="py-3 px-5">
+                          {log.coupon_code ? (
+                            <span className="font-mono text-[10px] px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 font-bold border border-purple-200">
+                              {log.coupon_code}
+                            </span>
+                          ) : <span className="text-xs text-slate-400">—</span>}
+                        </td>
+                        <td className="py-3 px-5 text-right text-[10px] text-slate-500">
+                          {new Date(log.created_at || log.spun_at).toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="p-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>Page {logsPage}</span>
+            <div className="flex items-center gap-2">
+              <button disabled={logsPage <= 1} onClick={() => setLogsPage((p) => p - 1)}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button disabled={logs.length < 20} onClick={() => setLogsPage((p) => p + 1)}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ADD / EDIT SLICE MODAL                                            */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {sliceModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl p-5 space-y-4 animate-scaleIn">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                  <Compass className="h-4 w-4" />
+                </div>
+                <h3 className="font-bold text-sm text-slate-900">
+                  {editingSlice ? 'Edit Slice' : 'Add New Slice'}
+                </h3>
+              </div>
+              <button type="button" onClick={() => setSliceModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <form onSubmit={handleSaveSegment}>
-              <div className="dialog-body">
-                <div className="form-field-group">
-                  <label className="field-label">Slice Label (Text on Wheel)</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.label}
-                    onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                    className="field-input"
-                    placeholder="e.g. 10% OFF, ₹100 Off, Better Luck!"
-                  />
-                </div>
+            <form onSubmit={handleSaveSlice} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Slice Label</label>
+                <Input value={sliceForm.label} onChange={(e) => setSliceForm({ ...sliceForm, label: e.target.value })}
+                  placeholder="e.g. ₹100 Off Voucher" required />
+              </div>
 
-                <div className="form-field-group">
-                  <label className="field-label">Target Audience Tier</label>
-                  <select
-                    value={formData.target_user_type}
-                    onChange={(e) => setFormData({ ...formData, target_user_type: e.target.value })}
-                    className="field-input"
-                  >
-                    <option value="all">🌍 All Customers</option>
-                    <option value="new_users">🆕 New Customers Only (0 orders)</option>
-                    <option value="existing_users">🛍️ Existing Customers (1+ orders)</option>
-                    <option value="vip_users">👑 VIP High Spenders (3+ orders)</option>
-                  </select>
-                </div>
-
-                <div className="form-field-group">
-                  <label className="field-label">Reward Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="field-input"
-                  >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Prize Type</label>
+                  <select value={sliceForm.type} onChange={(e) => setSliceForm({ ...sliceForm, type: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:border-purple-500">
                     <option value="coupon">Discount Coupon</option>
-                    <option value="loyalty_points">Loyalty Points</option>
+                    <option value="cashback">Cashback</option>
                     <option value="free_shipping">Free Shipping</option>
-                    <option value="no_prize">No Prize (Better Luck Next Time)</option>
+                    <option value="no_prize">Better Luck Next Time</option>
                   </select>
                 </div>
-
-                {formData.type !== 'no_prize' && (
-                  <div className="form-field-group">
-                    <label className="field-label">
-                      Reward Value ({formData.type === 'loyalty_points' ? 'Points' : 'Amount / Discount %'})
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.value}
-                      onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                      className="field-input"
-                    />
-                  </div>
-                )}
-
-                {(formData.type === 'coupon' || formData.type === 'free_shipping') && (
-                  <div className="form-field-group">
-                    <label className="field-label">Coupon Code (Optional - Auto-generated if left blank)</label>
-                    <input
-                      type="text"
-                      value={formData.coupon_code}
-                      onChange={(e) => setFormData({ ...formData, coupon_code: e.target.value.toUpperCase() })}
-                      className="field-input"
-                      placeholder="e.g. SPIN10"
-                    />
-                  </div>
-                )}
-
-                <div className="form-row-2col">
-                  <div className="form-field-group">
-                    <label className="field-label">Slice Color</label>
-                    <input
-                      type="color"
-                      value={formData.color}
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                      className="color-picker-input"
-                    />
-                  </div>
-                  <div className="form-field-group">
-                    <label className="field-label">Text Color</label>
-                    <input
-                      type="color"
-                      value={formData.text_color}
-                      onChange={(e) => setFormData({ ...formData, text_color: e.target.value })}
-                      className="color-picker-input"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row-2col">
-                  <div className="form-field-group">
-                    <label className="field-label">Probability Weight (Win Odds)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      value={formData.probability}
-                      onChange={(e) => setFormData({ ...formData, probability: parseInt(e.target.value, 10) || 1 })}
-                      className="field-input"
-                    />
-                  </div>
-                  <div className="form-field-group">
-                    <label className="field-label">Sort Position</label>
-                    <input
-                      type="number"
-                      value={formData.sort_order}
-                      onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value, 10) || 0 })}
-                      className="field-input"
-                    />
-                  </div>
-                </div>
-
-                <div className="setting-box">
-                  <label className="toggle-switch-label">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    />
-                    <div className="switch-slider" />
-                    <span>Active Slice on Wheel</span>
-                  </label>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Value</label>
+                  <Input type="number" value={sliceForm.value}
+                    onChange={(e) => setSliceForm({ ...sliceForm, value: parseFloat(e.target.value) || 0 })} />
                 </div>
               </div>
 
-              <div className="dialog-footer">
-                <button type="button" className="secondary-btn" onClick={() => setIsModalOpen(false)}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Coupon Code</label>
+                  <Input value={sliceForm.coupon_code}
+                    onChange={(e) => setSliceForm({ ...sliceForm, coupon_code: e.target.value.toUpperCase() })}
+                    placeholder="LUCKY100" className="font-mono text-xs uppercase" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Win Chance (%)</label>
+                  <Input type="number" min="1" max="100" value={sliceForm.probability}
+                    onChange={(e) => setSliceForm({ ...sliceForm, probability: parseInt(e.target.value, 10) || 10 })} />
+                </div>
+              </div>
+
+              {/* Color Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">Slice Color</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {SLICE_PALETTE.map((c) => (
+                    <button key={c} type="button" onClick={() => setSliceForm({ ...sliceForm, color: c })}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform cursor-pointer ${
+                        sliceForm.color === c ? 'border-purple-600 scale-110 shadow-xs' : 'border-white'
+                      }`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                  <input type="color" value={sliceForm.color}
+                    onChange={(e) => setSliceForm({ ...sliceForm, color: e.target.value })}
+                    className="w-7 h-7 rounded-lg cursor-pointer border border-slate-200 p-0.5 ml-2" />
+                </div>
+              </div>
+
+              {/* Mini Preview */}
+              <div className="p-3 rounded-xl flex items-center justify-between shadow-xs"
+                style={{ backgroundColor: sliceForm.color, color: sliceForm.text_color }}>
+                <div>
+                  <p className="text-xs font-extrabold">{sliceForm.label || 'Slice Label'}</p>
+                  <p className="text-[10px] opacity-80 font-mono mt-0.5">{sliceForm.coupon_code || 'CODE'}</p>
+                </div>
+                <span className="text-sm font-black">{sliceForm.value ? `₹${sliceForm.value}` : ''}</span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button type="button" onClick={() => setSliceModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="primary-action-btn" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Slice'}
+                <button type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer">
+                  {editingSlice ? 'Save Changes' : 'Create Slice'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* CREATE USER SPECIFIC TARGET REWARD MODAL */}
-      {isUserTargetModalOpen && (
-        <div className="dialog-overlay">
-          <div className="dialog-card">
-            <div className="dialog-header">
-              <h3>🎯 Target Specific Customer / Phone Number</h3>
-              <button className="dialog-close-btn" onClick={() => setIsUserTargetModalOpen(false)}>✕</button>
-            </div>
-
-            <form onSubmit={handleSaveUserTarget}>
-              <div className="dialog-body">
-                <div className="form-field-group">
-                  <label className="field-label">Customer Phone Number (e.g., 9846333075)</label>
-                  <input
-                    type="text"
-                    required
-                    value={userTargetForm.phone}
-                    onChange={(e) => setUserTargetForm({ ...userTargetForm, phone: e.target.value })}
-                    className="field-input"
-                    placeholder="Enter customer 10-digit phone number"
-                  />
-                </div>
-
-                <div className="form-field-group">
-                  <label className="field-label">Option A: Assign Existing Wheel Slice</label>
-                  <select
-                    value={userTargetForm.segment_id}
-                    onChange={(e) => setUserTargetForm({ ...userTargetForm, segment_id: e.target.value })}
-                    className="field-input"
-                  >
-                    <option value="">-- Custom Special Gift Below --</option>
-                    {data.segments.map((seg) => (
-                      <option key={seg.id} value={seg.id}>
-                        {seg.label} ({seg.type} - Value: {seg.value})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {!userTargetForm.segment_id && (
-                  <>
-                    <div className="form-field-group">
-                      <label className="field-label">Option B: Custom Special Gift Label</label>
-                      <input
-                        type="text"
-                        value={userTargetForm.custom_prize_label}
-                        onChange={(e) => setUserTargetForm({ ...userTargetForm, custom_prize_label: e.target.value })}
-                        className="field-input"
-                        placeholder="e.g. VIP Special 50% OFF Gift!"
-                      />
-                    </div>
-
-                    <div className="form-field-group">
-                      <label className="field-label">Reward Type</label>
-                      <select
-                        value={userTargetForm.custom_prize_type}
-                        onChange={(e) => setUserTargetForm({ ...userTargetForm, custom_prize_type: e.target.value })}
-                        className="field-input"
-                      >
-                        <option value="coupon">Discount Coupon</option>
-                        <option value="loyalty_points">Loyalty Points</option>
-                        <option value="free_shipping">Free Shipping</option>
-                        <option value="no_prize">No Prize</option>
-                      </select>
-                    </div>
-
-                    <div className="form-field-group">
-                      <label className="field-label">Reward Value / Discount %</label>
-                      <input
-                        type="number"
-                        value={userTargetForm.custom_prize_value}
-                        onChange={(e) => setUserTargetForm({ ...userTargetForm, custom_prize_value: parseFloat(e.target.value) || 0 })}
-                        className="field-input"
-                      />
-                    </div>
-
-                    <div className="form-field-group">
-                      <label className="field-label">Coupon Code (Optional)</label>
-                      <input
-                        type="text"
-                        value={userTargetForm.custom_coupon_code}
-                        onChange={(e) => setUserTargetForm({ ...userTargetForm, custom_coupon_code: e.target.value.toUpperCase() })}
-                        className="field-input"
-                        placeholder="e.g. VIP50"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="dialog-footer">
-                <button type="button" className="secondary-btn" onClick={() => setIsUserTargetModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="primary-action-btn" disabled={saving}>
-                  {saving ? 'Saving...' : '🎯 Save Guaranteed Target Rule'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── BLOCKING CONFIRM DIALOG ── */}
-      <NotificationModal
-        isOpen={confirmModal.isOpen}
-        type={confirmModal.type}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmText={confirmModal.confirmText}
-        cancelText={confirmModal.cancelText}
-        onConfirm={confirmModal.onConfirm}
-        onCancel={closeConfirm}
-        onClose={closeConfirm}
-      />
-
-      {/* ── STACKABLE TOAST NOTIFICATIONS ── */}
-      <ToastNotification toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

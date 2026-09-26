@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project brain: CEREBRUM.md
+
+`CEREBRUM.md` at the repo root is the living knowledge file: architecture map, key flows, conventions, test recipes, known gaps and a dated changelog. **Read it first when starting any task, and update it (changelog + affected sections) after every change you make.**
+
 ## Project Overview
 
 Velora is an e-commerce platform for a clothing brand (women, kids, newborn, maternity categories). The full specification is in `spec.md`.
@@ -130,3 +134,16 @@ See `backend/.env.example` for the full list. Key vars:
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL`
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`
+- `ALLOW_DEV_OTP=true` — accept the fixed OTP `123456` for phone login / delivery PINs in local dev only. Ignored when `NODE_ENV=production`.
+- `TRUST_PROXY` — number of reverse-proxy hops in front of the API (default 1); needed for correct client IPs in rate limiting.
+
+In production the backend refuses to start if `JWT_SECRET` is missing or still a `your_...` placeholder.
+
+## Security Rules (enforced server-side)
+
+- Auth middleware re-reads role, permissions and `is_blocked` from the DB on every request; blocking an account takes effect immediately.
+- `/api/admin/*`: only `orders`, `returns`, `loyalty`, `reports`, `wallets` and `delivery-staff` are reachable by branch admins (via `permissions`). Everything else is `super_admin` only.
+- Order placement validates quantity (1–99 integer), payment method (`cod|online|upi|card`), address ownership and variant/product match; shipping, discounts, loyalty points and wallet are all settled inside the order transaction and reversed by `reverseOrderSideEffects` on cancel.
+- Spin wheel / scratch card endpoints require a JWT and take identity from it, never from the body. Prize coupons are single-use per customer (`coupons.per_user_limit`, `coupons.user_id`).
+- Uploads: extension derived from MIME type, magic bytes verified, `/uploads` served with `nosniff` + sandbox CSP.
+- Rate limits on auth, OTP and prize endpoints (`src/middleware/rateLimit.middleware.js`).

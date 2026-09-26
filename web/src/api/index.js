@@ -32,6 +32,12 @@ export const productApi = {
   addReview: (id, data) => client.post(`/products/${id}/reviews`, data),
 };
 
+// Combos (bundles)
+export const comboApi = {
+  list: () => client.get('/combos'),
+  getOne: (id) => client.get(`/combos/${id}`),
+};
+
 // Categories
 export const categoryApi = {
   list: () => client.get('/categories'),
@@ -54,6 +60,7 @@ export const orderApi = {
   list: () => client.get('/orders'),
   getOne: (id) => client.get(`/orders/${id}`),
   cancel: (id) => client.post(`/orders/${id}/cancel`),
+  retryPayment: (id) => client.post(`/orders/${id}/pay`),
   returnRequest: (id, reason) => client.post(`/orders/${id}/return`, { reason }),
   getRestrictions: () => client.get('/orders/restrictions'),
 };
@@ -100,7 +107,13 @@ export const userApi = {
 };
 
 export const spinWheelApi = {
-  getConfig: (params) => client.get('/spin-wheel/config', { params }),
-  getActiveReward: (params) => client.get('/spin-wheel/active-reward', { params }),
-  spin: (data) => client.post('/spin-wheel/spin', data),
+  getConfig: () => client.get('/spin-wheel/config'),
+  getActiveReward: () => client.get('/spin-wheel/active-reward'),
+  spin: () => client.post('/spin-wheel/spin', {}),
+};
+
+export const scratchCardApi = {
+  getConfig: () => client.get('/scratch-card/config'),
+  getActiveReward: () => client.get('/scratch-card/active-reward'),
+  reveal: () => client.post('/scratch-card/reveal', {}),
 };

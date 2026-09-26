@@ -6,6 +6,7 @@ import { orderApi } from '../../../api';
 import { formatPrice, formatDate } from '../../../utils/format';
 import Spinner from '../../../components/ui/Spinner';
 import toast from 'react-hot-toast';
+import useNow from '../../../hooks/useNow';
 
 const SUPPORT_WA = import.meta.env.VITE_SUPPORT_WHATSAPP || '919999999999';
 
@@ -26,6 +27,7 @@ const REASONS = [
 
 export default function ReturnRequest() {
   const { id } = useParams();
+  const now = useNow();
   const [selectedReason, setSelectedReason] = useState(null);
   const [customMsg, setCustomMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +51,7 @@ export default function ReturnRequest() {
   }
 
   const deliveredAt = new Date(order.updated_at);
-  const canReturn = (Date.now() - deliveredAt.getTime()) < 24 * 60 * 60 * 1000;
+  const canReturn = (now - deliveredAt.getTime()) < 24 * 60 * 60 * 1000;
 
   if (!canReturn) {
     return (
@@ -62,7 +64,7 @@ export default function ReturnRequest() {
     );
   }
 
-  const msLeft = deliveredAt.getTime() + 24 * 60 * 60 * 1000 - Date.now();
+  const msLeft = deliveredAt.getTime() + 24 * 60 * 60 * 1000 - now;
   const hrsLeft = Math.floor(msLeft / (1000 * 60 * 60));
   const minsLeft = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
 

@@ -19,8 +19,7 @@ const getDashboard = async (req, res) => {
               COALESCE(u.name, 'Guest') AS user_name, u.phone AS user_phone
        FROM orders o
        LEFT JOIN users u ON o.user_id = u.id
-       WHERE o.created_at::date = $1::date
-       ORDER BY o.created_at DESC LIMIT 10`, [date]
+       ORDER BY o.created_at DESC LIMIT 10`
     ),
     db.query(
       `SELECT DATE_TRUNC('day', created_at) AS date, SUM(total) AS revenue
@@ -29,9 +28,9 @@ const getDashboard = async (req, res) => {
     ),
     db.query(
       `SELECT COALESCE(SUM(total),0) AS today_sales
-       FROM orders WHERE payment_status='paid' AND created_at::date = $1::date`, [date]
+       FROM orders WHERE payment_status='paid' AND (created_at::date = $1::date OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]
     ),
-    db.query(`SELECT COUNT(*) AS today_orders FROM orders WHERE created_at::date = $1::date`, [date]),
+    db.query(`SELECT COUNT(*) AS today_orders FROM orders WHERE (created_at::date = $1::date OR (created_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]),
     db.query(`SELECT COUNT(*) AS pending_orders FROM orders WHERE status='pending'`),
     db.query(`SELECT COUNT(*) AS low_stock FROM products WHERE stock < 10 AND is_hidden=false`),
     db.query(
@@ -92,8 +91,8 @@ const getDashboard = async (req, res) => {
        GROUP BY p.pattern ORDER BY units_sold DESC LIMIT 5`
     ),
     db.query(`SELECT COUNT(*) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id`),
-    db.query(`SELECT COUNT(*) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id WHERE rr.created_at::date=$1::date`, [date]),
-    db.query(`SELECT COUNT(*) AS v FROM users WHERE role='user' AND last_login_at::date=$1::date`, [date]),
+    db.query(`SELECT COUNT(*) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id WHERE (rr.created_at::date=$1::date OR (rr.created_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]),
+    db.query(`SELECT COUNT(*) AS v FROM users WHERE role='user' AND (last_login_at::date=$1::date OR (last_login_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]),
     db.query(`SELECT COUNT(DISTINCT user_id) AS v FROM cart`),
     db.query(`SELECT COUNT(DISTINCT o.user_id) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id WHERE o.user_id IS NOT NULL`),
     db.query(

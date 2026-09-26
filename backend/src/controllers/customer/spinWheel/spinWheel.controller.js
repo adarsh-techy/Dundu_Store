@@ -100,7 +100,7 @@ const getConfig = async (req, res) => {
   const settings = await getSpinWheelSettings();
 
   const { rows: segments } = await db.query(
-    `SELECT id, label, type, value, coupon_code, color, text_color, sort_order, target_user_type
+    `SELECT id, label, type, value, color, text_color, sort_order, target_user_type
      FROM spin_wheel_segments
      WHERE is_active = true
      ORDER BY sort_order ASC, id ASC`
@@ -113,9 +113,10 @@ const getConfig = async (req, res) => {
   let isForced = false;
   let activeReward = null;
 
-  const userId = req.user?.id || req.query.user_id || req.query.userId || null;
-  const rawPhone = req.query.phone || req.user?.phone || '';
-  const phone = rawPhone.replace(/\D/g, '');
+  // Identity comes only from the authenticated token — never from query params, so one
+  // customer cannot look up another customer's rewards or popup state.
+  const userId = req.user?.id || null;
+  const phone = (req.user?.phone || '').replace(/\D/g, '');
 
   // Check if forced spin popup is active for this user or globally
   if (userId || phone) {
@@ -294,9 +295,8 @@ const getConfig = async (req, res) => {
 };
 
 const getActiveReward = async (req, res) => {
-  const userId = req.user?.id || req.query.user_id || null;
-  const rawPhone = req.query.phone || req.user?.phone || '';
-  const phone = rawPhone.replace(/\D/g, '');
+  const userId = req.user?.id || null;
+  const phone = (req.user?.phone || '').replace(/\D/g, '');
 
   if (!userId && !phone) {
     return ok(res, { active_reward: null });
@@ -324,18 +324,57 @@ const getActiveReward = async (req, res) => {
   ok(res, { active_reward: rows[0] || null });
 };
 
-const spin = async (req, res) => {
+const spinInner = async (req, res, q) => {
   const settings = await getSpinWheelSettings();
 
   if (!settings.enabled) {
     return badRequest(res, 'Spin & Win feature is currently disabled');
   }
 
-  const userId = req.user?.id || null;
-  const phone = (req.body.phone || req.user?.phone || '').replace(/\D/g, '');
+  // Route is behind `authenticate`; identity is taken from the token only.
+  const userId = req.user.id;
+  const phone = (req.user.phone || '').replace(/\D/g, '');
 
-  if (settings.requireLogin && !userId && !phone) {
-    return badRequest(res, 'Please login to spin the lucky wheel');
+  const { rows: meRows } = await q.query(
+    'SELECT spin_wheel_enabled, force_spin_popup, last_forced_popup_at FROM users WHERE id=$1', [userId]
+  );
+  const me = meRows[0] || {};
+  if (me.spin_wheel_enabled === false) {
+    return badRequest(res, 'Spin & Win is not available on your account');
+  }
+
+  // An admin "forced" spin bypasses cooldown/time-slot rules exactly once.
+  let isForced = me.force_spin_popup === true;
+  if (!isForced && settings.forceAllTimestamp) {
+    const forceAllDate = new Date(settings.forceAllTimestamp);
+    const lastForcedDate = me.last_forced_popup_at ? new Date(me.last_forced_popup_at) : new Date(0);
+    if (forceAllDate > lastForcedDate) isForced = true;
+  }
+
+  if (!isForced) {
+    if (!isCurrentTimeInSlot(settings)) {
+      return badRequest(res, 'Spin & Win is not open right now. Please come back later.');
+    }
+
+    // Cooldown + daily cap, enforced server-side (previously only shown in the UI).
+    const { rows: recent } = await q.query(
+      `SELECT created_at FROM spin_wheel_logs
+       WHERE user_id = $1 OR (phone IS NOT NULL AND phone = $2)
+       ORDER BY created_at DESC LIMIT 50`,
+      [userId, phone || null]
+    );
+    if (recent.length) {
+      const cooldownMs = settings.cooldownHours * 60 * 60 * 1000;
+      const eligibleTime = new Date(new Date(recent[0].created_at).getTime() + cooldownMs);
+      if (new Date() < eligibleTime) {
+        return badRequest(res, 'You have already spun the wheel. Please come back later.');
+      }
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const spinsToday = recent.filter((r) => new Date(r.created_at) >= dayStart).length;
+      if (settings.maxPerDay > 0 && spinsToday >= settings.maxPerDay) {
+        return badRequest(res, 'You have reached today\'s spin limit.');
+      }
+    }
   }
 
   // New customers check & min orders enforcement
@@ -350,7 +389,7 @@ const spin = async (req, res) => {
       orderCountQuery += `customer_phone = $${oParams.length}`;
     }
     if (oParams.length > 0) {
-      const { rows: oRows } = await db.query(orderCountQuery, oParams).catch(() => ({ rows: [{ count: 0 }] }));
+      const { rows: oRows } = await q.query(orderCountQuery, oParams).catch(() => ({ rows: [{ count: 0 }] }));
       if ((oRows[0]?.count || 0) < settings.minOrders) {
         return badRequest(res, `You need at least ${settings.minOrders} completed order(s) to spin the wheel.`);
       }
@@ -375,7 +414,7 @@ const spin = async (req, res) => {
   }
 
   // Get active segments
-  const { rows: segments } = await db.query(
+  const { rows: segments } = await q.query(
     `SELECT id, label, type, value, coupon_code, color, text_color, probability, sort_order, target_user_type
      FROM spin_wheel_segments
      WHERE is_active = true
@@ -407,7 +446,7 @@ const spin = async (req, res) => {
     }
     targetQuery += `) ORDER BY id DESC LIMIT 1`;
 
-    const { rows: targetRows } = await db.query(targetQuery, targetParams).catch(() => ({ rows: [] }));
+    const { rows: targetRows } = await q.query(targetQuery, targetParams).catch(() => ({ rows: [] }));
 
     if (targetRows.length > 0) {
       const targetRule = targetRows[0];
@@ -458,7 +497,7 @@ const spin = async (req, res) => {
   }
 
   if (targetRuleId) {
-    await db.query('UPDATE spin_wheel_user_targets SET is_claimed = true WHERE id = $1', [targetRuleId]).catch(() => {});
+    await q.query('UPDATE spin_wheel_user_targets SET is_claimed = true WHERE id = $1', [targetRuleId]).catch(() => {});
   }
 
   const index = segments.findIndex((s) => s.id === winningSegment.id);
@@ -471,19 +510,27 @@ const spin = async (req, res) => {
         : `SPIN_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     }
 
-    await db.query(
-      `INSERT INTO coupons (code, discount_type, discount_value, is_active)
-       VALUES ($1, $2, $3, true)
-       ON CONFLICT (code) DO NOTHING`,
-      [
-        finalCouponCode,
-        winningSegment.type === 'free_shipping' ? 'fixed' : (winningSegment.value > 50 ? 'fixed' : 'percentage'),
-        winningSegment.type === 'free_shipping' ? 0 : (winningSegment.value || 0),
-      ]
-    ).catch(() => {});
+    if (winningSegment.type === 'coupon') {
+      // Generated per-spin codes are single-use, bound to this user and expire in 30 days.
+      // Shared segment codes (e.g. SPIN10) stay usable by every winner, but only once each.
+      const generated = !winningSegment.coupon_code;
+      await q.query(
+        `INSERT INTO coupons (code, discount_type, discount_value, is_active, usage_limit, per_user_limit, user_id, expires_at)
+         VALUES ($1, $2, $3, true, $4, 1, $5, $6)
+         ON CONFLICT (code) DO NOTHING`,
+        [
+          finalCouponCode,
+          winningSegment.value > 50 ? 'fixed' : 'percentage',
+          winningSegment.value || 0,
+          generated ? 1 : null,
+          generated ? userId : null,
+          generated ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null,
+        ]
+      );
+    }
   } else if (winningSegment.type === 'loyalty_points' && phone) {
     const points = parseInt(winningSegment.value, 10) || 10;
-    await db.query(
+    await q.query(
       `INSERT INTO loyalty_cards (phone, name, points, total_spent)
        VALUES ($1, $2, $3, 0)
        ON CONFLICT (phone) DO UPDATE SET points = loyalty_cards.points + $3`,
@@ -491,7 +538,7 @@ const spin = async (req, res) => {
     ).catch(() => {});
   }
 
-  await db.query(
+  await q.query(
     `INSERT INTO spin_wheel_logs (user_id, phone, segment_id, prize_label, prize_type, prize_value, coupon_code, is_redeemed)
      VALUES ($1, $2, $3, $4, $5, $6, $7, false)`,
     [
@@ -506,20 +553,9 @@ const spin = async (req, res) => {
   );
 
   // Clear forced spin flag after spin is completed
-  if (userId || phone) {
-    let updateSql = 'UPDATE users SET force_spin_popup = false, last_forced_popup_at = NOW() WHERE ';
-    const updateParams = [];
-    if (userId) {
-      updateParams.push(userId);
-      updateSql += `id = $${updateParams.length}`;
-    }
-    if (phone) {
-      if (userId) updateSql += ' OR ';
-      updateParams.push(phone);
-      updateSql += `RIGHT(phone, 10) = RIGHT($${updateParams.length}, 10)`;
-    }
-    await db.query(updateSql, updateParams).catch(() => {});
-  }
+  await q.query(
+    'UPDATE users SET force_spin_popup = false, last_forced_popup_at = NOW() WHERE id = $1', [userId]
+  ).catch(() => {});
 
   ok(res, {
     winner_index: index >= 0 ? index : 0,
@@ -533,6 +569,24 @@ const spin = async (req, res) => {
       text_color: winningSegment.text_color,
     },
   });
+};
+
+
+// Wraps spinInner in a transaction holding a per-user advisory lock so parallel requests
+// cannot each pass the cooldown check and win several prizes.
+const spin = async (req, res) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`spin:${req.user.id}`]);
+    await spinInner(req, res, client);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 module.exports = {

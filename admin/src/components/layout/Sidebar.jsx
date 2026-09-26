@@ -2,10 +2,10 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users, Ticket,
   Image, BarChart2, UserCog, LogOut, ShoppingCart,
-  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders,
+  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders, X,
 } from 'lucide-react';
 import useAuthStore from '../../store/auth.store';
-import dunduLogo from '../../assets/dundulogo.png';
+import dunduLogo from '../../assets/logo.png';
 
 export const allNavGroups = [
   {
@@ -87,73 +87,104 @@ export const allNavGroups = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout, isSuperAdmin, hasPermission } = useAuthStore();
   const super_admin = isSuperAdmin();
 
   return (
-    <aside className="w-60 shrink-0 bg-black text-gray-300 flex flex-col h-screen sticky top-0 border-r border-white/20 shadow-2xl z-20">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b border-white/10 shrink-0 flex flex-col justify-center">
-        <img src={dunduLogo} alt="Dundu Logo" className="h-9 w-auto max-w-[150px] object-contain object-left" />
-        <p className="text-xs text-gray-500 mt-1">Admin Panel · Online Store</p>
-      </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {allNavGroups.map((group) => {
-          if (group.superOnly && !super_admin) return null;
-          const items = group.items.filter((n) => {
-            if (n.superOnly && !super_admin) return false;
-            if (n.permission && !hasPermission(n.permission)) return false;
-            return true;
-          });
-          if (!items.length) return null;
-          return (
-            <div key={group.label}>
-              <p className={`px-3 mb-1 text-[10px] font-bold uppercase tracking-widest ${
-                group.label === 'Marketing' ? 'text-emerald-500 font-extrabold' : 'text-pink-600'
-              }`}>
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
-                {items.map(({ to, icon: Icon, label }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/'}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors ${isActive ? 'text-blue-500 font-bold' : 'text-gray-400 hover:text-white font-medium'}`
-                    }
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-
-      {/* User */}
-      <div className="px-4 py-4 border-t border-white/10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-            {user?.name?.[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.role?.replace('_', ' ')}</p>
-          </div>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 lg:w-60 shrink-0 bg-[#fdf2f8] text-gray-700 flex flex-col h-screen lg:sticky lg:top-0 border-r border-pink-200/90 shadow-2xl lg:shadow-md transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        {/* Logo Header */}
+        <div className="px-5 py-4 border-b border-pink-200/70 shrink-0 flex items-center justify-between lg:justify-center">
+          <img
+            src={dunduLogo}
+            alt="Dundu Store"
+            className="h-11 sm:h-12 w-auto max-w-[170px] object-contain drop-shadow-xs"
+          />
+          <button
+            onClick={onClose}
+            className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:-pink-100 transition-colors cursor-pointer"
+            aria-label="Close navigation"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition-colors w-full"
-        >
-          <LogOut className="h-3.5 w-3.5" /> Logout
-        </button>
-      </div>
-    </aside>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4 scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {allNavGroups.map((group) => {
+            if (group.superOnly && !super_admin) return null;
+            const items = group.items.filter((n) => {
+              if (n.superOnly && !super_admin) return false;
+              if (n.permission && !hasPermission(n.permission)) return false;
+              return true;
+            });
+            if (!items.length) return null;
+            return (
+              <div key={group.label}>
+                <p className={`px-5 mb-1.5 text-[10px] font-extrabold uppercase tracking-widest ${
+                  group.label === 'Marketing' ? 'text-emerald-700' : 'text-pink-700'
+                }`}>
+                  {group.label}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map(({ to, icon: Icon, label }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      onClick={() => onClose && onClose()}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-all duration-150 mx-2.5 ${
+                          isActive
+                            ? 'bg-pink-600 text-white font-semibold shadow-sm shadow-pink-600/25'
+                            : 'text-gray-700 hover:text-pink-900 hover:bg-pink-100/70 font-medium'
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* User Profile */}
+        <div className="px-4 py-4 border-t border-pink-200/70 bg-pink-100/40">
+
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-pink-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              {user?.name?.[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+              <p className="text-xs text-pink-800/80 truncate capitalize font-medium">{user?.role?.replace('_', ' ')}</p>
+            </div>
+          </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 text-xs text-gray-600 hover:text-red-600 transition-colors w-full font-medium cursor-pointer"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Logout
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

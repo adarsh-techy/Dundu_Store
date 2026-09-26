@@ -5,7 +5,7 @@ import useAuthStore from '../../../store/auth.store';
 import toast from 'react-hot-toast';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import loginImage from '../../../assets/loginimage.png';
-import dunduLogo from '../../../assets/dundulogo.png';
+import dunduLogo from '../../../assets/logo.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -57,21 +57,43 @@ export default function Login() {
           
           {/* Brand Header */}
           <div className="text-center pb-2">
-            <div className="flex flex-col items-center justify-center space-y-2.5 mx-auto">
+            <div className="flex flex-col items-center justify-center mx-auto">
               <img
                 src={dunduLogo}
-                alt="Dundu Fashion"
-                className="h-14 sm:h-16 w-auto object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                alt="Dundu Store"
+                className="h-14 sm:h-16 w-auto max-w-[220px] object-contain drop-shadow-sm transition-transform hover:scale-105 duration-300"
               />
-              <span className="text-xl sm:text-2xl font-black tracking-[0.18em] uppercase bg-gradient-to-r from-pink-600 via-rose-500 to-fuchsia-600 bg-clip-text text-transparent drop-shadow-xs">
-                DUNDU FASHION
-              </span>
+              <p className="text-xs font-semibold text-slate-500 mt-2">
+                Administrator Control Center
+              </p>
             </div>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Quick Prefill Super Admin Button */}
+            <div className="bg-pink-50/80 border border-pink-200/80 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse shrink-0" />
+                  <p className="text-xs font-bold text-slate-900 truncate">Super Admin Access</p>
+                </div>
+                <p className="text-[11px] text-slate-500 font-mono truncate mt-0.5">superadmin@gmail.com</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('superadmin@gmail.com');
+                  setPassword('123456');
+                  toast.success('Super Admin credentials filled');
+                }}
+                className="shrink-0 bg-pink-600 hover:bg-pink-700 active:bg-pink-800 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer flex items-center gap-1"
+              >
+                <span>Prefill</span>
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             {/* Email Field */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 block">

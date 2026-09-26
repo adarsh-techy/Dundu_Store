@@ -1,9 +1,13 @@
 const env = require('../../config/env');
 
 let twilioClient = null;
-if (env.twilio.accountSid && env.twilio.authToken) {
-  const twilio = require('twilio');
-  twilioClient = twilio(env.twilio.accountSid, env.twilio.authToken);
+if (env.twilio.accountSid && env.twilio.accountSid.startsWith('AC') && env.twilio.authToken) {
+  try {
+    const twilio = require('twilio');
+    twilioClient = twilio(env.twilio.accountSid, env.twilio.authToken);
+  } catch (err) {
+    console.warn('⚠️ Twilio initialization failed, using mock mode:', err.message);
+  }
 }
 
 const sendWhatsApp = async (to, body) => {
@@ -13,7 +17,7 @@ const sendWhatsApp = async (to, body) => {
   }
   const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to.startsWith('+') ? to : '+91' + to}`;
   return twilioClient.messages.create({
-    from: env.twilio.fromNumber.startsWith('whatsapp:') ? env.twilio.fromNumber : `whatsapp:${env.twilio.fromNumber}`,
+    from: env.twilio.whatsappFrom.startsWith('whatsapp:') ? env.twilio.whatsappFrom : `whatsapp:${env.twilio.whatsappFrom}`,
     to: formattedTo,
     body,
   });

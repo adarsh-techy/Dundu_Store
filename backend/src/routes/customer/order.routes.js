@@ -11,6 +11,7 @@ router.post('/verify-payment', ah(ctrl.verifyPayment));
 router.get('/', ah(ctrl.listOrders));
 router.get('/:id', ah(ctrl.getOrder));
 router.post('/:id/cancel', ah(ctrl.cancelOrder));
+router.post('/:id/pay', ah(ctrl.retryPayment));
 router.post('/:id/return', ah(ctrl.returnRequest));
 
 module.exports = router;
