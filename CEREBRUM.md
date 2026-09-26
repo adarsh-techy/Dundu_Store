@@ -166,6 +166,12 @@ Restart the backend after editing anything under `backend/` if it was started wi
 
 ---
 
+## 6.1 Hosting (developer/staging)
+- **Backend + Postgres → Render** via `render.yaml` at the repo root (Dashboard → New + → Blueprint → this repo → Apply). DB URL and JWT secret are auto-generated; add Cloudinary/Razorpay/Twilio/Google keys in the service's Environment tab. Free plan sleeps after 15 min idle. Cloudinary is required because Render's disk is wiped per deploy.
+- **web/ and admin/ → Vercel** as two projects (root dirs `web`, `admin`, framework Vite). Set `VITE_API_BASE_URL=https://dundu-api.onrender.com`; web also needs `VITE_RAZORPAY_KEY_ID`, `VITE_SUPPORT_WHATSAPP`. Then set `WEB_CLIENT_URL`/`ADMIN_CLIENT_URL` on Render to the Vercel URLs (CORS).
+- **mobile/ → Expo** (Expo Go for devs, EAS Build/Update for testers) with `EXPO_PUBLIC_API_URL`.
+- First super admin: open the admin panel's `/register` page once (locks after the first admin exists).
+
 ## 7. How to test
 
 **Backend smoke test (manual recipe, ~30 checks)** — the script used on 2026-09-27 lives outside the repo; recreate quickly:
