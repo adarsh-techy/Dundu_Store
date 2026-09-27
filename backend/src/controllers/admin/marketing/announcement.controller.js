@@ -12,7 +12,7 @@ const create = async (req, res) => {
   if (!text) return badRequest(res, 'text is required');
   const { rows } = await db.query(
     'INSERT INTO announcements (text, bg_color, text_color, sort_order, scheduled_time) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-    [text, bg_color, text_color, sort_order, scheduled_time || null]
+    [text, bg_color, text_color, parseInt(sort_order, 10) || 0, scheduled_time || null]
   );
   created(res, { announcement: rows[0] });
 };
@@ -21,7 +21,7 @@ const update = async (req, res) => {
   const { text, bg_color, text_color, sort_order, scheduled_time } = req.body;
   const { rows } = await db.query(
     'UPDATE announcements SET text=$1, bg_color=$2, text_color=$3, sort_order=$4, scheduled_time=$5 WHERE id=$6 RETURNING *',
-    [text, bg_color, text_color, sort_order, scheduled_time || null, req.params.id]
+    [text, bg_color, text_color, parseInt(sort_order, 10) || 0, scheduled_time || null, req.params.id]
   );
   ok(res, { announcement: rows[0] });
 };

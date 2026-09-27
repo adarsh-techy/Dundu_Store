@@ -113,6 +113,7 @@ export default function OrderList() {
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const tableContainerRef = useRef(null);
   const loadMoreRef = useRef(null);
   const limit = 20;
 
@@ -190,19 +191,39 @@ export default function OrderList() {
     }
   };
 
-  /* ── Lazy-load next page on scroll ── */
+  /* ── Reset table scroll to top whenever filters or search change ── */
+  useEffect(() => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = 0;
+    }
+  }, [status, category, date, debouncedSearch]);
+
+  /* ── Lazy-load next page on inside scroll ── */
   useEffect(() => {
     const el = loadMoreRef.current;
+    const container = tableContainerRef.current;
     if (!el || !hasNextPage) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isFetchingNextPage) fetchNextPage();
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
       },
-      { rootMargin: '250px' }
+      { root: container, rootMargin: '250px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, orders.length]);
+
+  /* ── Dual trigger on inside scroll for fast flings & trackpad ── */
+  const handleTableScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 300) {
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }
+  };
 
   return (
     <div className="w-full space-y-6 pb-16">
@@ -364,27 +385,59 @@ export default function OrderList() {
         </div>
       </div>
 
-      {/* ── 4. Full-Width Orders Table ───────────────────────────────────── */}
+      {/* ── 4. Full-Width Orders Table with Inside Scroll & Lazy Loading ───────────────────────────────────── */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <div className="flex flex-col items-center justify-center py-24 gap-3 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
           <Spinner />
           <p className="text-xs font-semibold text-slate-500">Loading orders ledger...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="px-5 py-3.5 w-12 text-slate-400">#</th>
-                  <th className="px-5 py-3.5">Order Number</th>
-                  <th className="px-5 py-3.5">Customer</th>
-                  <th className="px-5 py-3.5">Placed At</th>
-                  <th className="px-5 py-3.5">Items Summary</th>
-                  <th className="px-5 py-3.5 text-center">Payment</th>
-                  <th className="px-5 py-3.5 text-center">Fulfillment</th>
-                  <th className="px-5 py-3.5 text-right">Total</th>
-                  <th className="px-5 py-3.5 text-right w-20">Actions</th>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
+          {/* Table Header Status Bar */}
+          <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-200/70 flex items-center justify-between flex-wrap gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                <ShoppingBag className="h-4 w-4 text-slate-700" />
+                Orders & Fulfillment Ledger
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-slate-600 font-medium">
+                Showing <strong className="text-slate-900 font-bold">{orders.length}</strong> of <strong className="text-slate-900 font-bold">{total}</strong> orders
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {isFetchingNextPage && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 animate-pulse">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Lazy loading more...
+                </span>
+              )}
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline-block">
+                Scroll inside table to lazy load
+              </span>
+            </div>
+          </div>
+
+          {/* Scrollable Table Viewport with Sticky Header */}
+          <div
+            ref={tableContainerRef}
+            onScroll={handleTableScroll}
+            className="overflow-x-auto overflow-y-auto relative custom-table-scrollbar"
+            style={{ maxHeight: 'calc(100vh - 340px)', minHeight: '400px' }}
+          >
+            <table className="w-full text-xs text-left border-collapse">
+              <thead className="sticky top-0 z-20 border-b border-slate-200/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider shadow-2xs">
+                <tr>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 w-12 text-slate-400 bg-slate-50/95 backdrop-blur-xs">#</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Order Number</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Customer</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Placed At</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Items Summary</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-center">Payment</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-center">Fulfillment</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-right">Total</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-right w-20">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -444,6 +497,11 @@ export default function OrderList() {
                                     key={i}
                                     src={item.product_image}
                                     alt={item.product_name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
                                     className="w-8 h-9 object-cover rounded-lg border-2 border-white bg-slate-100 shadow-sm"
                                   />
                                 ) : (
@@ -528,23 +586,41 @@ export default function OrderList() {
                     );
                   })
                 )}
+
+                {/* ── Inside Table Lazy-Load Trigger Sentinel ── */}
+                {hasNextPage && (
+                  <tr ref={loadMoreRef}>
+                    <td colSpan={9} className="py-6 text-center bg-slate-50/40">
+                      <div className="inline-flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                        <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
+                        <span>Loading next batch of orders...</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {/* ── Lazy-load Sentinel ── */}
-      {hasNextPage && (
-        <div ref={loadMoreRef} className="flex items-center justify-center py-6">
-          {isFetchingNextPage && (
-            <span className="text-xs text-slate-400 font-semibold">Loading more orders...</span>
-          )}
-        </div>
-      )}
-      {!hasNextPage && orders.length > 0 && (
-        <div className="text-center py-4 text-xs text-slate-400 font-medium">
-          Showing all {orders.length} of {total} orders
+          {/* Table Footer Status Strip */}
+          <div className="px-5 py-3 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              {orders.length === total && total > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  All {total} orders loaded
+                </span>
+              ) : (
+                <span>
+                  Showing <strong className="text-slate-800">{orders.length}</strong> of <strong className="text-slate-800">{total}</strong> orders
+                  {total > orders.length && ` • ${total - orders.length} remaining`}
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Inside table scroll active
+            </span>
+          </div>
         </div>
       )}
 

@@ -28,7 +28,11 @@ router.use('/admin',      require('./admin/index'));
 // Public announcements + popup interval
 router.get('/announcements', ah(async (_req, res) => {
   const [annRes, settingRes] = await Promise.all([
-    db.query('SELECT id, text, bg_color, text_color, show_popup FROM announcements WHERE is_active=true ORDER BY sort_order, id'),
+    // scheduled_time (HH:MM, store local time) hides an announcement until that time each day.
+    db.query(`SELECT id, text, bg_color, text_color, show_popup, scheduled_time FROM announcements
+              WHERE is_active=true AND deleted_at IS NULL
+                AND (scheduled_time IS NULL OR scheduled_time = '' OR scheduled_time <= to_char(now() AT TIME ZONE 'Asia/Kolkata', 'HH24:MI'))
+              ORDER BY sort_order, id`),
     db.query("SELECT value FROM settings WHERE key='popup_interval_minutes'").catch(() => ({ rows: [] })),
   ]);
   const popup_interval_minutes = settingRes.rows.length ? parseInt(settingRes.rows[0].value, 10) : 10;

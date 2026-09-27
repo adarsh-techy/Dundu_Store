@@ -19,6 +19,7 @@ export default function ProductList() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [quickFilter, setQuickFilter] = useState('all'); // 'all' | 'in_stock' | 'restock' | 'promoted'
+  const tableContainerRef = useRef(null);
   const loadMoreRef = useRef(null);
   const limit = 20;
 
@@ -37,6 +38,7 @@ export default function ProductList() {
       category: activeCategory || undefined,
       stock_status: quickFilter === 'in_stock' ? 'in_stock' : quickFilter === 'restock' ? 'restock' : undefined,
       featured: quickFilter === 'promoted' ? 'true' : undefined,
+      show_hidden: 'true',
       page: pageParam,
       limit,
     }),
@@ -64,19 +66,39 @@ export default function ProductList() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['admin-products'] });
 
-  /* ── Lazy-load next page as sentinel scrolls into view ── */
+  /* ── Reset table scroll to top whenever search or filters change ── */
+  useEffect(() => {
+    if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = 0;
+    }
+  }, [search, activeCategory, quickFilter]);
+
+  /* ── Lazy-load next page as sentinel row scrolls into view inside table ── */
   useEffect(() => {
     const el = loadMoreRef.current;
+    const container = tableContainerRef.current;
     if (!el || !hasNextPage) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !isFetchingNextPage) fetchNextPage();
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
       },
-      { rootMargin: '200px' }
+      { root: container, rootMargin: '250px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, products.length]);
+
+  /* ── Dual trigger on inside scroll for fast scrolling & flings ── */
+  const handleTableScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 300) {
+      if (hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    }
+  };
 
   const toggle = async (action, id, label) => {
     try {
@@ -87,19 +109,12 @@ export default function ProductList() {
   };
 
   const remove = async (id) => {
-    if (!confirm('Delete this product? If it has order history it will be hidden instead.')) return;
+    if (!confirm('Move this product to Trash? It disappears from the store and can be restored from System → Trash within 30 days.')) return;
     try {
-      const res = await productApi.remove(id);
+      await productApi.remove(id);
       invalidate();
-      if (res.data?.soft_deleted) {
-        toast('Product hidden — it has past order history and cannot be deleted permanently.', {
-          icon: '⚠️', duration: 4000,
-          style: { background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' },
-        });
-      } else {
-        toast.success('Product permanently deleted');
-      }
-    } catch { toast.error('Failed to delete product'); }
+      toast.success('Product moved to Trash');
+    } catch (err) { toast.error(err?.message || 'Failed to delete product'); }
   };
 
   return (
@@ -376,195 +391,264 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* ── 3. Full-Width Products Ledger Table ─────────────────────────── */}
+      {/* ── 4. Full-Width Products Ledger Table with Inside Scroll & Lazy Loading ─────────────────────────── */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <div className="flex flex-col items-center justify-center py-20 gap-3 bg-white rounded-2xl border border-slate-200/80 shadow-sm">
           <Spinner />
           <p className="text-xs font-semibold text-slate-500">Loading catalog products...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Product</th>
-                  <th className="px-5 py-3.5">Department</th>
-                  <th className="px-5 py-3.5 text-right">Price</th>
-                  <th className="px-5 py-3.5 text-center">Stock</th>
-                  <th className="px-5 py-3.5 text-center">Status & Badges</th>
-                  <th className="px-5 py-3.5 text-right">Actions</th>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col">
+          {/* Table Header Status Bar */}
+          <div className="px-5 py-3 bg-slate-50/70 border-b border-slate-200/70 flex items-center justify-between flex-wrap gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+                <Package className="h-4 w-4 text-slate-700" />
+                Product Catalog Ledger
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-slate-600 font-medium">
+                Showing <strong className="text-slate-900 font-bold">{products.length}</strong> of <strong className="text-slate-900 font-bold">{total}</strong> products
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {isFetchingNextPage && (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 animate-pulse">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  Lazy loading more...
+                </span>
+              )}
+              <span className="text-[11px] text-slate-400 font-medium hidden sm:inline-block">
+                Scroll inside table to lazy load
+              </span>
+            </div>
+          </div>
+
+          {/* Scrollable Table Viewport with Sticky Header */}
+          <div
+            ref={tableContainerRef}
+            onScroll={handleTableScroll}
+            className="overflow-x-auto overflow-y-auto relative custom-table-scrollbar"
+            style={{ maxHeight: 'calc(100vh - 340px)', minHeight: '400px' }}
+          >
+            <table className="w-full text-sm text-left border-collapse">
+              <thead className="sticky top-0 z-20 border-b border-slate-200/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider shadow-2xs">
+                <tr>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Product</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs">Department</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-right">Price</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-center">Stock</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-center">Status & Badges</th>
+                  <th className="sticky top-0 z-20 px-5 py-3.5 bg-slate-50/95 backdrop-blur-xs text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {products.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-16 text-slate-400 text-xs">
+                    <td colSpan={6} className="text-center py-20 text-slate-400 text-xs">
                       <Package className="h-10 w-10 text-slate-300 mx-auto mb-2" />
                       No products matching the selected criteria
                     </td>
                   </tr>
-                ) : products.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-5 py-3.5">
-                      <button
-                        onClick={() => navigate(`/products/${p.id}`)}
-                        className="flex items-center gap-3 text-left w-full hover:opacity-85 transition-opacity cursor-pointer"
-                      >
-                        <div className="w-10 h-12 rounded-xl bg-slate-100 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center">
-                          {p.primary_image ? (
-                            <img src={p.primary_image} alt={p.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-slate-400" />
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 line-clamp-1 group-hover:text-emerald-700 transition-colors text-xs">
-                            {p.name}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {p.product_code && (
-                              <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                {p.product_code}
-                              </span>
-                            )}
-                            {p.sku && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {p.sku}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
-                      {p.category_name || 'General'}
-                    </td>
-
-                    <td className="px-5 py-3.5 text-right">
-                      <p className="font-extrabold text-slate-900 text-xs">
-                        {formatPrice(p.offer_price || p.price)}
-                      </p>
-                      {p.offer_price && (
-                        <p className="text-[10px] text-slate-400 line-through">
-                          {formatPrice(p.price)}
-                        </p>
-                      )}
-                    </td>
-
-                    <td className="px-5 py-3.5 text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                        p.stock === 0
-                          ? 'bg-rose-50 text-rose-700 border-rose-200'
-                          : p.stock < 10
-                          ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          p.stock === 0 ? 'bg-rose-500' : p.stock < 10 ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`} />
-                        {p.stock} units
-                      </span>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-center">
-                      <div className="flex gap-1 justify-center flex-wrap">
-                        {p.is_hidden && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                            Hidden
-                          </span>
-                        )}
-                        {p.is_featured && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            Trending
-                          </span>
-                        )}
-                        {p.is_offer_product && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                            Offer
-                          </span>
-                        )}
-                        {p.is_new_arrival && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
-                            New
-                          </span>
-                        )}
-                        {!p.is_hidden && !p.is_featured && !p.is_offer_product && !p.is_new_arrival && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Active
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                ) : (
+                  products.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-5 py-3.5">
                         <button
                           onClick={() => navigate(`/products/${p.id}`)}
-                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
-                          title="View Product Details"
+                          className="flex items-center gap-3 text-left w-full hover:opacity-85 transition-opacity cursor-pointer"
                         >
-                          <BarChart2 className="h-4 w-4" />
+                          <div className="w-10 h-12 rounded-xl bg-slate-100 border border-slate-200/80 overflow-hidden shrink-0 flex items-center justify-center relative">
+                            {p.primary_image ? (
+                              <img
+                                src={p.primary_image}
+                                alt={p.name}
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const fallback = e.currentTarget.parentElement?.querySelector('.product-img-fallback');
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : null}
+                            <div
+                              className="product-img-fallback w-full h-full flex items-center justify-center bg-slate-100 text-slate-400"
+                              style={{ display: p.primary_image ? 'none' : 'flex' }}
+                            >
+                              <Package className="h-5 w-5 text-slate-400" />
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 line-clamp-1 group-hover:text-emerald-700 transition-colors text-xs">
+                              {p.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {p.product_code && (
+                                <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  {p.product_code}
+                                </span>
+                              )}
+                              {p.sku && (
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {p.sku}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </button>
-                        <button
-                          onClick={() => navigate(`/products/${p.id}/edit`)}
-                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
-                          title="Edit Product"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => toggle(productApi.toggleHidden, p.id, p.is_hidden ? 'shown' : 'hidden')}
-                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
-                          title={p.is_hidden ? 'Make Visible' : 'Hide from Store'}
-                        >
-                          {p.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => toggle(productApi.toggleFeatured, p.id, p.is_featured ? 'unfeatured' : 'featured')}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            p.is_featured ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'
-                          }`}
-                          title="Toggle Trending"
-                        >
-                          <Star className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => toggle(productApi.toggleOffer, p.id, p.is_offer_product ? 'removed from offers' : 'marked as offer')}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            p.is_offer_product ? 'text-rose-500 hover:bg-rose-50' : 'text-slate-400 hover:bg-slate-100'
-                          }`}
-                          title="Toggle Special Offer"
-                        >
-                          <Tag className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => remove(p.id)}
-                          className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-500 transition-colors"
-                          title="Delete Product"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                        {p.category_name || 'General'}
+                      </td>
+
+                      <td className="px-5 py-3.5 text-right">
+                        <p className="font-extrabold text-slate-900 text-xs">
+                          {formatPrice(p.offer_price || p.price)}
+                        </p>
+                        {p.offer_price && (
+                          <p className="text-[10px] text-slate-400 line-through">
+                            {formatPrice(p.price)}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          p.stock === 0
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : p.stock < 10
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            p.stock === 0 ? 'bg-rose-500' : p.stock < 10 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} />
+                          {p.stock} units
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <div className="flex gap-1 justify-center flex-wrap">
+                          {p.is_hidden && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                              Hidden
+                            </span>
+                          )}
+                          {p.is_featured && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                              Trending
+                            </span>
+                          )}
+                          {p.is_offer_product && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                              Offer
+                            </span>
+                          )}
+                          {p.is_new_arrival && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                              New
+                            </span>
+                          )}
+                          {!p.is_hidden && !p.is_featured && !p.is_offer_product && !p.is_new_arrival && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => navigate(`/products/${p.id}`)}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
+                            title="View Product Details"
+                          >
+                            <BarChart2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/products/${p.id}/edit`)}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
+                            title="Edit Product"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => toggle(productApi.toggleHidden, p.id, p.is_hidden ? 'shown' : 'hidden')}
+                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
+                            title={p.is_hidden ? 'Make Visible' : 'Hide from Store'}
+                          >
+                            {p.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          </button>
+                          <button
+                            onClick={() => toggle(productApi.toggleFeatured, p.id, p.is_featured ? 'unfeatured' : 'featured')}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              p.is_featured ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title="Toggle Trending"
+                          >
+                            <Star className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => toggle(productApi.toggleOffer, p.id, p.is_offer_product ? 'removed from offers' : 'marked as offer')}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              p.is_offer_product ? 'text-rose-500 hover:bg-rose-50' : 'text-slate-400 hover:bg-slate-100'
+                            }`}
+                            title="Toggle Special Offer"
+                          >
+                            <Tag className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => remove(p.id)}
+                            className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-500 transition-colors"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+
+                {/* ── Inside Table Lazy-Load Trigger Sentinel ── */}
+                {hasNextPage && (
+                  <tr ref={loadMoreRef}>
+                    <td colSpan={6} className="py-6 text-center bg-slate-50/40">
+                      <div className="inline-flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+                        <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
+                        <span>Loading next batch of products...</span>
                       </div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {/* ── Lazy-load Sentinel ── */}
-      {hasNextPage && (
-        <div ref={loadMoreRef} className="flex items-center justify-center py-6">
-          {isFetchingNextPage && <span className="text-xs text-slate-400 font-semibold">Loading more products...</span>}
-        </div>
-      )}
-      {!hasNextPage && products.length > 0 && (
-        <div className="text-center py-4 text-xs text-slate-400 font-medium">
-          Showing all {products.length} of {total} products
+          {/* Table Footer Status Strip */}
+          <div className="px-5 py-3 bg-slate-50/90 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              {products.length === total && total > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  All {total} catalog products loaded
+                </span>
+              ) : (
+                <span>
+                  Showing <strong className="text-slate-800">{products.length}</strong> of <strong className="text-slate-800">{total}</strong> products
+                  {total > products.length && ` • ${total - products.length} remaining`}
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Inside table scroll active
+            </span>
+          </div>
         </div>
       )}
     </div>

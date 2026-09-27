@@ -113,7 +113,7 @@ function ReviewModal({ onClose, onSave, products, editing }) {
       await onSave(fd);
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save review');
+      toast.error(err?.message || 'Failed to save review');
     } finally {
       setLoading(false);
     }
@@ -423,7 +423,7 @@ export default function Reviews() {
       invalidate();
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || 'Failed to delete review');
+      toast.error(err?.message || 'Failed to delete review');
     },
   });
 

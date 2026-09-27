@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { userApi, orderApi, couponApi, settingsApi, walletApi } from '../../../api/index';
+import { userApi, orderApi, couponApi, settingsApi, walletApi, loyaltyApi } from '../../../api/index';
 import AppHeader from '../../../components/ui/AppHeader';
 import PhoneInput from '../../../components/ui/PhoneInput';
 import useCartStore from '../../../store/cart.store';
@@ -31,6 +31,13 @@ import { formatPrice } from '../../../utils/format';
 import useLoginPromptStore from '../../../store/loginPrompt.store';
 import useFreeShippingStore from '../../../store/freeShipping.store';
 
+const ONLINE_METHODS = ['ONLINE', 'UPI', 'CARD'];
+const round2 = (n) => Math.round(Number(n) * 100) / 100;
+const toNum = (v, fallback = 0) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
 const ALL_PAYMENT_METHODS = [
   { label: 'Cash on Delivery', value: 'COD' },
   { label: 'Online', value: 'ONLINE' },
@@ -44,7 +51,7 @@ export default function CheckoutScreen() {
   const route = useRoute();
   const buyNow = route.params?.buyNow || null; // single-product direct buy
 
-  const { items: cartItems, total: cartTotal, clearCart } = useCartStore();
+  const { items: cartItems, total: cartTotal, clearCart, resetCart } = useCartStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authUser = useAuthStore((s) => s.user);
   const showPrompt = useLoginPromptStore((s) => s.show);
@@ -73,70 +80,63 @@ export default function CheckoutScreen() {
   const [deliveryEstimateText, setDeliveryEstimateText] = useState('');
   const [spinReward, setSpinReward] = useState(null);
   const [scratchReward, setScratchReward] = useState(null);
-  const [firstPurchaseOffer, setFirstPurchaseOffer] = useState(null);
   const [hasPromptedFreeShippingOnCheckout, setHasPromptedFreeShippingOnCheckout] = useState(false);
   const openFreeShippingModal = useFreeShippingStore((s) => s.openModal);
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
+  // Mirrors GET /settings/payment → wallet{...}
+  const [walletSettings, setWalletSettings] = useState({
+    enabled: true, min_order_amount: 0, max_usage_percent: 100, max_discount_cap: 0,
+  });
+  const [loyaltyRedeemPoints, setLoyaltyRedeemPoints] = useState(200);
+  const [loyaltyRedeemDiscount, setLoyaltyRedeemDiscount] = useState(200);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [useLoyalty, setUseLoyalty] = useState(false);
+  const autoAppliedRewardRef = useRef('');
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    walletApi.get().then((res) => setWalletBalance((res?.data || res)?.wallet?.balance || 0)).catch(() => {});
+    walletApi.get().then((res) => setWalletBalance(toNum((res?.data || res)?.wallet?.balance))).catch(() => {});
+    loyaltyApi.myCard().then((res) => setLoyaltyPoints(toNum((res?.card || res?.data?.card)?.points))).catch(() => {});
 
-    // Check Spin Wheel Reward
+    // Active Spin Wheel / Scratch Card rewards. Coupon-type prizes are auto-applied below;
+    // free_shipping prizes are applied by the server when the order is placed.
     authHeaders().then((headers) => fetch(`${API_URL}/spin-wheel/active-reward`, { headers }))
       .then((r) => r.json())
       .then((data) => {
-        if (data?.success && data?.data?.active_reward) {
-          const reward = data.data.active_reward;
-          setSpinReward(reward);
-          if (reward.prize_type === 'coupon' && reward.coupon_code) {
-            setCouponCode(reward.coupon_code);
-            couponApi.validate(reward.coupon_code, total).then((res) => {
-              setCouponData(res.coupon || res);
-            }).catch(() => {});
-          }
-        }
+        if (data?.success && data?.data?.active_reward) setSpinReward(data.data.active_reward);
       })
       .catch(() => {});
 
-    // Check Scratch Card Reward
     authHeaders().then((headers) => fetch(`${API_URL}/scratch-card/active-reward`, { headers }))
       .then((r) => r.json())
       .then((data) => {
-        if (data?.success && data?.data?.active_reward) {
-          const reward = data.data.active_reward;
-          setScratchReward(reward);
-          if (reward.prize_type === 'coupon' && reward.coupon_code) {
-            setCouponCode(reward.coupon_code);
-            couponApi.validate(reward.coupon_code, total).then((res) => {
-              setCouponData(res.coupon || res);
-            }).catch(() => {});
-          }
-        }
-      })
-      .catch(() => {});
-
-    // Check 1st Purchase Offer
-    fetch(`${API_URL}/first-purchase/config`)
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && res?.data?.enabled) {
-          const cfg = res.data;
-          orderApi.list({ limit: 1 }).then((ordersRes) => {
-            const orders = ordersRes.orders || ordersRes.data?.orders || ordersRes || [];
-            const pastOrderCount = Array.isArray(orders) ? orders.length : 0;
-            if (pastOrderCount === 0) {
-              setFirstPurchaseOffer({ ...cfg, isFirstOrder: true });
-            }
-          }).catch(() => {
-            // Fallback for new user
-            setFirstPurchaseOffer({ ...cfg, isFirstOrder: true });
-          });
-        }
+        if (data?.success && data?.data?.active_reward) setScratchReward(data.data.active_reward);
       })
       .catch(() => {});
   }, [isAuthenticated, authUser]);
+
+  // A won reward with a coupon code (any prize type except free_shipping) is auto-applied,
+  // validated against the current subtotal.
+  const autoRewardCode = [scratchReward, spinReward]
+    .find((r) => r?.coupon_code && r.prize_type !== 'free_shipping')?.coupon_code || null;
+
+  useEffect(() => {
+    if (!autoRewardCode || !(total > 0)) return;
+    const key = `${autoRewardCode}:${total}`;
+    if (autoAppliedRewardRef.current === key) return;
+    autoAppliedRewardRef.current = key;
+    setCouponCode(autoRewardCode);
+    couponApi.validate(autoRewardCode, total)
+      .then((res) => {
+        setCouponData(res?.coupon || res);
+        setCouponError('');
+      })
+      .catch((err) => {
+        setCouponData(null);
+        setCouponError(err?.message || 'Your reward coupon could not be applied.');
+      });
+  }, [autoRewardCode, total]);
 
   // New address form
   const [newAddress, setNewAddress] = useState({
@@ -168,6 +168,17 @@ export default function CheckoutScreen() {
         if (d?.coupon_field_enabled !== undefined) setCouponFieldEnabled(d.coupon_field_enabled !== false);
         if (d?.birthday_discount) setBirthdayDiscountPct(d.birthday_discount);
         if (d?.delivery_estimate_text) setDeliveryEstimateText(d.delivery_estimate_text);
+        if (d?.loyalty_redeem_points !== undefined) setLoyaltyRedeemPoints(toNum(d.loyalty_redeem_points, 200));
+        if (d?.loyalty_redeem_discount !== undefined) setLoyaltyRedeemDiscount(toNum(d.loyalty_redeem_discount, 200));
+        if (d?.wallet) {
+          setWalletSettings({
+            enabled: d.wallet.enabled !== false,
+            min_order_amount: toNum(d.wallet.min_order_amount, 0),
+            max_usage_percent: toNum(d.wallet.max_usage_percent, 100),
+            max_discount_cap: toNum(d.wallet.max_discount_cap, 0),
+          });
+          if (d.wallet.enabled === false) setUseWallet(false);
+        }
       })
       .catch(() => { });
   }, [isAuthenticated]);
@@ -183,7 +194,7 @@ export default function CheckoutScreen() {
         setSelectedAddress(defaultAddr);
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to load addresses.');
+      Alert.alert('Error', err?.message || 'Failed to load addresses.');
     } finally {
       setLoading(false);
     }
@@ -226,7 +237,7 @@ export default function CheckoutScreen() {
       setShowAddAddress(false);
       setNewAddress({ name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '' });
     } catch (err) {
-      Alert.alert('Error', 'Failed to add address.');
+      Alert.alert('Error', err?.message || 'Failed to add address.');
     }
   }
 
@@ -239,7 +250,7 @@ export default function CheckoutScreen() {
       Alert.alert('Empty Cart', 'Your cart is empty.');
       return;
     }
-    if (total > 0 && total < freeDeliveryThreshold && !hasPromptedFreeShippingOnCheckout) {
+    if (total > 0 && shipping > 0 && !hasPromptedFreeShippingOnCheckout) {
       setHasPromptedFreeShippingOnCheckout(true);
       openFreeShippingModal(total);
       return;
@@ -254,33 +265,62 @@ export default function CheckoutScreen() {
     try {
       const orderData = {
         address_id: selectedAddress.id,
-        payment_method: paymentMethod,
-        coupon_code: couponData ? couponCode : undefined,
-        use_wallet: useWallet,
+        payment_method: String(paymentMethod || '').toLowerCase(),
+        coupon_code: couponData ? couponCode.trim() : undefined,
+        use_loyalty_points: useLoyalty && loyaltyAvailable,
+        use_wallet: walletSettings.enabled && useWallet,
         ...(buyNow ? { buy_now_item: { product_id: buyNow.product_id, variant_id: buyNow.variant_id ?? null, quantity: buyNow.quantity || 1 } } : {}),
       };
 
       const res = await orderApi.place(orderData);
-      const order = res.order || res;
-      const razorpayOrder = res.razorpay;
-      const walletInfo = res.wallet || {};
+      const order = res?.order || res;
+      const razorpayOrder = res?.razorpay || null;
+      const walletInfo = res?.wallet || {};
 
-      const isOnline = ['ONLINE', 'UPI', 'CARD'].includes((paymentMethod || '').toUpperCase());
+      // The server is the source of truth for money — use its numbers from here on.
+      const serverTotal = toNum(order?.total, finalTotal);
+      const serverPayable = walletInfo.payable_amount !== undefined && walletInfo.payable_amount !== null
+        ? toNum(walletInfo.payable_amount, payableTotal)
+        : Math.max(0, round2(serverTotal - toNum(order?.wallet_amount)));
 
-      if (isOnline && razorpayOrder) {
-        if (!buyNow) await clearCart();
-        navigation.replace('Payment', {
-          order,
-          razorpayOrder,
-          user: authUser
-        });
-      } else if (isOnline && walletInfo.payable_amount > 0) {
-        // Online was selected but the wallet doesn't cover it all and Razorpay init failed
-        Alert.alert('Payment Initialization Failed', 'Could not create online payment transaction. Please select Cash on Delivery.');
+      // The order is placed at this point: a failed cart clear must not surface as an order failure.
+      if (!buyNow) {
+        try {
+          await clearCart();
+        } catch (_) {
+          resetCart();
+        }
+      }
+
+      const isOnline = ONLINE_METHODS.includes(String(paymentMethod || '').toUpperCase());
+      const proceed = () => {
+        if (isOnline && razorpayOrder) {
+          navigation.replace('Payment', { order, razorpayOrder, user: authUser });
+        } else if (isOnline && serverPayable > 0) {
+          // Payment could not be started — the order is pending; the user can retry from order details.
+          Alert.alert('Payment Not Started', 'Your order was created but the online payment could not be started. You can pay from the order details.');
+          navigation.replace('OrderDetail', { orderId: order.id });
+        } else {
+          // COD, or the wallet covered the full payable amount
+          navigation.replace('OrderSuccess', { orderId: order.id, orderNumber: order.order_number || order.id });
+        }
+      };
+
+      const differs = Math.abs(serverTotal - finalTotal) >= 0.01 || Math.abs(serverPayable - payableTotal) >= 0.01;
+      if (differs) {
+        const lines = [
+          `Order total: ${formatPrice(serverTotal)}`,
+          toNum(order?.discount) > 0 ? `Discount: -${formatPrice(toNum(order.discount))}` : null,
+          toNum(order?.loyalty_discount) > 0 ? `Loyalty discount: -${formatPrice(toNum(order.loyalty_discount))}` : null,
+          `Shipping: ${toNum(order?.delivery_charge) > 0 ? formatPrice(toNum(order.delivery_charge)) : 'FREE'}`,
+          toNum(walletInfo.amount_used) > 0 ? `Paid from wallet: -${formatPrice(toNum(walletInfo.amount_used))}` : null,
+          `Amount payable: ${formatPrice(serverPayable)}`,
+        ].filter(Boolean).join('\n');
+        Alert.alert('Final Order Summary', `Your order was placed with these final amounts:\n\n${lines}`, [
+          { text: 'Continue', onPress: proceed },
+        ], { cancelable: false });
       } else {
-        // COD, or the wallet covered the full payable amount (nothing left to charge online)
-        if (!buyNow) await clearCart();
-        navigation.replace('OrderSuccess', { orderId: order.id, orderNumber: order.order_number || order.id });
+        proceed();
       }
     } catch (err) {
       Alert.alert('Order Failed', err?.message || 'Failed to place order. Please try again.');
@@ -289,49 +329,62 @@ export default function CheckoutScreen() {
     }
   }
 
+  // ── Money math — mirrors placeOrder on the server ─────────────────────────────
+  // Exactly ONE best discount among coupon / birthday / loyalty (referral is server-only).
+  const subtotal = round2(total);
+
+  const couponDiscountAmt = (() => {
+    if (!couponData) return 0;
+    if (couponData.min_order_value && subtotal < toNum(couponData.min_order_value)) return 0;
+    const value = toNum(couponData.discount_value);
+    let d = couponData.discount_type === 'percentage'
+      ? Math.min((subtotal * value) / 100, couponData.max_discount ? toNum(couponData.max_discount) : Infinity)
+      : value;
+    d = Math.min(Math.max(0, d), subtotal);
+    return round2(d);
+  })();
+
+  // Birthday: DOB is today, DOB was set ≥30 days ago. (The "not used this year" check is server-side.)
   const isBirthday = (() => {
     if (!birthdayDiscountPct || !authUser?.date_of_birth) return false;
     const dob = new Date(authUser.date_of_birth);
     const now = new Date();
-    return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate();
+    const setAt = authUser.date_of_birth_set_at ? new Date(authUser.date_of_birth_set_at) : null;
+    const settled = !setAt || (now - setAt) >= 30 * 24 * 60 * 60 * 1000;
+    return settled && dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate();
   })();
+  const birthdayDiscountAmt = isBirthday ? round2(Math.min(subtotal, (subtotal * birthdayDiscountPct) / 100)) : 0;
 
-  const firstOrderDiscountAmt = (() => {
-    if (!firstPurchaseOffer || !firstPurchaseOffer.isFirstOrder) return 0;
-    const slabs = firstPurchaseOffer.slabs;
-    if (Array.isArray(slabs) && slabs.length > 0) {
-      const matched = slabs.find((s) => {
-        const minVal = parseFloat(s.min_order) || 0;
-        const maxVal = parseFloat(s.max_order) || 999999;
-        return total >= minVal && (maxVal <= 0 || total < maxVal);
-      });
-      if (matched) return parseFloat(matched.discount_amount) || 0;
-    }
-    return parseFloat(firstPurchaseOffer.discount_amount) || 100;
+  const loyaltyAvailable = loyaltyRedeemPoints > 0 && loyaltyPoints >= loyaltyRedeemPoints;
+  const loyaltyCandidateAmt = useLoyalty && loyaltyAvailable ? round2(Math.min(subtotal, loyaltyRedeemDiscount)) : 0;
+
+  const bestDiscount = [
+    { type: 'coupon', amount: couponDiscountAmt },
+    { type: 'birthday', amount: birthdayDiscountAmt },
+    { type: 'loyalty', amount: loyaltyCandidateAmt },
+  ].reduce((a, b) => (b.amount > a.amount ? b : a));
+
+  const discount = bestDiscount.amount > 0 && bestDiscount.type !== 'loyalty' ? bestDiscount.amount : 0;
+  const loyaltyDiscount = bestDiscount.amount > 0 && bestDiscount.type === 'loyalty' ? bestDiscount.amount : 0;
+  const discountIsBirthday = bestDiscount.type === 'birthday' && discount > 0;
+  const loyaltyOutranked = useLoyalty && loyaltyAvailable && loyaltyDiscount === 0 && discount > 0;
+  const couponOutranked = couponDiscountAmt > 0 && bestDiscount.type !== 'coupon';
+
+  const isAutomatedRewardActive = Boolean(autoRewardCode && couponData);
+
+  const hasFreeShippingReward = spinReward?.prize_type === 'free_shipping' || scratchReward?.prize_type === 'free_shipping';
+  const afterDiscounts = round2(Math.max(0, subtotal - discount - loyaltyDiscount));
+  const shipping = (deliveryCharge === 0 || afterDiscounts >= freeDeliveryThreshold || hasFreeShippingReward) ? 0 : deliveryCharge;
+  const finalTotal = round2(afterDiscounts + shipping);
+
+  const walletBelowMin = finalTotal < walletSettings.min_order_amount;
+  const walletAmount = (() => {
+    if (!useWallet || !walletSettings.enabled || walletBelowMin) return 0;
+    let maxAllowed = (finalTotal * walletSettings.max_usage_percent) / 100;
+    if (walletSettings.max_discount_cap > 0) maxAllowed = Math.min(maxAllowed, walletSettings.max_discount_cap);
+    return round2(Math.max(0, Math.min(walletBalance, finalTotal, maxAllowed)));
   })();
-
-  const birthdayDiscountAmt = isBirthday ? Math.round(total * birthdayDiscountPct / 100) : 0;
-
-  const couponDiscountAmt = couponData
-    ? couponData.discount_type === 'percentage'
-      ? Math.round(total * (couponData.discount_value / 100))
-      : couponData.discount_value
-    : 0;
-
-  const otherDiscount = Math.max(couponDiscountAmt, birthdayDiscountAmt);
-  const discountIsBirthday = birthdayDiscountAmt > 0 && birthdayDiscountAmt >= couponDiscountAmt;
-  const discount = otherDiscount + firstOrderDiscountAmt;
-
-  const isAutomatedRewardActive = Boolean(
-    (firstPurchaseOffer?.isFirstOrder && firstOrderDiscountAmt > 0) ||
-    spinReward ||
-    scratchReward
-  );
-
-  const shipping = (spinReward?.prize_type === 'free_shipping' || scratchReward?.prize_type === 'free_shipping' || (total - discount) >= freeDeliveryThreshold) ? 0 : deliveryCharge;
-  const finalTotal = total - discount + shipping;
-  const walletAmount = useWallet ? Math.min(walletBalance, finalTotal) : 0;
-  const payableTotal = Math.max(0, finalTotal - walletAmount);
+  const payableTotal = round2(Math.max(0, finalTotal - walletAmount));
 
   if (loading) {
     return (
@@ -391,19 +444,6 @@ export default function CheckoutScreen() {
           )}
         </View>
 
-        {/* 1st Order Welcome Discount Highlight Bar (Below Address, Above Payment) */}
-        {firstPurchaseOffer && firstPurchaseOffer.isFirstOrder && firstOrderDiscountAmt > 0 && (
-          <View style={styles.firstOrderBanner}>
-            <View style={styles.firstOrderBannerHeader}>
-              <Text style={styles.firstOrderBannerIcon}>🎉</Text>
-              <Text style={styles.firstOrderBannerTitle}>1st ORDER WELCOME DISCOUNT</Text>
-            </View>
-            <Text style={styles.firstOrderBannerSub}>
-              Extra <Text style={styles.firstOrderBannerHighlight}>{formatPrice(firstOrderDiscountAmt)} OFF</Text> applied automatically on your 1st order!
-            </Text>
-          </View>
-        )}
-
         {/* Spin Wheel Gift Banner */}
         {spinReward && (
           <View style={styles.spinGiftBanner}>
@@ -453,7 +493,11 @@ export default function CheckoutScreen() {
               <View style={styles.couponApplied}>
                 <View style={styles.couponAppliedLeft}>
                   <Text style={styles.couponAppliedCode}>"{couponCode}"</Text>
-                  <Text style={styles.couponAppliedSaving}>You save {formatPrice(discount)}! 🎉</Text>
+                  <Text style={styles.couponAppliedSaving}>
+                    {couponOutranked
+                      ? 'A bigger discount is already applied to this order'
+                      : `You save ${formatPrice(couponDiscountAmt)}! 🎉`}
+                  </Text>
                 </View>
                 <TouchableOpacity onPress={removeCoupon} style={styles.couponRemoveBtn}>
                   <Text style={styles.couponRemoveText}>✕</Text>
@@ -492,17 +536,15 @@ export default function CheckoutScreen() {
       )}
 
         {/* Birthday banner */}
-        {birthdayDiscountPct > 0 && authUser?.date_of_birth && (() => {
-          const dob = new Date(authUser.date_of_birth);
-          const now = new Date();
-          return dob.getMonth() === now.getMonth() && dob.getDate() === now.getDate();
-        })() && (
+        {isBirthday && (
             <View style={styles.birthdayBanner}>
               <Text style={styles.birthdayBannerEmoji}>🎂</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.birthdayBannerTitle}>Happy Birthday! 🎉</Text>
                 <Text style={styles.birthdayBannerText}>
-                  Your special {birthdayDiscountPct}% birthday discount is automatically applied to this order!
+                  {discountIsBirthday
+                    ? `Your special ${birthdayDiscountPct}% birthday discount is automatically applied to this order!`
+                    : `Your ${birthdayDiscountPct}% birthday discount applies when it is your best available offer.`}
                 </Text>
               </View>
             </View>
@@ -564,20 +606,20 @@ export default function CheckoutScreen() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>{formatPrice(total)}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
           </View>
-          {firstOrderDiscountAmt > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>🎁 1st Order Welcome Offer</Text>
-              <Text style={[styles.summaryValue, styles.discountValue]}>-{formatPrice(firstOrderDiscountAmt)}</Text>
-            </View>
-          )}
-          {otherDiscount > 0 && (
+          {discount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>
                 {discountIsBirthday ? `🎂 Birthday Discount (${birthdayDiscountPct}%)` : 'Coupon Discount'}
               </Text>
-              <Text style={[styles.summaryValue, styles.discountValue]}>-{formatPrice(otherDiscount)}</Text>
+              <Text style={[styles.summaryValue, styles.discountValue]}>-{formatPrice(discount)}</Text>
+            </View>
+          )}
+          {loyaltyDiscount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>⭐ Loyalty Points ({loyaltyRedeemPoints} pts)</Text>
+              <Text style={[styles.summaryValue, styles.discountValue]}>-{formatPrice(loyaltyDiscount)}</Text>
             </View>
           )}
           <View style={styles.summaryRow}>
@@ -605,11 +647,38 @@ export default function CheckoutScreen() {
             </View>
           </View>
 
-          {walletBalance > 0 && (
+          {loyaltyAvailable && (
+            <View style={styles.walletBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.walletLabel}>Redeem Loyalty Points</Text>
+                <Text style={styles.walletBalance}>
+                  {loyaltyPoints} pts available · {loyaltyRedeemPoints} pts = {formatPrice(loyaltyRedeemDiscount)} off
+                </Text>
+                {loyaltyOutranked && (
+                  <Text style={styles.walletBalance}>
+                    A bigger discount is already applied, so your points won't be used on this order.
+                  </Text>
+                )}
+              </View>
+              <Switch
+                value={useLoyalty}
+                onValueChange={setUseLoyalty}
+                trackColor={{ false: '#ccc', true: COLORS.primary }}
+                thumbColor={COLORS.white}
+              />
+            </View>
+          )}
+
+          {walletSettings.enabled && walletBalance > 0 && (
             <View style={styles.walletBox}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.walletLabel}>Pay with Wallet</Text>
                 <Text style={styles.walletBalance}>Balance: {formatPrice(walletBalance)}</Text>
+                {useWallet && walletBelowMin && (
+                  <Text style={styles.walletBalance}>
+                    Wallet can be used on orders of {formatPrice(walletSettings.min_order_amount)} or more.
+                  </Text>
+                )}
               </View>
               <Switch
                 value={useWallet}
@@ -729,8 +798,14 @@ export default function CheckoutScreen() {
                 </View>
                 {discount > 0 && (
                   <View style={styles.confirmSummaryRow}>
-                    <Text style={styles.confirmSummaryLabel}>Discount</Text>
+                    <Text style={styles.confirmSummaryLabel}>{discountIsBirthday ? 'Birthday Discount' : 'Discount'}</Text>
                     <Text style={[styles.confirmSummaryValue, { color: '#4ade80' }]}>− {formatPrice(discount)}</Text>
+                  </View>
+                )}
+                {loyaltyDiscount > 0 && (
+                  <View style={styles.confirmSummaryRow}>
+                    <Text style={styles.confirmSummaryLabel}>Loyalty Points</Text>
+                    <Text style={[styles.confirmSummaryValue, { color: '#4ade80' }]}>− {formatPrice(loyaltyDiscount)}</Text>
                   </View>
                 )}
                 <View style={styles.confirmSummaryRow}>
@@ -780,7 +855,7 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.confirmOkBtn} onPress={doPlaceOrder}>
                 <Text style={styles.confirmOkText}>
-                  {paymentMethod === 'ONLINE' && payableTotal > 0 ? '💳  Pay Now' : 'Confirm Order'}
+                  {ONLINE_METHODS.includes(paymentMethod) && payableTotal > 0 ? '💳  Pay Now' : 'Confirm Order'}
                 </Text>
               </TouchableOpacity>
             </View>

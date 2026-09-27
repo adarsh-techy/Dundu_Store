@@ -133,8 +133,12 @@ export default function PaymentScreen({ route, navigation }) {
             }
           ]);
         } catch (err) {
-          Alert.alert('Verification Failed', err?.message || 'Payment verification failed. Please contact support.');
-          navigation.replace('OrderDetail', { id: order.id });
+          Alert.alert(
+            'Verification Failed',
+            err?.message || 'Payment verification failed. If money was deducted, it will be reconciled automatically. You can check the order status in order details.',
+            [{ text: 'OK', onPress: () => navigation.replace('OrderDetail', { orderId: order.id }) }],
+            { cancelable: false }
+          );
         } finally {
           setVerifying(false);
         }
@@ -143,7 +147,7 @@ export default function PaymentScreen({ route, navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              navigation.replace('OrderDetail', { id: order.id });
+              navigation.replace('OrderDetail', { orderId: order.id });
             }
           }
         ]);
@@ -152,12 +156,13 @@ export default function PaymentScreen({ route, navigation }) {
           {
             text: 'OK',
             onPress: () => {
-              navigation.replace('OrderDetail', { id: order.id });
+              navigation.replace('OrderDetail', { orderId: order.id });
             }
           }
         ]);
       }
     } catch (e) {
+      // Ignore malformed / unrelated messages from the WebView.
       console.error(e);
     }
   };

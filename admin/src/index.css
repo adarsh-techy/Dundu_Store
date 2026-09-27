@@ -27,3 +27,20 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* Custom sleek scrollbar for data tables with inside scroll */
+.custom-table-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.custom-table-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+.custom-table-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-table-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+

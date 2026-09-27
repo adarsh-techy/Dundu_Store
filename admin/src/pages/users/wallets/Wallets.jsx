@@ -101,7 +101,7 @@ export default function Wallets() {
       toast.success('Wallet engine configuration saved successfully!');
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || 'Failed to save wallet configuration');
+      toast.error(err?.message || 'Failed to save wallet configuration');
     },
   });
 

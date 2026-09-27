@@ -371,7 +371,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-list">
                   {birthdays.length === 0 ? (
                     <div className="notif-empty">
-                      <Cake size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                      <Cake size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', color: '#94a3b8' }} />
                       No upcoming birthdays in the next 7 days
                     </div>
                   ) : (
@@ -401,6 +401,7 @@ export default function TopBar({ onToggleSidebar }) {
                   <NavLink
                     to="/birthdays"
                     className="notif-view-all"
+                    style={{ color: '#db2777' }}
                     onClick={() => setNotifOpen(false)}
                   >
                     View All Birthdays →
@@ -434,7 +435,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-dropdown-header">
                   <span className="notif-dropdown-title">Active Customer Carts</span>
                   {cartCount > 0 && (
-                    <span className="notif-dropdown-count" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }}>
+                    <span className="notif-dropdown-count" style={{ background: '#e0f2fe', color: '#0284c7', border: '1px solid #bae6fd' }}>
                       {cartCount} Active
                     </span>
                   )}
@@ -443,7 +444,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-list">
                   {recentCarts.length === 0 ? (
                     <div className="notif-empty">
-                      <ShoppingCart size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                      <ShoppingCart size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', color: '#94a3b8' }} />
                       No active customer carts right now
                     </div>
                   ) : (
@@ -463,7 +464,7 @@ export default function TopBar({ onToggleSidebar }) {
                           </span>
                         </div>
                         <div className="order-row-bottom">
-                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
                             {c.phone || '-'}
                           </span>
                           <span className="order-placed-time">
@@ -479,7 +480,7 @@ export default function TopBar({ onToggleSidebar }) {
                   <NavLink
                     to="/carts"
                     className="notif-view-all"
-                    style={{ color: '#38bdf8' }}
+                    style={{ color: '#0284c7' }}
                     onClick={() => setCartOpen(false)}
                   >
                     View Cart Monitor →
@@ -511,7 +512,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-dropdown-header">
                   <span className="notif-dropdown-title">Saved Wishlists</span>
                   {wishlistCount > 0 && (
-                    <span className="notif-dropdown-count" style={{ background: 'rgba(236,72,153,0.15)', color: '#f472b6' }}>
+                    <span className="notif-dropdown-count" style={{ background: '#fdf2f8', color: '#db2777', border: '1px solid #fbcfe8' }}>
                       {wishlistCount} Saved
                     </span>
                   )}
@@ -520,7 +521,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-list">
                   {recentWishlists.length === 0 ? (
                     <div className="notif-empty">
-                      <Heart size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                      <Heart size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', color: '#94a3b8' }} />
                       No wishlisted items yet
                     </div>
                   ) : (
@@ -565,7 +566,7 @@ export default function TopBar({ onToggleSidebar }) {
                   <NavLink
                     to="/wishlists"
                     className="notif-view-all"
-                    style={{ color: '#ec4899' }}
+                    style={{ color: '#db2777' }}
                     onClick={() => setWishlistOpen(false)}
                   >
                     View All Wishlists →
@@ -597,7 +598,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-dropdown-header">
                   <span className="notif-dropdown-title">Recent Orders</span>
                   {orderCount > 0 && (
-                    <span className="notif-dropdown-count" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
+                    <span className="notif-dropdown-count" style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}>
                       {orderCount} Total
                     </span>
                   )}
@@ -606,7 +607,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-list">
                   {recentOrders.length === 0 ? (
                     <div className="notif-empty">
-                      <ShoppingBag size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                      <ShoppingBag size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', color: '#94a3b8' }} />
                       No orders placed yet
                     </div>
                   ) : (
@@ -642,7 +643,7 @@ export default function TopBar({ onToggleSidebar }) {
                   <NavLink
                     to="/orders"
                     className="notif-view-all"
-                    style={{ color: '#10b981' }}
+                    style={{ color: '#059669' }}
                     onClick={() => setOrdersOpen(false)}
                   >
                     View All Orders →
@@ -674,7 +675,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-dropdown-header">
                   <span className="notif-dropdown-title">Return Requests</span>
                   {returnCount > 0 && (
-                    <span className="notif-dropdown-count" style={{ background: 'rgba(225,29,72,0.15)', color: '#fb7185' }}>
+                    <span className="notif-dropdown-count" style={{ background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3' }}>
                       {returnCount} Total
                     </span>
                   )}
@@ -683,7 +684,7 @@ export default function TopBar({ onToggleSidebar }) {
                 <div className="notif-list">
                   {recentReturns.length === 0 ? (
                     <div className="notif-empty">
-                      <RotateCcw size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                      <RotateCcw size={28} strokeWidth={1.5} style={{ margin: '0 auto 8px', display: 'block', color: '#94a3b8' }} />
                       No return requests right now
                     </div>
                   ) : (
@@ -698,7 +699,7 @@ export default function TopBar({ onToggleSidebar }) {
                           <span className="order-customer">
                             {r.user_name || 'Customer'} · <span style={{ opacity: 0.7 }}>#{r.order_number || r.order_id?.slice(0, 8)}</span>
                           </span>
-                          <span className="order-amount" style={{ color: '#fb7185' }}>
+                          <span className="order-amount" style={{ color: '#e11d48' }}>
                             ₹{Number(r.refund_amount || r.order_total || 0).toLocaleString('en-IN')}
                           </span>
                         </div>
@@ -711,7 +712,7 @@ export default function TopBar({ onToggleSidebar }) {
                           </span>
                         </div>
                         {r.reason && (
-                          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             Reason: {r.reason}
                           </div>
                         )}
@@ -724,7 +725,7 @@ export default function TopBar({ onToggleSidebar }) {
                   <NavLink
                     to="/returns"
                     className="notif-view-all"
-                    style={{ color: '#fb7185' }}
+                    style={{ color: '#e11d48' }}
                     onClick={() => setReturnsOpen(false)}
                   >
                     View All Returns →

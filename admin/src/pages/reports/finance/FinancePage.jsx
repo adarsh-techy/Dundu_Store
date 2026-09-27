@@ -139,7 +139,7 @@ export default function FinancePage() {
       queryClient.invalidateQueries({ queryKey: ['financeReport'] });
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || 'Failed to update buy price');
+      toast.error(err?.message || 'Failed to update buy price');
     },
   });
 

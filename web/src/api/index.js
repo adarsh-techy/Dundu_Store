@@ -50,7 +50,7 @@ export const cartApi = {
   add: (data) => client.post('/cart', data),
   update: (id, quantity) => client.put(`/cart/${id}`, { quantity }),
   remove: (id) => client.delete(`/cart/${id}`),
-  clear: () => client.delete('/cart'),
+  clear: () => client.delete('/cart/clear'),
 };
 
 // Orders

@@ -212,7 +212,7 @@ export default function ComboDetailScreen() {
     (async () => {
       try {
         const res = await comboApi.getOne(comboId);
-        const c = res.data?.combo;
+        const c = res?.combo || res?.data?.combo;
         if (c) {
           setCombo(c);
           // Pre-select first product for each slot

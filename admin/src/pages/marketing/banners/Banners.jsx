@@ -168,7 +168,7 @@ export default function Banners() {
         toast.success('Banner created successfully');
       }
       setShowModal(false);
-      qc.invalidateQueries(['admin-banners']);
+      qc.invalidateQueries({ queryKey: ['admin-banners'] });
     } catch (err) {
       toast.error(err.message || 'Failed to save banner');
     } finally {
@@ -179,7 +179,7 @@ export default function Banners() {
   const handleToggle = async (banner) => {
     try {
       await bannerApi.toggle(banner.id);
-      qc.invalidateQueries(['admin-banners']);
+      qc.invalidateQueries({ queryKey: ['admin-banners'] });
       toast.success(banner.is_active ? 'Banner deactivated' : 'Banner activated on mobile app');
     } catch {
       toast.error('Failed to toggle banner status');
@@ -191,7 +191,7 @@ export default function Banners() {
       return;
     try {
       await bannerApi.remove(banner.id);
-      qc.invalidateQueries(['admin-banners']);
+      qc.invalidateQueries({ queryKey: ['admin-banners'] });
       toast.success('Banner deleted');
       if (selectedBannerId === banner.id) setSelectedBannerId(null);
     } catch {
@@ -223,7 +223,7 @@ export default function Banners() {
           })()
         ),
       ]);
-      qc.invalidateQueries(['admin-banners']);
+      qc.invalidateQueries({ queryKey: ['admin-banners'] });
     } catch {
       toast.error('Failed to reorder banner');
     }

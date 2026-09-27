@@ -113,7 +113,7 @@ export default function Referral() {
       toast.success('Referral program rules saved successfully!');
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || 'Failed to save referral rules');
+      toast.error(err?.message || 'Failed to save referral rules');
     },
   });
 

@@ -180,7 +180,7 @@ export default function UserList() {
       toast.success('Customer profile removed');
       setDeleteTarget(null);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete customer');
+      toast.error(err?.message || 'Failed to delete customer');
     }
   };
 

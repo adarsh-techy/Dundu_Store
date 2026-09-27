@@ -94,6 +94,9 @@ export default function ScratchCardModal() {
   const foilOpacity = useRef(new Animated.Value(1)).current;
   const prizeScale = useRef(new Animated.Value(0.7)).current;
   const prizeFetchedRef = useRef(false);
+  const revealedRef = useRef(false);
+  const pendingRevealRef = useRef(false);
+  const prizeRef = useRef(null);
   const lastPtRef = useRef(null);
   const rubDistanceRef = useRef(0);
   const [touchPos, setTouchPos] = useState(null);
@@ -108,6 +111,9 @@ export default function ScratchCardModal() {
       lastPtRef.current = null;
       rubDistanceRef.current = 0;
       prizeFetchedRef.current = false;
+      revealedRef.current = false;
+      pendingRevealRef.current = false;
+      prizeRef.current = null;
       foilOpacity.setValue(1);
       prizeScale.setValue(0.7);
 
@@ -120,13 +126,20 @@ export default function ScratchCardModal() {
           }
         })
         .catch(() => {});
-
-      // Pre-fetch prize behind foil right away
-      prefetchPrize();
+      // NOTE: the prize is NOT fetched here. POST /scratch-card/reveal logs the prize (and
+      // consumes the user's scratch) immediately, so it is only called once the user
+      // actually starts scratching (first pan gesture).
     }
-  }, [isOpen, authUser]);
+  }, [isOpen]);
 
-  const prefetchPrize = async () => {
+  const abortWithMessage = (message) => {
+    Alert.alert('Scratch Card', message || 'Could not reveal your scratch card right now. Please try again later.');
+    usePopupCoordinator.getState().releasePopup('scratch_card');
+    useScratchCardStore.getState().closeScratchCard();
+  };
+
+  // Called on the first scratch gesture only (guarded by prizeFetchedRef).
+  const fetchPrizeOnFirstScratch = async () => {
     if (prizeFetchedRef.current) return;
     prizeFetchedRef.current = true;
     try {
@@ -135,19 +148,31 @@ export default function ScratchCardModal() {
         headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
+      let data = null;
+      try { data = await res.json(); } catch { data = null; }
       if (data?.success && data?.data?.prize) {
+        prizeRef.current = data.data.prize;
         setPrize(data.data.prize);
       } else {
-        setPrize({ label: 'Better Luck Next Time', type: 'no_prize', coupon_code: null, value: 0 });
+        abortWithMessage(data?.message);
       }
-    } catch {
-      setPrize({ label: '15% OFF Special Coupon', type: 'discount', coupon_code: 'SCRATCH15', value: 15 });
+    } catch (err) {
+      abortWithMessage(err?.message ? `Could not reveal your scratch card: ${err.message}` : null);
     }
   };
 
+  // PanResponder is created once, so route its callbacks through refs to the latest closures.
+  const fetchPrizeRef = useRef(fetchPrizeOnFirstScratch);
+  fetchPrizeRef.current = fetchPrizeOnFirstScratch;
+
   const completeReveal = () => {
-    if (isRevealed) return;
+    if (revealedRef.current) return;
+    if (!prizeRef.current) {
+      // User finished scratching before the server answered — reveal as soon as it does.
+      pendingRevealRef.current = true;
+      return;
+    }
+    revealedRef.current = true;
     setTouchPos(null);
     Animated.timing(foilOpacity, {
       toValue: 0,
@@ -164,21 +189,31 @@ export default function ScratchCardModal() {
     });
   };
 
+  const completeRevealRef = useRef(completeReveal);
+  completeRevealRef.current = completeReveal;
+
+  useEffect(() => {
+    if (prize && pendingRevealRef.current && !revealedRef.current) {
+      pendingRevealRef.current = false;
+      completeReveal();
+    }
+  }, [prize]);
+
   // Standard smooth GPay finger-scratching touch gesture
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (evt) => {
-        prefetchPrize();
+        if (revealedRef.current) return;
+        fetchPrizeRef.current();
         const { locationX, locationY } = evt.nativeEvent;
         setTouchPos({ x: locationX, y: locationY });
         lastPtRef.current = { x: locationX, y: locationY };
         setSvgPath((prev) => `${prev} M ${locationX.toFixed(1)} ${locationY.toFixed(1)}`);
       },
       onPanResponderMove: (evt) => {
-        if (isRevealed) return;
-        prefetchPrize();
+        if (revealedRef.current) return;
         const { locationX, locationY } = evt.nativeEvent;
         setTouchPos({ x: locationX, y: locationY });
 
@@ -197,8 +232,8 @@ export default function ScratchCardModal() {
       onPanResponderRelease: () => {
         setTouchPos(null);
         // ONLY trigger reveal after full thorough card scratching (1800px+ total strokes)
-        if (rubDistanceRef.current >= 1800 && !isRevealed) {
-          completeReveal();
+        if (rubDistanceRef.current >= 1800 && !revealedRef.current) {
+          completeRevealRef.current();
         }
       },
     })

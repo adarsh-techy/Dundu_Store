@@ -117,7 +117,7 @@ export default function InventoryDashboard() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['inventory', stockFilter],
     queryFn: () => inventoryApi.get(
-      stockFilter === 'out' || stockFilter === 'low' ? { stock: stockFilter } : undefined
+      ['out', 'low', 'healthy', 'restock'].includes(stockFilter) ? { stock: stockFilter } : undefined
     ),
   });
 

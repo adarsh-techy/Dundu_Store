@@ -27,6 +27,16 @@ db.query(`
   END $$;
 `).catch(() => {});
 
+// Fill the placeholders the composer advertises. {code} comes from the request (optional).
+const personalise = (message, u, extra = {}) => {
+  const storeUrl = process.env.WEB_CLIENT_URL || process.env.STORE_URL || '';
+  return String(message || '')
+    .replace(/\{name\}/gi, (u?.name || 'Customer').split(' ')[0])
+    .replace(/\{phone\}/gi, u?.phone || '')
+    .replace(/\{store_url\}/gi, storeUrl)
+    .replace(/\{code\}/gi, extra.code || '');
+};
+
 /* ── Stats Summary ── */
 router.get('/stats', ah(async (_req, res) => {
   const [logStats, reachableUsers, cartUsers] = await Promise.all([
@@ -160,7 +170,7 @@ router.post('/send', ah(async (req, res) => {
       let failed = 0;
       for (const u of users) {
         try {
-          const personalised = message.replace(/\{name\}/gi, u.name || 'Customer');
+          const personalised = personalise(message, u, { code: req.body.coupon_code || req.body.code });
           await whatsapp.sendWhatsApp?.(u.phone, personalised);
         } catch {
           failed++;
@@ -176,7 +186,7 @@ router.post('/send', ah(async (req, res) => {
     const { rows } = await db.query('SELECT id, name, phone FROM users WHERE id=$1', [user_id]);
     if (!rows.length || !rows[0].phone) return res.status(404).json({ message: 'User not found or has no phone' });
     const u = rows[0];
-    const personalised = message.replace(/\{name\}/gi, u.name || 'Customer');
+    const personalised = personalise(message, u, { code: req.body.coupon_code || req.body.code });
     try {
       await whatsapp.sendWhatsApp?.(u.phone, personalised);
       await db.query(

@@ -98,7 +98,8 @@ function toFormValues(coupon) {
     max_discount: coupon.max_discount ? String(coupon.max_discount) : '',
     usage_limit: coupon.usage_limit ? String(coupon.usage_limit) : '',
     per_user_limit: coupon.per_user_limit ? String(coupon.per_user_limit) : '',
-    expires_at: coupon.expires_at ? coupon.expires_at.slice(0, 16) : '',
+    // datetime-local expects local wall time, not the UTC ISO string
+    expires_at: coupon.expires_at ? new Date(new Date(coupon.expires_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
     is_active: coupon.is_active,
   };
 }
@@ -232,14 +233,14 @@ export default function Coupons() {
       closeModal();
       qc.invalidateQueries({ queryKey: ['admin-coupons'] });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save coupon');
+      toast.error(err?.message || 'Failed to save coupon');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (coupon) => {
-    if (!window.confirm(`Permanently delete coupon "${coupon.code}"? This action cannot be reversed.`))
+    if (!window.confirm(`Move coupon "${coupon.code}" to Trash? It can be restored from System → Trash within 30 days.`))
       return;
     setDeletingId(coupon.id);
     try {
@@ -247,7 +248,7 @@ export default function Coupons() {
       toast.success('Coupon deleted');
       qc.invalidateQueries({ queryKey: ['admin-coupons'] });
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete coupon');
+      toast.error(err?.message || 'Failed to delete coupon');
     } finally {
       setDeletingId(null);
     }

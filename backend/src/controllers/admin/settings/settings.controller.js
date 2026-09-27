@@ -47,7 +47,8 @@ const updateSettings = async (req, res) => {
   } = req.body;
 
   if (popup_interval_minutes !== undefined) {
-    const val = Math.max(1, parseInt(popup_interval_minutes) || 10);
+    const parsed = parseInt(popup_interval_minutes, 10);
+    const val = Number.isNaN(parsed) ? 10 : Math.max(0, parsed); // 0 = popup disabled
     await db.query(
       "INSERT INTO settings (key, value) VALUES ('popup_interval_minutes', $1) ON CONFLICT (key) DO UPDATE SET value=$1",
       [String(val)]

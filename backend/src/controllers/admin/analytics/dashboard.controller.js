@@ -90,7 +90,7 @@ const getDashboard = async (req, res) => {
        WHERE p.pattern IS NOT NULL AND p.pattern <> ''
        GROUP BY p.pattern ORDER BY units_sold DESC LIMIT 5`
     ),
-    db.query(`SELECT COUNT(*) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id`),
+    db.query(`SELECT COUNT(*) AS v FROM return_requests WHERE status = 'pending'`),
     db.query(`SELECT COUNT(*) AS v FROM return_requests rr JOIN orders o ON rr.order_id=o.id WHERE (rr.created_at::date=$1::date OR (rr.created_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]),
     db.query(`SELECT COUNT(*) AS v FROM users WHERE role='user' AND (last_login_at::date=$1::date OR (last_login_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date)`, [date]),
     db.query(`SELECT COUNT(DISTINCT user_id) AS v FROM cart`),

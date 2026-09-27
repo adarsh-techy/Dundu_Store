@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import useCartStore from '../../../store/cart.store';
+import useCartStore, { MAX_CART_QTY } from '../../../store/cart.store';
 import useAuthStore from '../../../store/auth.store';
 import { COLORS, UPLOADS_URL } from '../../../config';
 import AppHeader from '../../../components/ui/AppHeader';
@@ -27,12 +27,14 @@ function getImageUri(imageStr) {
   return UPLOADS_URL + (imageStr.startsWith('/') ? imageStr : '/' + imageStr);
 }
 
-const FREE_SHIPPING_THRESHOLD = 500;
-
 export default function CartScreen() {
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const { items, total, count, fetchCart, updateItem, removeItem } = useCartStore();
+  const {
+    items, total, count, fetchCart, updateItem, removeItem,
+    deliveryCharge, freeDeliveryThreshold, fetchShippingSettings,
+  } = useCartStore();
+  const FREE_SHIPPING_THRESHOLD = freeDeliveryThreshold;
   const { isAuthenticated } = useAuthStore();
   const { requireAuth } = useRequireAuth();
   const openFreeShippingModal = useFreeShippingStore((s) => s.openModal);
@@ -41,13 +43,14 @@ export default function CartScreen() {
   useFocusEffect(
     React.useCallback(() => {
       if (isAuthenticated) fetchCart();
-      if (total > 0 && total < FREE_SHIPPING_THRESHOLD) {
+      fetchShippingSettings();
+      if (total > 0 && FREE_SHIPPING_THRESHOLD > 0 && total < FREE_SHIPPING_THRESHOLD) {
         const timer = setTimeout(() => {
           openFreeShippingModal(total);
         }, 300);
         return () => clearTimeout(timer);
       }
-    }, [isAuthenticated, total])
+    }, [isAuthenticated, total, FREE_SHIPPING_THRESHOLD])
   );
 
   async function handleUpdateQty(item, newQty) {
@@ -55,11 +58,15 @@ export default function CartScreen() {
       handleRemove(item);
       return;
     }
+    if (newQty > MAX_CART_QTY) {
+      Alert.alert('Limit reached', `You can add up to ${MAX_CART_QTY} of an item.`);
+      return;
+    }
     setActionLoading((prev) => ({ ...prev, [item.id]: true }));
     try {
       await updateItem(item.id, newQty);
     } catch (err) {
-      Alert.alert('Error', 'Failed to update quantity.');
+      Alert.alert('Error', err?.message || 'Failed to update quantity.');
     } finally {
       setActionLoading((prev) => ({ ...prev, [item.id]: false }));
     }
@@ -79,7 +86,7 @@ export default function CartScreen() {
             try {
               await removeItem(item.id);
             } catch (err) {
-              Alert.alert('Error', 'Failed to remove item.');
+              Alert.alert('Error', err?.message || 'Failed to remove item.');
             } finally {
               setActionLoading((prev) => ({ ...prev, [item.id]: false }));
             }
@@ -89,11 +96,13 @@ export default function CartScreen() {
     );
   }
 
-  const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : 50;
+  // Estimate only — final shipping is computed by the server after discounts.
+  const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : deliveryCharge;
   const finalTotal = total + shipping;
 
   function renderItem({ item }) {
     const isLoading = actionLoading[item.id];
+    const atMax = parseInt(item.quantity, 10) >= MAX_CART_QTY;
     const isCombo = !!item.combo_id;
 
     // ── Combo item rendering ─────────────────────────────────────────────────
@@ -138,14 +147,14 @@ export default function CartScreen() {
 
           <View style={styles.cartItemControls}>
             <View style={styles.qtyRow}>
-              <TouchableOpacity style={styles.qtyButton} onPress={() => handleUpdateQty(item, item.quantity - 1)} disabled={isLoading}>
+              <TouchableOpacity style={styles.qtyButton} onPress={() => handleUpdateQty(item, parseInt(item.quantity, 10) - 1)} disabled={isLoading}>
                 <Text style={styles.qtyButtonText}>−</Text>
               </TouchableOpacity>
               {isLoading
                 ? <ActivityIndicator size="small" color={COLORS.primary} style={styles.qtyLoading} />
                 : <Text style={styles.qtyText}>{item.quantity}</Text>
               }
-              <TouchableOpacity style={styles.qtyButton} onPress={() => handleUpdateQty(item, item.quantity + 1)} disabled={isLoading}>
+              <TouchableOpacity style={[styles.qtyButton, atMax && { opacity: 0.4 }]} onPress={() => handleUpdateQty(item, parseInt(item.quantity, 10) + 1)} disabled={isLoading || atMax}>
                 <Text style={styles.qtyButtonText}>+</Text>
               </TouchableOpacity>
             </View>
@@ -199,7 +208,7 @@ export default function CartScreen() {
           <View style={styles.qtyRow}>
             <TouchableOpacity
               style={styles.qtyButton}
-              onPress={() => handleUpdateQty(item, item.quantity - 1)}
+              onPress={() => handleUpdateQty(item, parseInt(item.quantity, 10) - 1)}
               disabled={isLoading}
             >
               <Text style={styles.qtyButtonText}>−</Text>
@@ -212,9 +221,9 @@ export default function CartScreen() {
             )}
 
             <TouchableOpacity
-              style={styles.qtyButton}
-              onPress={() => handleUpdateQty(item, item.quantity + 1)}
-              disabled={isLoading}
+              style={[styles.qtyButton, atMax && { opacity: 0.4 }]}
+              onPress={() => handleUpdateQty(item, parseInt(item.quantity, 10) + 1)}
+              disabled={isLoading || atMax}
             >
               <Text style={styles.qtyButtonText}>+</Text>
             </TouchableOpacity>

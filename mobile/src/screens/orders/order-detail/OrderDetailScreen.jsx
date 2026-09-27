@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { orderApi, settingsApi } from '../../../api/index';
 import AppHeader from '../../../components/ui/AppHeader';
+import useAuthStore from '../../../store/auth.store';
 import { COLORS, UPLOADS_URL } from '../../../config';
 import { formatPrice, formatDate, getStatusColor, getStatusLabel } from '../../../utils/format';
 
@@ -40,6 +41,8 @@ export default function OrderDetailScreen() {
   const [returnAgreed, setReturnAgreed] = useState(false);
   const [showReturnSuccess, setShowReturnSuccess] = useState(false);
   const [deliveryEstimateText, setDeliveryEstimateText] = useState('');
+  const [payLoading, setPayLoading] = useState(false);
+  const authUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
     fetchOrder();
@@ -57,7 +60,7 @@ export default function OrderDetailScreen() {
       const res = await orderApi.getOne(orderId);
       setOrder(res.order || res);
     } catch (err) {
-      Alert.alert('Error', 'Failed to load order details.');
+      Alert.alert('Error', err?.message || 'Failed to load order details.');
       navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Orders');
     } finally {
       setLoading(false);
@@ -89,6 +92,22 @@ export default function OrderDetailScreen() {
       Alert.alert('Error', err?.message || 'Failed to cancel order.');
     } finally {
       setCancelLoading(false);
+    }
+  }
+
+  async function handlePayNow() {
+    setPayLoading(true);
+    try {
+      const res = await orderApi.retryPayment(orderId);
+      const payOrder = res?.order || order;
+      const razorpayOrder = res?.razorpay;
+      if (!razorpayOrder?.id) throw new Error('Could not start the payment. Please try again.');
+      navigation.navigate('Payment', { order: payOrder, razorpayOrder, user: authUser });
+    } catch (err) {
+      Alert.alert('Payment', err?.message || 'Could not start the payment. Please try again.');
+      fetchOrder();
+    } finally {
+      setPayLoading(false);
     }
   }
 
@@ -124,10 +143,37 @@ export default function OrderDetailScreen() {
 
   const statusColor = getStatusColor(order.status);
   const statusLabel = getStatusLabel(order.status);
-  const canCancel = order.status === 'pending' &&
-    (Date.now() - new Date(order.created_at).getTime()) < 10 * 60 * 1000;
+  // Server rule: customers may cancel while the order is pending or packed.
+  const canCancel = ['pending', 'packed'].includes(order.status);
   const canReturn = order.status === 'delivered';
-  const address = order.address || order.shipping_address;
+  const canPay = order.payment_status === 'pending' &&
+    ['online', 'upi', 'card'].includes(String(order.payment_method || '').toLowerCase()) &&
+    order.status !== 'cancelled';
+  // GET /orders/:id flattens the address columns onto the order row.
+  const address = order.address || order.shipping_address || (order.address_line1 ? {
+    name: order.name,
+    phone: order.phone,
+    address_line1: order.address_line1,
+    address_line2: order.address_line2,
+    city: order.city,
+    state: order.state,
+    pincode: order.pincode,
+  } : null);
+  const num = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const orderSubtotal = num(order.subtotal);
+  const orderDiscount = num(order.discount);
+  const orderLoyaltyDiscount = num(order.loyalty_discount);
+  const orderShipping = num(order.delivery_charge);
+  const orderTotal = num(order.total);
+  const orderWallet = num(order.wallet_amount);
+  const discountLabel = {
+    coupon: 'Coupon Discount',
+    birthday: 'Birthday Discount',
+    referral: 'Referral Discount',
+  }[order.discount_type] || 'Discount';
 
   return (
     <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
@@ -208,7 +254,7 @@ export default function OrderDetailScreen() {
           <Text style={styles.sectionTitle}>Items</Text>
           {(order.items || []).map((item, index) => {
             const uri = getImageUri(item.image || item.product_image);
-            const itemPrice = parseFloat(item.price || item.offer_price || 0);
+            const itemPrice = parseFloat(item.unit_price ?? item.price ?? item.offer_price ?? 0) || 0;
             return (
               <View key={item.id || index} style={styles.orderItem}>
                 {uri ? (
@@ -253,35 +299,47 @@ export default function OrderDetailScreen() {
           <Text style={styles.sectionTitle}>Price Breakdown</Text>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Subtotal</Text>
-            <Text style={styles.priceValue}>{formatPrice(order.subtotal || order.total_amount)}</Text>
+            <Text style={styles.priceValue}>{formatPrice(orderSubtotal)}</Text>
           </View>
-          {order.discount_amount > 0 && (
+          {orderDiscount > 0 && (
             <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Discount</Text>
-              <Text style={[styles.priceValue, styles.discountValue]}>-{formatPrice(order.discount_amount)}</Text>
+              <Text style={styles.priceLabel}>{discountLabel}</Text>
+              <Text style={[styles.priceValue, styles.discountValue]}>-{formatPrice(orderDiscount)}</Text>
+            </View>
+          )}
+          {orderLoyaltyDiscount > 0 && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Loyalty Points Discount</Text>
+              <Text style={[styles.priceValue, styles.discountValue]}>-{formatPrice(orderLoyaltyDiscount)}</Text>
             </View>
           )}
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>Shipping</Text>
-            <Text style={[styles.priceValue, (!order.shipping_amount || order.shipping_amount === 0) && styles.freeText]}>
-              {!order.shipping_amount || order.shipping_amount === 0 ? 'FREE' : formatPrice(order.shipping_amount)}
+            <Text style={[styles.priceValue, orderShipping === 0 && styles.freeText]}>
+              {orderShipping === 0 ? 'FREE' : formatPrice(orderShipping)}
             </Text>
           </View>
           <View style={[styles.priceRow, styles.totalPriceRow]}>
             <Text style={styles.totalPriceLabel}>Total</Text>
-            <Text style={styles.totalPriceValue}>{formatPrice(order.total_amount || order.total)}</Text>
+            <Text style={styles.totalPriceValue}>{formatPrice(orderTotal)}</Text>
           </View>
-          {order.wallet_amount > 0 && (
+          {orderWallet > 0 && (
             <>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Paid from Wallet</Text>
-                <Text style={[styles.priceValue, styles.discountValue]}>-{formatPrice(order.wallet_amount)}</Text>
+                <Text style={[styles.priceValue, styles.discountValue]}>-{formatPrice(orderWallet)}</Text>
               </View>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Payable (COD / online)</Text>
-                <Text style={styles.priceValue}>{formatPrice((order.total_amount || order.total) - order.wallet_amount)}</Text>
+                <Text style={styles.priceValue}>{formatPrice(Math.max(0, orderTotal - orderWallet))}</Text>
               </View>
             </>
+          )}
+          {order.payment_status && (
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Payment Status</Text>
+              <Text style={styles.priceValue}>{String(order.payment_status).toUpperCase()}</Text>
+            </View>
           )}
           {order.payment_method && (
             <View style={styles.priceRow}>
@@ -292,8 +350,23 @@ export default function OrderDetailScreen() {
         </View>
 
         {/* Action Buttons */}
-        {(canCancel || canReturn) && (
+        {(canPay || canCancel || canReturn) && (
           <View style={styles.actionsSection}>
+            {canPay && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.returnButton, payLoading && styles.buttonDisabled]}
+                onPress={handlePayNow}
+                disabled={payLoading}
+              >
+                {payLoading ? (
+                  <ActivityIndicator color={COLORS.primary} size="small" />
+                ) : (
+                  <Text style={styles.returnButtonText}>
+                    Pay Now • {formatPrice(Math.max(0, orderTotal - orderWallet))}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
             {canCancel && (
               <TouchableOpacity
                 style={[styles.actionButton, styles.cancelButton, cancelLoading && styles.buttonDisabled]}
@@ -388,7 +461,7 @@ export default function OrderDetailScreen() {
               <Text style={styles.refundCalcTitle}>💰 Refund Estimate</Text>
               <View style={styles.refundCalcRow}>
                 <Text style={styles.refundCalcLabel}>Order Amount</Text>
-                <Text style={styles.refundCalcValue}>₹{parseFloat(order?.total_amount || order?.total || 0).toFixed(2)}</Text>
+                <Text style={styles.refundCalcValue}>₹{orderTotal.toFixed(2)}</Text>
               </View>
               <View style={styles.refundCalcRow}>
                 <Text style={styles.refundCalcLabel}>Courier Deduction</Text>
@@ -398,7 +471,7 @@ export default function OrderDetailScreen() {
               <View style={styles.refundCalcRow}>
                 <Text style={styles.refundCalcTotalLabel}>Refund Amount</Text>
                 <Text style={styles.refundCalcTotal}>
-                  ₹{Math.max(0, parseFloat(order?.total_amount || order?.total || 0) - 99).toFixed(2)}
+                  ₹{Math.max(0, orderTotal - 99).toFixed(2)}
                 </Text>
               </View>
             </View>

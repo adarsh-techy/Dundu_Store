@@ -51,7 +51,7 @@ export const cartApi = {
   add: (data) => client.post('/cart', data),
   update: (id, qty) => client.put(`/cart/${id}`, { quantity: qty }),
   remove: (id) => client.delete(`/cart/${id}`),
-  clear: () => client.delete('/cart'),
+  clear: () => client.delete('/cart/clear'),
 };
 
 export const orderApi = {
@@ -60,6 +60,7 @@ export const orderApi = {
   list: () => client.get('/orders'),
   getOne: (id) => client.get(`/orders/${id}`),
   cancel: (id) => client.post(`/orders/${id}/cancel`),
+  retryPayment: (id) => client.post(`/orders/${id}/pay`),
   returnRequest: (id, reason) => client.post(`/orders/${id}/return`, { reason }),
 };
 

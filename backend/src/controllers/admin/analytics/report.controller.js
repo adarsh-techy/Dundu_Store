@@ -109,7 +109,7 @@ const financeReport = async (req, res) => {
       COALESCE(SUM(COALESCE(rr.refund_amount, o.total)), 0)::numeric AS total_refunded
     FROM return_requests rr
     JOIN orders o ON rr.order_id = o.id
-    WHERE rr.status = 'approved' AND COALESCE(rr.refund_method, 'wallet') <> 'replacement'
+    ${whereClause ? whereClause + ' AND' : 'WHERE'} rr.status = 'approved' AND COALESCE(rr.refund_method, 'wallet') <> 'replacement'
   `;
 
   // 3. Monthly Financial Breakdown (Past 12 Months)
@@ -205,7 +205,7 @@ const financeReport = async (req, res) => {
 
   const [summaryRes, refundRes, monthlyRes, categoryRes, productsRes] = await Promise.all([
     db.query(summaryQuery, params),
-    db.query(refundQuery),
+    db.query(refundQuery, params),
     db.query(monthlyQuery),
     db.query(categoryQuery, params),
     db.query(productsQuery, prodParams),
@@ -218,7 +218,7 @@ const financeReport = async (req, res) => {
   const cost = parseFloat(summary.total_cost || 0);
   const grossProfit = parseFloat(summary.gross_profit || 0);
   const totalRefunded = parseFloat(refunds.total_refunded || 0);
-  const netProfit = Math.max(0, grossProfit - totalRefunded);
+  const netProfit = grossProfit - totalRefunded; // may be negative — a loss is a loss
 
   ok(res, {
     period,

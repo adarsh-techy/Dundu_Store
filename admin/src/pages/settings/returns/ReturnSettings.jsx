@@ -70,7 +70,7 @@ export default function ReturnSettings() {
         enabled: false,
         status: 'failed',
         isError: true,
-        errorMessage: err.response?.data?.message || err.message || 'Server failed to update setting. Please try again.',
+        errorMessage: err?.message || 'Server failed to update setting. Please try again.',
         threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
       });
       toast.error('Failed to update setting');
@@ -97,7 +97,7 @@ export default function ReturnSettings() {
         enabled: false,
         status: 'failed',
         isError: true,
-        errorMessage: err.response?.data?.message || err.message || 'Server failed to update setting. Please try again.',
+        errorMessage: err?.message || 'Server failed to update setting. Please try again.',
         threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
       });
       toast.error('Failed to update setting');

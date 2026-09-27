@@ -1,6 +1,15 @@
 import { create } from 'zustand';
-import { cartApi } from '../api/index';
+import { cartApi, settingsApi } from '../api/index';
 import useFreeShippingStore from './freeShipping.store';
+
+export const MAX_CART_QTY = 99;
+
+// Server accepts only whole numbers 1..99 for cart quantities.
+export function clampQty(qty) {
+  const n = parseInt(qty, 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(MAX_CART_QTY, n);
+}
 
 function computeTotals(items) {
   if (!Array.isArray(items)) return { total: 0, count: 0 };
@@ -24,10 +33,28 @@ function computeTotals(items) {
   return { total, count };
 }
 
-const useCartStore = create((set) => ({
+const useCartStore = create((set, get) => ({
   items: [],
   total: 0,
   count: 0,
+  // Mirrors GET /settings/payment (defaults match the server's fallbacks)
+  deliveryCharge: 50,
+  freeDeliveryThreshold: 500,
+
+  fetchShippingSettings: async () => {
+    try {
+      const res = await settingsApi.getPayment();
+      const s = res?.data && res.data.delivery_charge !== undefined ? res.data : res;
+      const charge = Number(s?.delivery_charge);
+      const threshold = Number(s?.free_delivery_threshold);
+      set({
+        deliveryCharge: Number.isFinite(charge) ? Math.max(0, charge) : 50,
+        freeDeliveryThreshold: Number.isFinite(threshold) ? Math.max(0, threshold) : 500,
+      });
+    } catch (_) {
+      // keep defaults
+    }
+  },
 
   fetchCart: async () => {
     try {
@@ -41,12 +68,14 @@ const useCartStore = create((set) => ({
   },
 
   addItem: async (data) => {
-    await cartApi.add(data);
+    const payload = data && data.quantity !== undefined ? { ...data, quantity: clampQty(data.quantity) } : data;
+    await cartApi.add(payload);
     const res = await cartApi.get();
     const items = res.cart || res.items || [];
     const { total, count } = computeTotals(items);
     set({ items, total, count });
-    if (total > 0 && total < 500) {
+    const threshold = get().freeDeliveryThreshold;
+    if (total > 0 && threshold > 0 && total < threshold) {
       setTimeout(() => {
         useFreeShippingStore.getState().openModal(total);
       }, 300);
@@ -54,12 +83,13 @@ const useCartStore = create((set) => ({
   },
 
   updateItem: async (id, qty) => {
-    await cartApi.update(id, qty);
+    await cartApi.update(id, clampQty(qty));
     const res = await cartApi.get();
     const items = res.cart || res.items || [];
     const { total, count } = computeTotals(items);
     set({ items, total, count });
-    if (total > 0 && total < 500) {
+    const threshold = get().freeDeliveryThreshold;
+    if (total > 0 && threshold > 0 && total < threshold) {
       setTimeout(() => {
         useFreeShippingStore.getState().openModal(total);
       }, 300);

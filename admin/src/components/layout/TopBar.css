@@ -269,16 +269,16 @@
   to   { transform: scale(1); }
 }
 
-/* ── Notification dropdown ── */
+/* ── Notification dropdown (Light Theme) ── */
 .notif-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 320px;
-  background: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.14), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   animation: dropdown-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 200;
@@ -290,49 +290,53 @@
 }
 
 .notif-dropdown-header {
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 14px 16px 11px;
+  border-bottom: 1px solid #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #ffffff;
 }
 
 .notif-dropdown-title {
   font-size: 13px;
   font-weight: 800;
-  color: #e2e8f0;
+  color: #0f172a;
 }
 
 .notif-dropdown-count {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  background: rgba(236, 72, 153, 0.2);
-  color: #f472b6;
-  padding: 2px 8px;
+  background: #fdf2f8;
+  color: #db2777;
+  padding: 2.5px 8px;
   border-radius: 10px;
+  border: 1px solid #fbcfe8;
 }
 
 .notif-list {
-  max-height: 300px;
+  max-height: 320px;
   overflow-y: auto;
+  background: #ffffff;
 }
 
 .notif-list::-webkit-scrollbar { width: 4px; }
 .notif-list::-webkit-scrollbar-track { background: transparent; }
-.notif-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+.notif-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
 .notif-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid #f1f5f9;
   cursor: default;
   transition: background 0.15s;
+  background: #ffffff;
 }
 
 .notif-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
 }
 
 .notif-item:last-child {
@@ -349,6 +353,7 @@
   justify-content: center;
   font-size: 14px;
   flex-shrink: 0;
+  color: #ffffff;
 }
 
 .notif-body {
@@ -359,7 +364,7 @@
 .notif-name {
   font-size: 12.5px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -367,53 +372,57 @@
 
 .notif-desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: #64748b;
   margin-top: 2px;
 }
 
 .notif-time {
   font-size: 10px;
   font-weight: 600;
-  color: #f59e0b;
+  color: #d97706;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .notif-empty {
-  padding: 28px 16px;
+  padding: 36px 16px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.35);
+  color: #64748b;
   font-size: 12px;
+  font-weight: 500;
+  background: #ffffff;
 }
 
 .notif-dropdown-footer {
-  padding: 10px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
   text-align: center;
+  background: #fafafa;
 }
 
 .notif-view-all {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
-  color: #6366f1;
+  color: #4f46e5;
   text-decoration: none;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
 
 .notif-view-all:hover {
-  color: #a5b4fc;
+  opacity: 0.85;
+  text-decoration: underline;
 }
 
-/* ── Orders Dropdown ── */
+/* ── Orders Dropdown (Light Theme) ── */
 .orders-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   width: 360px;
-  background: #0d0d0d;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.14), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   animation: dropdown-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 200;
@@ -423,12 +432,13 @@
   display: block;
   text-decoration: none;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #f1f5f9;
   transition: background 0.15s;
+  background: #ffffff;
 }
 
 .order-item-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: #f8fafc;
 }
 
 .order-item-link:last-child {
@@ -446,7 +456,7 @@
 .order-customer {
   font-size: 13px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -455,7 +465,7 @@
 .order-amount {
   font-size: 13px;
   font-weight: 800;
-  color: #10b981;
+  color: #059669;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
@@ -472,58 +482,58 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 2px 7px;
+  padding: 2.5px 8px;
   border-radius: 6px;
 }
 
 .order-status-pill.pending {
-  background: rgba(245, 158, 11, 0.18);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
 }
 
 .order-status-pill.packed {
-  background: rgba(59, 130, 246, 0.18);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 .order-status-pill.shipped {
-  background: rgba(139, 92, 246, 0.18);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
 }
 
 .order-status-pill.delivered {
-  background: rgba(16, 185, 129, 0.18);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 .order-status-pill.cancelled {
-  background: rgba(239, 68, 68, 0.18);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
 }
 
 .order-placed-time {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
+  color: #64748b;
 }
 
-/* ── Live New Order Toast Popup ── */
+/* ── Live New Order Toast Popup (Light Theme) ── */
 .new-order-toast {
   position: fixed;
   top: 76px;
   right: 24px;
   z-index: 9999;
   width: 340px;
-  background: #0f172a;
+  background: #ffffff;
   border: 1.5px solid #10b981;
   border-radius: 16px;
   padding: 14px 16px;
-  box-shadow: 0 10px 40px rgba(16, 185, 129, 0.3), 0 20px 60px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15), 0 20px 45px rgba(0, 0, 0, 0.08);
   animation: order-popup-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
   flex-direction: column;
@@ -553,14 +563,14 @@
   gap: 7px;
   font-size: 13px;
   font-weight: 800;
-  color: #34d399;
+  color: #059669;
   letter-spacing: 0.2px;
 }
 
 .new-order-toast-close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: #94a3b8;
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
@@ -569,35 +579,35 @@
 }
 
 .new-order-toast-close:hover {
-  color: #fff;
+  color: #0f172a;
 }
 
 .new-order-toast-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.04);
+  background: #f8fafc;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid #e2e8f0;
 }
 
 .new-order-toast-customer {
   font-size: 12.5px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #0f172a;
 }
 
 .new-order-toast-time {
   font-size: 11px;
-  color: #94a3b8;
+  color: #64748b;
   margin-top: 2px;
 }
 
 .new-order-toast-amount {
   font-size: 15px;
   font-weight: 900;
-  color: #10b981;
+  color: #059669;
 }
 
 .new-order-toast-btn {
@@ -621,11 +631,11 @@
 .cart-items-count-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.15);
-  padding: 2px 7px;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 2.5px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid #bae6fd;
 }
 
 /* ── Wishlist Dropdown Items ── */
@@ -640,8 +650,8 @@
   height: 38px;
   border-radius: 8px;
   object-fit: cover;
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   flex-shrink: 0;
 }
 
@@ -653,7 +663,7 @@
 .wishlist-prod-name {
   font-size: 12.5px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -669,7 +679,7 @@
 
 .wishlist-user-name {
   font-size: 11px;
-  color: #94a3b8;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

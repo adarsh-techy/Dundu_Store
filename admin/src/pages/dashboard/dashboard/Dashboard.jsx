@@ -399,7 +399,7 @@ export default function Dashboard() {
             buttonLabel="Reorder Stock"
             icon={AlertTriangle}
             tone="rose"
-            onClick={() => navigate('/products?low_stock=1')}
+            onClick={() => navigate('/inventory')}
           />
           <UrgentActionTile
             title="Customer Returns"

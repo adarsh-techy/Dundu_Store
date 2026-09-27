@@ -170,7 +170,7 @@ export default function Announcements() {
         enabled: false,
         status: 'failed',
         isError: true,
-        errorMessage: err.response?.data?.message || err.message || 'Failed to update announcement status',
+        errorMessage: err?.message || 'Failed to update announcement status',
       });
       toast.error('Failed to update announcement status');
     }
@@ -187,7 +187,7 @@ export default function Announcements() {
   };
 
   const handleDelete = async (a) => {
-    if (!window.confirm('Delete this announcement? This action cannot be reversed.')) return;
+    if (!window.confirm('Move this announcement to Trash? It can be restored from System → Trash within 30 days.')) return;
     try {
       await announcementApi.remove(a.id);
       qc.invalidateQueries({ queryKey: ['admin-announcements'] });

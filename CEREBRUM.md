@@ -214,6 +214,19 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-27 — Mobile + admin review fixes
+Backend
+- Banner `update` is now a partial update (reorder no longer wipes title/subtitle/link/badge).
+- WhatsApp broadcast substitutes `{name}`, `{phone}`, `{store_url}` (from `WEB_CLIENT_URL`) and `{code}` (from `coupon_code` in the request).
+- Finance report: refunds filtered to the selected period; net profit no longer clamped at 0. Dashboard "open returns" counts pending requests only.
+- Inventory endpoint accepts `stock=healthy|restock` (no LIMIT when filtered) and ignores trashed products.
+- `popup_interval_minutes=0` allowed (popup disabled). Announcement `sort_order` coerced to int. Public `/announcements` returns `scheduled_time` and hides entries until that time (Asia/Kolkata).
+- `PATCH /admin/reports/products/:id/cost-price` is super-admin only.
+- Web + mobile `cartApi.clear` → `DELETE /cart/clear` (the old `/cart` path never existed → mobile checkout always "failed" after creating the order).
+Admin
+- Product list requests `show_hidden=true` (hidden products stay visible/manageable); delete confirmations say "Move to Trash"; `err.message` used everywhere; coupon expiry shown in local time; inventory passes healthy/restock to the server; dashboard low-stock tile → /inventory; banners use v5 `invalidateQueries({ queryKey })`.
+Mobile (see agent report in the same commit): cart clear URL, Payment → OrderDetail param, Pay-now for pending online orders, checkout math mirrors the server (no first-order discount), combo detail unwrap, order detail field names, scratch card reveals only when scratched, quantity clamp 1..99.
+
 ### 2026-09-27 — Third review fixes (payments, trash edge cases, hosting)
 - `POST /orders/:id/pay` reuses the order's existing Razorpay order instead of minting a new one (a Razorpay order is payable once, so nothing can be orphaned). `verifyPayment` refunds a signature-valid payment that matches no order (`paymentService.fetchOrder`).
 - Trash: `/empty/:type` route registered before `/:type/:id`; `notTrashed(type)` middleware on the six admin routers (GET/PUT/PATCH on a trashed id → 404 "in Trash", static sub-paths like `/next-code` pass); trashing a category hides its visible products (ids in `trash_meta.hidden_product_ids`) and restore un-hides them (also fixing the saved state of products trashed meanwhile); product restore is blocked while its category is trashed; coupon `code` / category `slug` are renamed `<value>~trash~<id8>` in Trash and restored (with `-restored` suffix on clash); category `reassign_to` validated (UUID, exists, not trashed, not self).
@@ -359,6 +372,8 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 - **Daily Sales Report:** Modernized with 4 executive KPI cards, hourly sales Recharts BarChart, payment split, and top products table.
 - **New Arrivals:** Clean full-width table with category filter pills, search, 3 KPI cards, 1-click toggle buttons.
 - **Splash Screen:** Clean 2-column studio, simple toggles, color swatches + hex pickers, 4 duration buttons, live smartphone preview.
+- **TopBar Popovers & Dropdown Theme:** Completely converted all TopBar popovers (Recent Orders, Active Customer Carts, Saved Wishlists, Customer Birthdays, Return Requests, and live order toast popup) from dark mode (`#0d0d0d` / `#0f172a`) to crisp, executive **Light Theme**. Features clean white container backgrounds (`#ffffff`), subtle borders (`#e2e8f0`), soft dropshadows (`0 20px 45px -10px rgba(0,0,0,0.14)`), deep slate titles and customer typography (`#0f172a`), muted subtext (`#64748b`), high-contrast colored count badges with pastel backgrounds, readable status pills (`pending`, `packed`, `shipped`, `delivered`, `cancelled`), and styled empty state icons.
+- **Product Catalog Inside Scroll & Lazy Loading (ProductList.jsx):** Implemented an internal scrollable table container (`max-h-[calc(100vh-340px)]`, `min-h-[400px]`, `custom-table-scrollbar`) with sticky column headers (`sticky top-0 z-20 bg-slate-50`). Infinite query pagination is wired to an internal sentinel row (`<tr ref={loadMoreRef}>`) with `IntersectionObserver` scoped directly to the table container root (`rootMargin: '250px'`), paired with an `onScroll` threshold handler for rapid wheel flings. Added native `loading="lazy"` and `decoding="async"` on product images with graceful fallbacks. Filter and search updates automatically reset table scroll to top. Added real-time progress indicators in table header and footer.
 
 
 ---
