@@ -109,7 +109,7 @@ export default function CartScreen() {
     if (isCombo) {
       const comboImageUri = getImageUri(item.combo_image);
       const comboName = item.combo_name || 'Combo';
-      const comboPrice = parseFloat(item.combo_offer_price || item.combo_price || 0);
+      const comboPrice = Number(item.combo_offer_price) > 0 ? Number(item.combo_offer_price) : Number(item.combo_price) || 0;
       const selections = (() => {
         try {
           return typeof item.combo_selections === 'string'
@@ -175,7 +175,7 @@ export default function CartScreen() {
     // ── Regular product item rendering ───────────────────────────────────────
     const imageUri = getImageUri(item.image || item.product_image);
     const name = item.product_name || item.name || 'Product';
-    const price = parseFloat(item.offer_price || item.price || 0);
+    const price = Number(item.offer_price) > 0 ? Number(item.offer_price) : Number(item.price) || 0;
 
     return (
       <View style={styles.cartItem}>

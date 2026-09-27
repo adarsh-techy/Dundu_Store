@@ -276,7 +276,7 @@ export default function ScratchCardModal() {
           <View style={styles.scratchBox} {...panResponder.panHandlers}>
             {/* Gift Name Layer sitting underneath foil while scratching */}
             {!isRevealed && (
-              <View style={styles.scratchCanvasBackground}>
+              <View style={styles.scratchCanvasBackground} pointerEvents="none">
                 <Text style={styles.scratchUnderneathTitle}>{prize?.label || 'Mystery Reward'}</Text>
                 {prize?.coupon_code ? (
                   <View style={[styles.scratchUnderneathCodePill, { borderColor: currentTheme.borderColor }]}>

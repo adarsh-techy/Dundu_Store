@@ -18,7 +18,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { userApi, orderApi, couponApi, settingsApi, walletApi, loyaltyApi } from '../../../api/index';
 import AppHeader from '../../../components/ui/AppHeader';
 import PhoneInput from '../../../components/ui/PhoneInput';
-import useCartStore from '../../../store/cart.store';
+import useCartStore, { lineUnitPrice, lineName, lineImage } from '../../../store/cart.store';
 import useAuthStore from '../../../store/auth.store';
 import { API_URL, COLORS, UPLOADS_URL } from '../../../config';
 
@@ -593,11 +593,11 @@ export default function CheckoutScreen() {
           {items.map((item, index) => (
             <View key={item.id ?? item.product_id ?? index} style={styles.orderItem}>
               <Text style={styles.orderItemName} numberOfLines={1}>
-                {item.product_name || item.name}
+                {lineName(item)}
               </Text>
               <Text style={styles.orderItemQty}>x{item.quantity}</Text>
               <Text style={styles.orderItemPrice}>
-                {formatPrice(parseFloat(item.offer_price || item.price) * item.quantity)}
+                {formatPrice(lineUnitPrice(item) * item.quantity)}
               </Text>
             </View>
           ))}
@@ -738,7 +738,7 @@ export default function CheckoutScreen() {
               <Text style={styles.confirmSectionLabel}>🛍  Items</Text>
               <View style={styles.confirmItemsBox}>
                 {items.map((item, i) => {
-                  const imgSrc = item.image || item.product_image;
+                  const imgSrc = lineImage(item);
                   const uri = imgSrc
                     ? (imgSrc.startsWith('http') ? imgSrc : UPLOADS_URL + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc))
                     : null;
@@ -751,7 +751,7 @@ export default function CheckoutScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.confirmProductName} numberOfLines={2}>
-                          {item.product_name || item.name}
+                          {lineName(item)}
                         </Text>
                         {(item.size || item.color) && (
                           <Text style={styles.confirmProductMeta}>

@@ -11,6 +11,22 @@ export function clampQty(qty) {
   return Math.min(MAX_CART_QTY, n);
 }
 
+// Price/name/image of one cart line, for product rows, combo rows and buy-now items.
+// An offer price of 0 / "0.00" means "no offer", never "free".
+export function lineUnitPrice(item) {
+  if (!item) return 0;
+  if (item.combo_id) return Number(item.combo_offer_price) > 0 ? Number(item.combo_offer_price) : Number(item.combo_price) || 0;
+  return Number(item.offer_price) > 0 ? Number(item.offer_price) : Number(item.price) || 0;
+}
+export function lineName(item) {
+  if (!item) return 'Item';
+  return item.combo_id ? (item.combo_name || 'Combo') : (item.product_name || item.name || 'Product');
+}
+export function lineImage(item) {
+  if (!item) return null;
+  return item.combo_id ? item.combo_image : (item.image || item.product_image);
+}
+
 function computeTotals(items) {
   if (!Array.isArray(items)) return { total: 0, count: 0 };
   const total = items.reduce((sum, item) => {
