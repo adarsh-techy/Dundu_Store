@@ -76,10 +76,25 @@ async function startServer() {
     await db.query('SELECT 1');
     console.log('✓ Database connected');
 
-    // 2. Run runtime idempotent schema migrations
+    // 2. Apply versioned migrations (same as `npm run migrate`). Safe to run on every
+    //    boot: already-applied files are skipped. Set RUN_MIGRATIONS_ON_START=false to opt out.
+    if (process.env.RUN_MIGRATIONS_ON_START !== 'false') {
+      const migrate = require('node-pg-migrate').default;
+      await migrate({
+        databaseUrl: env.databaseUrl,
+        dir: path.join(__dirname, 'migrations'),
+        direction: 'up',
+        migrationsTable: 'pgmigrations',
+        log: () => {},
+        verbose: false,
+      });
+      console.log('✓ Migrations up to date');
+    }
+
+    // 3. Run runtime idempotent schema patches
     await initDb();
 
-    // 3. Start Express server listener
+    // 4. Start Express server listener
     app.listen(env.port, '0.0.0.0', () => {
       console.log(`✓ Dundu API server running on port ${env.port} (${env.nodeEnv})`);
     });

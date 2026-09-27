@@ -212,6 +212,10 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-27 — Migrations run at boot
+- `backend/index.js` now applies pending `node-pg-migrate` files on startup (before `initDb`). Fixes Render deploys whose Start Command was only `npm start` ("relation users does not exist"). Opt out with `RUN_MIGRATIONS_ON_START=false`.
+- Hosting: `render.yaml` blueprint, `web/vercel.json`, `admin/vercel.json` added; see §6.1.
+
 ### 2026-09-27 — Admin Combo Products page rebuilt
 - `admin/src/pages/catalog/combos/Combos.jsx`: stat cards (combos, orders, low stock, avg savings), search across names/slots/products, live/hidden filter, sorting; cards show cover or product collage, savings %, stock/orders, hidden/low-stock badges; actions: show/hide, duplicate, edit, delete (confirm modal with "hide instead"). Modal: inline validation, live "customer sees" price panel vs. buying separately, 4:3 cover cropper, slot builder with reorder, browse-or-search product picker (local 200 + server search), per-slot product options.
 - Backend `admin/catalog/combo.controller.js`: `validateComboInput` (name, price > 0, offer < price, integer stock, slots/labels/products, product ids must exist and be visible); `syncSlots` upserts slots **by id** so carts keep valid `slot_id`s after an edit; `list` returns `regular_total`, `orders_count` and product previews; `image_url=''` removes the cover. Slot payload from the admin sends `products` as an array of ids.
@@ -300,7 +304,7 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 ## 10. Debugging cheat-sheet
 | Symptom | Where to look |
 |---|---|
-| Checkout 500 "column … does not exist" | A migration was not applied: `npm run migrate`; `initDb.js` also patches at boot |
+| "relation … does not exist" / "column … does not exist" | Migrations run automatically at boot (`index.js`); if disabled, run `npm run migrate`. `initDb.js` also patches at boot |
 | Every request 401 after login | JWT secret changed, or user `is_blocked`; check `auth.middleware.js` |
 | Branch admin gets 403 on a page | Route is super-only in `routes/admin/index.js`; grant permission or accept |
 | OTP never arrives | Twilio creds missing → mock mode logs to console; check `whatsapp.service.js` |
