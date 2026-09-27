@@ -6,6 +6,8 @@ const list = async (req, res) => {
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
   const offset = (page - 1) * limit;
   const { actor, action, entity, search, from, to } = req.query;
+  const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+  if ((from && !isDate(from)) || (to && !isDate(to))) return res.status(400).json({ success: false, message: 'Dates must be YYYY-MM-DD' });
 
   const conditions = [];
   const params = [];

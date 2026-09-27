@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import {
-  TrendingUp, IndianRupee, ShoppingBag, ArrowUpRight, ArrowDownRight,
+  TrendingUp, IndianRupee, ShoppingBag,
   Calendar, Search, Package, Layers, Edit3, Check, RefreshCw,
   Download, Percent, Wallet, ShieldAlert, BarChart3, Receipt, Coins,
   ArrowRight, CheckCircle2, HelpCircle,
@@ -19,7 +19,7 @@ import { formatPrice } from '../../../utils/format';
 function FinanceChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-900 text-white rounded-xl shadow-2xl p-4 text-xs border border-slate-800 space-y-2 min-w-[200px]">
+    <div className="bg-slate-950 text-white rounded-xl shadow-2xl p-4 text-xs border border-slate-800 space-y-2 min-w-[200px]">
       <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1.5">{label}</p>
       {payload.map((entry, idx) => (
         <div key={idx} className="flex items-center justify-between gap-4">
@@ -36,78 +36,66 @@ function FinanceChartTooltip({ active, payload, label }) {
   );
 }
 
-/* ── Executive Financial Metric Card ─────────────────────────────────────── */
-function FinanceMetricCard({ title, value, sub, icon: Icon, tone = 'emerald', badge, onClick }) {
+/* ── Hero Executive Financial Metric Card ────────────────────────────────── */
+function FinanceHeroCard({ title, value, sub, icon: Icon, tone = 'emerald', badge, onClick }) {
   const tones = {
     emerald: {
-      card: 'border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/40 hover:border-emerald-300',
-      iconBox: 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20',
-      accent: 'text-emerald-950',
+      bar: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600',
+      iconBox: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      accent: 'text-slate-900',
     },
-    slate: {
-      card: 'border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/40 hover:border-slate-300',
-      iconBox: 'bg-slate-700 text-white shadow-sm shadow-slate-700/20',
-      accent: 'text-slate-950',
-      badge: 'bg-slate-100 text-slate-700 border-slate-200',
-    },
-    blue: {
-      card: 'border-sky-100 bg-gradient-to-br from-white via-white to-sky-50/40 hover:border-sky-300',
-      iconBox: 'bg-sky-600 text-white shadow-sm shadow-sky-600/20',
-      accent: 'text-sky-950',
+    sky: {
+      bar: 'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500',
+      iconBox: 'bg-sky-50 text-sky-700 border-sky-200',
       badge: 'bg-sky-50 text-sky-700 border-sky-200',
+      accent: 'text-slate-900',
     },
     indigo: {
-      card: 'border-indigo-100 bg-gradient-to-br from-white via-white to-indigo-50/40 hover:border-indigo-300',
-      iconBox: 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20',
-      accent: 'text-indigo-950',
+      bar: 'bg-gradient-to-r from-indigo-500 via-purple-500 to-violet-600',
+      iconBox: 'bg-indigo-50 text-indigo-700 border-indigo-200',
       badge: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      accent: 'text-slate-900',
     },
     violet: {
-      card: 'border-violet-100 bg-gradient-to-br from-white via-white to-violet-50/40 hover:border-violet-300',
-      iconBox: 'bg-violet-600 text-white shadow-sm shadow-violet-600/20',
-      accent: 'text-violet-950',
+      bar: 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-purple-600',
+      iconBox: 'bg-violet-50 text-violet-700 border-violet-200',
       badge: 'bg-violet-50 text-violet-700 border-violet-200',
-    },
-    teal: {
-      card: 'border-teal-100 bg-gradient-to-br from-white via-white to-teal-50/40 hover:border-teal-300',
-      iconBox: 'bg-teal-600 text-white shadow-sm shadow-teal-600/20',
-      accent: 'text-teal-950',
-      badge: 'bg-teal-50 text-teal-700 border-teal-200',
+      accent: 'text-slate-900',
     },
   }[tone] || {
-    card: 'border-slate-200 bg-white hover:border-slate-300',
-    iconBox: 'bg-slate-700 text-white',
+    bar: 'bg-slate-900',
+    iconBox: 'bg-slate-50 text-slate-700 border-slate-200',
+    badge: 'bg-slate-50 text-slate-700 border-slate-200',
     accent: 'text-slate-900',
-    badge: 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl p-4 sm:p-5 border shadow-sm transition-all duration-200 relative overflow-hidden flex flex-col justify-between ${tones.card} ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''
+      className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden transition-all duration-200 flex flex-col justify-between p-5 ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className={`absolute top-0 left-0 right-0 h-1.5 ${tones.bar}`} />
+
+      <div className="flex items-center justify-between gap-3 pt-1">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
           {title}
         </span>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tones.iconBox}`}>
+        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${tones.iconBox}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
 
-      <div className="mt-3">
-        <p className={`text-2xl lg:text-[28px] font-extrabold tracking-tight ${tones.accent}`}>
+      <div className="mt-4">
+        <p className={`text-2xl sm:text-[28px] font-extrabold tracking-tight ${tones.accent}`}>
           {value}
         </p>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          {sub && (
-            <p className="text-xs text-slate-500 font-medium truncate">
-              {sub}
-            </p>
-          )}
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <p className="text-xs text-slate-500 font-medium truncate">
+            {sub}
+          </p>
           {badge && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${tones.badge}`}>
               {badge}
@@ -214,7 +202,7 @@ export default function FinancePage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <Spinner />
-        <p className="text-xs font-semibold text-slate-500">Calculating financial telemetry & margins...</p>
+        <p className="text-xs font-semibold text-slate-500">Calculating financial telemetry and margins...</p>
       </div>
     );
   }
@@ -228,7 +216,7 @@ export default function FinancePage() {
     <div className="w-full space-y-6 pb-16">
 
       {/* ── 1. Top Executive Financial Command Bar ────────────────────────── */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
@@ -236,15 +224,15 @@ export default function FinancePage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                   Finance & Profit Analytics
                 </h1>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="text-[11px] font-bold px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Commerce Economics
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Track Buy Price (COGS), Gross Sales Revenue, Net Profit, and Department Margins
+                Track Buy Price (COGS), Gross Sales Revenue, Net Realized Profit, and Department Margins
               </p>
             </div>
           </div>
@@ -252,7 +240,7 @@ export default function FinancePage() {
 
         {/* Quick Period Presets & Actions */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+          <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200/70">
             {[
               { label: 'All Time', value: 'all_time' },
               { label: 'This Month', value: 'this_month' },
@@ -263,9 +251,9 @@ export default function FinancePage() {
               <button
                 key={p.value}
                 onClick={() => setPeriod(p.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   period === p.value
-                    ? 'bg-white text-slate-900 shadow-sm'
+                    ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
@@ -281,14 +269,14 @@ export default function FinancePage() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="text-xs bg-transparent focus:outline-none text-slate-700 font-medium"
+                className="text-xs bg-transparent focus:outline-none text-slate-700 font-medium cursor-pointer"
               />
               <span className="text-slate-400 text-xs font-semibold">to</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="text-xs bg-transparent focus:outline-none text-slate-700 font-medium"
+                className="text-xs bg-transparent focus:outline-none text-slate-700 font-medium cursor-pointer"
               />
             </div>
           )}
@@ -296,7 +284,7 @@ export default function FinancePage() {
           <button
             onClick={exportToCsv}
             title="Export CSV Report"
-            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 rounded-xl transition-all flex items-center gap-1.5"
+            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -306,68 +294,67 @@ export default function FinancePage() {
             onClick={() => refetch()}
             disabled={isFetching}
             title="Refresh Financial Data"
-            className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition-all"
+            className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition-all cursor-pointer"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin text-emerald-600' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* ── 2. Full-Width 6-Column Primary Financial Matrix ────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <FinanceMetricCard
-          title="Total Sales (Revenue)"
-          value={formatPrice(summary.total_revenue || 0)}
-          sub={`${Number(summary.total_orders || 0).toLocaleString('en-IN')} paid orders`}
-          badge="Gross Intake"
-          icon={IndianRupee}
-          tone="emerald"
-        />
-        <FinanceMetricCard
-          title="Buy Cost (COGS)"
-          value={formatPrice(summary.total_cost || 0)}
-          sub={`${Number(summary.total_units_sold || 0).toLocaleString('en-IN')} units purchased`}
-          badge="Total Cost"
-          icon={Package}
-          tone="slate"
-        />
-        <FinanceMetricCard
-          title="Gross Profit"
-          value={formatPrice(summary.gross_profit || 0)}
-          sub="Pre-refund profit"
-          badge="Sales - Cost"
-          icon={Coins}
-          tone="blue"
-        />
-        <FinanceMetricCard
+      {/* ── 2. Primary Financial Matrix (4 Expansive Hero Cards) ───────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <FinanceHeroCard
           title="Net Realized Profit"
           value={formatPrice(summary.net_profit || 0)}
-          sub="After customer refunds"
-          badge="Bottom Line"
+          sub="Verified bottom line after refunds"
+          badge={`Operating: ${summary.profit_margin_pct || 0}%`}
           icon={TrendingUp}
+          tone="emerald"
+        />
+        <FinanceHeroCard
+          title="Gross Sales Revenue"
+          value={formatPrice(summary.total_revenue || 0)}
+          sub={`${Number(summary.total_orders || 0).toLocaleString('en-IN')} paid customer orders`}
+          badge="Gross Intake"
+          icon={IndianRupee}
+          tone="sky"
+        />
+        <FinanceHeroCard
+          title="Procurement Cost (COGS)"
+          value={formatPrice(summary.total_cost || 0)}
+          sub={`${Number(summary.total_units_sold || 0).toLocaleString('en-IN')} units purchase total`}
+          badge="Inventory Cost"
+          icon={Package}
           tone="indigo"
         />
-        <FinanceMetricCard
-          title="Operating Margin"
-          value={`${summary.profit_margin_pct || 0}%`}
-          sub="Average return per sale"
-          badge={summary.profit_margin_pct >= 25 ? "Healthy" : "Baseline"}
+        <FinanceHeroCard
+          title="Commercial Margin & Multiplier"
+          value={`${summary.profit_margin_pct || 0}% Margin`}
+          sub={`${markupRatio}x Sales-to-Cost multiple`}
+          badge={`AOV: ${formatPrice(summary.avg_order_value || 0)}`}
           icon={Percent}
           tone="violet"
         />
-        <FinanceMetricCard
-          title="Avg. Order Value"
-          value={formatPrice(summary.avg_order_value || 0)}
-          sub="Revenue per transaction"
-          badge="Per Order"
-          icon={Receipt}
-          tone="teal"
-        />
       </div>
 
-      {/* ── 3. Operational Financial Safeguards Row (3 Cards) ─────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex items-center justify-between">
+      {/* ── 3. Operational Financial Safeguards & Multiplier Row ───────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
+              <Coins className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-extrabold text-slate-900">
+                {formatPrice(summary.gross_profit || 0)}
+              </p>
+              <p className="text-xs font-semibold text-slate-600">Gross Profit (Pre-refund)</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-slate-400">Pre-deduction</span>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0">
               <ShoppingBag className="h-5 w-5" />
@@ -379,12 +366,12 @@ export default function FinancePage() {
               <p className="text-xs font-semibold text-slate-600">Product Volume Shipped</p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
             {summary.total_orders || 0} Orders
           </span>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-700 border border-orange-200 flex items-center justify-center shrink-0">
               <ShieldAlert className="h-5 w-5" />
@@ -396,12 +383,12 @@ export default function FinancePage() {
               <p className="text-xs font-semibold text-slate-600">Approved Refund Deductions</p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
+          <span className="text-[11px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
             {summary.return_count || 0} Claims
           </span>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-sm flex items-center justify-between">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
               <CheckCircle2 className="h-5 w-5" />
@@ -413,13 +400,13 @@ export default function FinancePage() {
               <p className="text-xs font-semibold text-slate-600">Sales-to-Cost Multiple</p>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
             Optimal
           </span>
         </div>
       </div>
 
-      {/* ── 4. High-Clarity Tab Switcher (Zero Emojis) ────────────────────── */}
+      {/* ── 4. Segment Navigation Tabs (Zero Emojis) ───────────────────────── */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         {[
           { id: 'overview',   label: 'Financial Overview & Trends', icon: BarChart3 },
@@ -432,9 +419,9 @@ export default function FinancePage() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 activeTab === t.id
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
@@ -449,7 +436,7 @@ export default function FinancePage() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Monthly Comparison Bar Chart */}
-          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
               <div>
                 <h2 className="text-base font-bold text-slate-900 tracking-tight">
@@ -495,9 +482,9 @@ export default function FinancePage() {
                     />
                     <Tooltip content={<FinanceChartTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 12, paddingTop: 12 }} />
-                    <Bar dataKey="Sale Revenue" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-                    <Bar dataKey="Buy Cost" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={20} />
-                    <Bar dataKey="Profit" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="Sale Revenue" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
+                    <Bar dataKey="Buy Cost" fill="#94a3b8" radius={[6, 6, 0, 0]} barSize={20} />
+                    <Bar dataKey="Profit" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={20} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -507,7 +494,7 @@ export default function FinancePage() {
           {/* 2-Column Split: Top Profit Products & Category Margin Breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Top Profitable Products */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 tracking-tight">Highest Profit Generating Products</h3>
@@ -515,7 +502,7 @@ export default function FinancePage() {
                 </div>
                 <button
                   onClick={() => setActiveTab('products')}
-                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   Manage Buy Prices <ArrowRight className="h-3 w-3" />
                 </button>
@@ -559,7 +546,7 @@ export default function FinancePage() {
             </div>
 
             {/* Department Profit Margins */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 tracking-tight">Department Profit Margins</h3>
@@ -567,7 +554,7 @@ export default function FinancePage() {
                 </div>
                 <button
                   onClick={() => setActiveTab('categories')}
-                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                  className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   Category Ledger <ArrowRight className="h-3 w-3" />
                 </button>
@@ -610,7 +597,7 @@ export default function FinancePage() {
 
       {/* ── TAB 2: MONTHLY BREAKDOWN TABLE ────────────────────────────────── */}
       {activeTab === 'monthly' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-bold text-slate-900 tracking-tight">Monthly Buy Price, Sale Revenue & Profit Log</h2>
@@ -618,7 +605,7 @@ export default function FinancePage() {
             </div>
             <button
               onClick={exportToCsv}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Export Monthly Data</span>
@@ -688,7 +675,7 @@ export default function FinancePage() {
 
       {/* ── TAB 3: PRODUCT PROFITABILITY & BUY PRICE MANAGEMENT ───────────── */}
       {activeTab === 'products' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
@@ -777,7 +764,7 @@ export default function FinancePage() {
                             <button
                               onClick={() => handleSaveCost(p.product_id)}
                               disabled={updateCostMutation.isPending}
-                              className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                              className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
                               title="Save Cost"
                             >
                               <Check className="h-3.5 w-3.5" />
@@ -834,7 +821,7 @@ export default function FinancePage() {
 
       {/* ── TAB 4: CATEGORY BREAKDOWN ─────────────────────────────────────── */}
       {activeTab === 'categories' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-slate-900 tracking-tight">Category Profitability Breakdown</h2>

@@ -37,8 +37,10 @@ export default function AuditLog() {
   const [filters, setFilters] = useState({ actor: '', action: '', entity: '', from: '', to: '' });
   const [selected, setSelected] = useState(null);
 
-  // Debounce the search box without an effect: derive when the user pauses typing.
-  const applySearch = (v) => { setSearch(v); clearTimeout(applySearch.t); applySearch.t = setTimeout(() => setDebounced(v), 300); };
+  // Debounce the search box: the timer lives in a ref so it survives re-renders.
+  const searchTimer = useRef(null);
+  const applySearch = (v) => { setSearch(v); clearTimeout(searchTimer.current); searchTimer.current = setTimeout(() => setDebounced(v), 300); };
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
 
   const params = useMemo(() => ({
     limit,

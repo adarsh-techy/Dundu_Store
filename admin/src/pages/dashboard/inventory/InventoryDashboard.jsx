@@ -37,78 +37,66 @@ function StockBadge({ stock }) {
   );
 }
 
-/* ── Executive Metric Card ──────────────────────────────────────────────── */
-function InventoryKpiCard({ title, value, sub, icon: Icon, tone = 'slate', badge, onClick, active }) {
+/* ── Hero Executive Inventory Card ──────────────────────────────────────── */
+function InventoryHeroCard({ title, value, sub, icon: Icon, tone = 'emerald', badge, onClick, active }) {
   const tones = {
-    slate: {
-      card: 'border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/40 hover:border-slate-300',
-      iconBox: 'bg-slate-700 text-white shadow-sm shadow-slate-700/20',
-      accent: 'text-slate-950',
-      badge: 'bg-slate-100 text-slate-700 border-slate-200',
-    },
     emerald: {
-      card: 'border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/40 hover:border-emerald-300',
-      iconBox: 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20',
-      accent: 'text-emerald-950',
+      bar: 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600',
+      iconBox: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      accent: 'text-slate-900',
+    },
+    sky: {
+      bar: 'bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500',
+      iconBox: 'bg-sky-50 text-sky-700 border-sky-200',
+      badge: 'bg-sky-50 text-sky-700 border-sky-200',
+      accent: 'text-slate-900',
     },
     rose: {
-      card: 'border-rose-200/90 bg-gradient-to-br from-rose-50/40 via-white to-rose-50/10 hover:border-rose-300',
-      iconBox: 'bg-rose-600 text-white shadow-sm shadow-rose-600/20',
-      accent: 'text-rose-950',
-      badge: 'bg-rose-100 text-rose-800 border-rose-200',
-    },
-    amber: {
-      card: 'border-amber-200/90 bg-gradient-to-br from-amber-50/40 via-white to-amber-50/10 hover:border-amber-300',
-      iconBox: 'bg-amber-600 text-white shadow-sm shadow-amber-600/20',
-      accent: 'text-amber-950',
-      badge: 'bg-amber-100 text-amber-800 border-amber-200',
-    },
-    teal: {
-      card: 'border-teal-100 bg-gradient-to-br from-white via-white to-teal-50/40 hover:border-teal-300',
-      iconBox: 'bg-teal-600 text-white shadow-sm shadow-teal-600/20',
-      accent: 'text-teal-950',
-      badge: 'bg-teal-50 text-teal-700 border-teal-200',
+      bar: 'bg-gradient-to-r from-rose-500 via-red-500 to-rose-600',
+      iconBox: 'bg-rose-50 text-rose-700 border-rose-200',
+      badge: 'bg-rose-50 text-rose-700 border-rose-200',
+      accent: 'text-slate-900',
     },
     violet: {
-      card: 'border-violet-100 bg-gradient-to-br from-white via-white to-violet-50/40 hover:border-violet-300',
-      iconBox: 'bg-violet-600 text-white shadow-sm shadow-violet-600/20',
-      accent: 'text-violet-950',
+      bar: 'bg-gradient-to-r from-violet-500 via-purple-500 to-indigo-600',
+      iconBox: 'bg-violet-50 text-violet-700 border-violet-200',
       badge: 'bg-violet-50 text-violet-700 border-violet-200',
+      accent: 'text-slate-900',
     },
   }[tone] || {
-    card: 'border-slate-200 bg-white hover:border-slate-300',
-    iconBox: 'bg-slate-700 text-white',
+    bar: 'bg-slate-900',
+    iconBox: 'bg-slate-50 text-slate-700 border-slate-200',
+    badge: 'bg-slate-50 text-slate-700 border-slate-200',
     accent: 'text-slate-900',
-    badge: 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl p-4 sm:p-5 border shadow-sm transition-all duration-200 relative overflow-hidden flex flex-col justify-between ${tones.card} ${
-        onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''
+      className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden transition-all duration-200 flex flex-col justify-between p-5 ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5' : ''
       } ${active ? 'ring-2 ring-slate-900 ring-offset-2' : ''}`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className={`absolute top-0 left-0 right-0 h-1.5 ${tones.bar}`} />
+
+      <div className="flex items-center justify-between gap-3 pt-1">
         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
           {title}
         </span>
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tones.iconBox}`}>
+        <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${tones.iconBox}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
 
-      <div className="mt-3">
-        <p className={`text-2xl lg:text-[28px] font-extrabold tracking-tight ${tones.accent}`}>
+      <div className="mt-4">
+        <p className={`text-2xl sm:text-[28px] font-extrabold tracking-tight ${tones.accent}`}>
           {value}
         </p>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          {sub && (
-            <p className="text-xs text-slate-500 font-medium truncate">
-              {sub}
-            </p>
-          )}
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <p className="text-xs text-slate-500 font-medium truncate">
+            {sub}
+          </p>
           {badge && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${tones.badge}`}>
               {badge}
@@ -212,7 +200,7 @@ export default function InventoryDashboard() {
     <div className="w-full space-y-6 pb-16">
 
       {/* ── 1. Top Executive Inventory Command Bar ────────────────────────── */}
-      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-sm shadow-slate-900/20">
@@ -220,11 +208,11 @@ export default function InventoryDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                   Inventory & Stock Intelligence
                 </h1>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Live Stock Engine
+                <span className="text-[11px] font-bold px-3 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Warehouse Telemetry
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -239,7 +227,7 @@ export default function InventoryDashboard() {
           <button
             onClick={handleExportCsv}
             title="Download Inventory CSV"
-            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 rounded-xl transition-all flex items-center gap-1.5"
+            className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Export CSV</span>
@@ -249,78 +237,141 @@ export default function InventoryDashboard() {
             onClick={() => refetch()}
             disabled={isFetching}
             title="Refresh Inventory"
-            className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition-all"
+            className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl transition-all cursor-pointer"
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin text-emerald-600' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* ── 2. Primary Full-Width Executive Metric Cards (6 Columns) ───────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <InventoryKpiCard
-          title="Catalog Items"
-          value={d.total_products ?? 0}
-          sub="Active visible products"
-          badge="Catalog"
-          icon={Package}
-          tone="slate"
-          onClick={() => setStockFilter('all')}
-          active={stockFilter === 'all'}
-        />
-        <InventoryKpiCard
+      {/* ── 2. Primary Financial & Stock Valuation Barometer (4 Hero Cards) ─ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <InventoryHeroCard
           title="Inventory Valuation"
           value={formatPrice(d.stock_value || 0)}
-          sub="At current selling price"
+          sub="Total retail asset valuation on hand"
           badge="Asset Worth"
           icon={IndianRupee}
           tone="emerald"
         />
-        <InventoryKpiCard
-          title="Out of Stock"
-          value={d.out_of_stock ?? 0}
-          sub="Products with 0 units"
-          badge="Immediate Action"
-          icon={XCircle}
-          tone="rose"
-          onClick={() => setStockFilter(stockFilter === 'out' ? 'all' : 'out')}
-          active={stockFilter === 'out'}
-        />
-        <InventoryKpiCard
-          title="Low Stock Warning"
-          value={d.low_stock ?? 0}
-          sub="Less than 10 units left"
-          badge="Reorder Soon"
-          icon={AlertTriangle}
-          tone="amber"
-          onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')}
-          active={stockFilter === 'low'}
-        />
-        <InventoryKpiCard
-          title="Healthy Supply"
+        <InventoryHeroCard
+          title="Healthy Stock Supply"
           value={healthyStockCount}
-          sub="10+ units on hand"
+          sub="10+ units on hand ready to dispatch"
           badge="Sufficient"
           icon={CheckCircle2}
-          tone="teal"
+          tone="sky"
           onClick={() => setStockFilter(stockFilter === 'healthy' ? 'all' : 'healthy')}
           active={stockFilter === 'healthy'}
         />
-        <InventoryKpiCard
-          title="Total Stock Units"
+        <InventoryHeroCard
+          title="Restock Warning & Stockouts"
+          value={(d.out_of_stock ?? 0) + (d.low_stock ?? 0)}
+          sub={`${d.out_of_stock ?? 0} out of stock · ${d.low_stock ?? 0} low stock`}
+          badge="Needs Attention"
+          icon={AlertTriangle}
+          tone="rose"
+          onClick={() => setStockFilter(stockFilter === 'low' || stockFilter === 'out' ? 'all' : 'low')}
+          active={stockFilter === 'low' || stockFilter === 'out'}
+        />
+        <InventoryHeroCard
+          title="Warehouse Physical Units"
           value={totalPhysicalUnits.toLocaleString('en-IN')}
-          sub="Physical pieces in warehouse"
+          sub={`Across ${d.total_products ?? 0} published catalog products`}
           badge="Total Volume"
           icon={Boxes}
           tone="violet"
         />
       </div>
 
-      {/* ── 3. Split: Main Stock Ledger & Department Breakdown ─────────────── */}
+      {/* ── 3. Stock Health Quick Barometer Strip (4 Actionable Tiles) ─────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div
+          onClick={() => setStockFilter('all')}
+          className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+            stockFilter === 'all' ? 'border-slate-900 bg-slate-50/70 shadow-xs' : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-extrabold text-slate-900">{d.total_products ?? 0}</p>
+              <p className="text-xs font-semibold text-slate-600">All Catalog Items</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+            Total
+          </span>
+        </div>
+
+        <div
+          onClick={() => setStockFilter(stockFilter === 'out' ? 'all' : 'out')}
+          className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+            stockFilter === 'out' ? 'border-rose-500 bg-rose-50/40 shadow-xs ring-1 ring-rose-500' : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0">
+              <XCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-extrabold text-slate-900">{d.out_of_stock ?? 0}</p>
+              <p className="text-xs font-semibold text-slate-600">Zero Stock Out</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+            Critical
+          </span>
+        </div>
+
+        <div
+          onClick={() => setStockFilter(stockFilter === 'low' ? 'all' : 'low')}
+          className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+            stockFilter === 'low' ? 'border-amber-500 bg-amber-50/40 shadow-xs ring-1 ring-amber-500' : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-extrabold text-slate-900">{d.low_stock ?? 0}</p>
+              <p className="text-xs font-semibold text-slate-600">Low Stock (&lt; 10)</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            Reorder
+          </span>
+        </div>
+
+        <div
+          onClick={() => setStockFilter(stockFilter === 'healthy' ? 'all' : 'healthy')}
+          className={`bg-white rounded-2xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+            stockFilter === 'healthy' ? 'border-emerald-500 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-500' : 'border-slate-200/80 shadow-xs hover:border-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-extrabold text-slate-900">{healthyStockCount}</p>
+              <p className="text-xs font-semibold text-slate-600">Healthy Supply (10+)</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            Optimal
+          </span>
+        </div>
+      </div>
+
+      {/* ── 4. Split: Main Stock Ledger & Department Breakdown ─────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
 
         {/* Left Column: Product Stock Ledger (8 cols) */}
-        <div className="xl:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col justify-between">
+        <div className="xl:col-span-8 bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden flex flex-col justify-between">
           <div>
             {/* Table Header Filter Bar */}
             <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -350,7 +401,7 @@ export default function InventoryDashboard() {
                 </div>
 
                 {/* Stock Health Filter Pills */}
-                <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200/70 text-xs font-bold">
                   {[
                     { key: 'all',     label: 'All' },
                     { key: 'out',     label: 'Out' },
@@ -360,9 +411,9 @@ export default function InventoryDashboard() {
                     <button
                       key={f.key}
                       onClick={() => setStockFilter(f.key)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                         stockFilter === f.key
-                          ? 'bg-white text-slate-900 shadow-sm'
+                          ? 'bg-white text-slate-900 shadow-xs'
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
@@ -464,7 +515,7 @@ export default function InventoryDashboard() {
                                 e.stopPropagation();
                                 navigate(`/products/${p.id}`);
                               }}
-                              className="text-xs font-bold text-slate-600 group-hover:text-emerald-700 transition-colors inline-flex items-center gap-1"
+                              className="text-xs font-bold text-slate-600 group-hover:text-emerald-700 transition-colors inline-flex items-center gap-1 cursor-pointer"
                             >
                               Edit <ArrowRight className="h-3 w-3" />
                             </button>
@@ -480,7 +531,7 @@ export default function InventoryDashboard() {
         </div>
 
         {/* Right Column: Category Stock Distribution (4 cols) */}
-        <div className="xl:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6 flex flex-col justify-between">
+        <div className="xl:col-span-4 bg-white rounded-2xl shadow-xs border border-slate-200/80 p-5 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -494,7 +545,7 @@ export default function InventoryDashboard() {
               </div>
               <button
                 onClick={() => navigate('/categories')}
-                className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors"
+                className="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 transition-colors cursor-pointer"
               >
                 Categories <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
@@ -517,7 +568,7 @@ export default function InventoryDashboard() {
                       onClick={() => setSelectedCategory(selectedCategory === c.category ? '' : c.category)}
                       className={`p-3 rounded-xl border transition-all cursor-pointer ${
                         selectedCategory === c.category
-                          ? 'border-indigo-400 bg-indigo-50/50 shadow-sm'
+                          ? 'border-indigo-400 bg-indigo-50/50 shadow-xs'
                           : 'border-slate-100 bg-slate-50/50 hover:bg-slate-100/70 hover:border-slate-200'
                       }`}
                     >

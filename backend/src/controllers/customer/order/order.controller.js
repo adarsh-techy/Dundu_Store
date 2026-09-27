@@ -721,7 +721,13 @@ const verifyPayment = async (req, res) => {
   const { rows } = await db.query(
     'SELECT * FROM orders WHERE razorpay_order_id=$1 AND user_id=$2', [razorpay_order_id, req.user.id]
   );
-  if (!rows.length) return notFound(res, 'Order not found');
+  if (!rows.length) {
+    // Valid signature but nothing matches: never keep money we cannot attach to an order.
+    const gwOrder = await paymentService.fetchOrder?.(razorpay_order_id).catch(() => null);
+    const amount = gwOrder?.amount_paid ? gwOrder.amount_paid / 100 : (gwOrder?.amount ? gwOrder.amount / 100 : null);
+    if (amount) await paymentService.refundPayment(razorpay_payment_id, amount).catch((err) => console.error('orphan payment refund failed:', err.message));
+    return notFound(res, 'Order not found. If money was deducted it will be refunded automatically.');
+  }
   const order = rows[0];
 
   // Money arrived for an order that is no longer payable (cancelled while the modal was open,
@@ -975,8 +981,16 @@ const retryPayment = async (req, res) => {
   }
   const payable = round2(parseFloat(order.total) - parseFloat(order.wallet_amount || 0));
   if (!(payable > 0)) return badRequest(res, 'Nothing left to pay on this order');
+  // A Razorpay order can only be paid once, so keep reusing the one already attached to this
+  // order. Creating a fresh one would leave the old one payable but untracked.
+  if (order.razorpay_order_id) {
+    return ok(res, {
+      order,
+      razorpay: { id: order.razorpay_order_id, amount: Math.round(payable * 100), currency: 'INR', receipt: order.order_number },
+    });
+  }
   const razorpayOrder = await paymentService.createOrder(payable, 'INR', order.order_number);
-  await db.query('UPDATE orders SET razorpay_order_id=$1 WHERE id=$2', [razorpayOrder.id, order.id]);
+  await db.query('UPDATE orders SET razorpay_order_id=$1 WHERE id=$2 AND razorpay_order_id IS NULL', [razorpayOrder.id, order.id]);
   ok(res, { order: { ...order, razorpay_order_id: razorpayOrder.id }, razorpay: razorpayOrder });
 };
 

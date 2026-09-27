@@ -113,14 +113,21 @@ const saveSizeChartTable = async (req, res) => {
 
 // Deleting moves the category to Trash. Products may optionally be moved to another
 // category first (reassign_to); otherwise they stay attached and come back on restore.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const remove = async (req, res) => {
   const { reassign_to } = req.query;
+  const { rows: src } = await db.query('SELECT id FROM categories WHERE id=$1 AND deleted_at IS NULL', [req.params.id]);
+  if (!src.length) return notFound(res, 'Category not found');
   if (reassign_to) {
+    if (!UUID_RE.test(reassign_to) || reassign_to === req.params.id) return badRequest(res, 'Choose a different, valid category to move products to');
+    const { rows: target } = await db.query('SELECT id FROM categories WHERE id=$1 AND deleted_at IS NULL', [reassign_to]);
+    if (!target.length) return badRequest(res, 'The target category does not exist or is in Trash');
     await db.query('UPDATE products SET category_id=$1 WHERE category_id=$2', [reassign_to, req.params.id]);
   }
   const row = await trashService.trash('categories', req.params.id, req.user?.id);
   if (!row) return notFound(res, 'Category not found');
-  ok(res, { message: 'Category moved to Trash' });
+  ok(res, { message: reassign_to ? 'Products moved and category sent to Trash' : 'Category moved to Trash (its products are hidden until restored)' });
 };
 
 const listMaterials = async (_req, res) => {

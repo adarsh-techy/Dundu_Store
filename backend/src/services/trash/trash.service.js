@@ -1,4 +1,5 @@
 const db = require('../../config/db');
+const { notFound } = require('../../utils/response');
 
 // One entry per trashable record type.
 //  hide:     columns flipped when trashed (and remembered in trash_meta for restore)
@@ -14,7 +15,6 @@ const TYPES = {
     },
     purge: async (client, id) => {
       await client.query('DELETE FROM cart WHERE product_id=$1', [id]);
-      await client.query('DELETE FROM wishlists WHERE product_id=$1', [id]).catch(() => {});
       await client.query('DELETE FROM combo_slot_products WHERE product_id=$1', [id]);
       await client.query('DELETE FROM product_images WHERE product_id=$1', [id]);
       await client.query('DELETE FROM product_variants WHERE product_id=$1', [id]);
@@ -22,7 +22,7 @@ const TYPES = {
     },
   },
   categories: {
-    label: 'Category', table: 'categories', nameCol: 'name', hide: { is_active: false },
+    label: 'Category', table: 'categories', nameCol: 'name', hide: { is_active: false }, uniqueCol: 'slug',
     extra: "COALESCE(t.image_url, '') AS image, (SELECT COUNT(*)::int FROM products WHERE category_id = t.id) AS product_count",
     blockers: async (id) => {
       const { rows } = await db.query('SELECT COUNT(*)::int AS c FROM products WHERE category_id=$1', [id]);
@@ -37,7 +37,7 @@ const TYPES = {
     purge: async (client, id) => { await client.query('DELETE FROM combos WHERE id=$1', [id]); },
   },
   coupons: {
-    label: 'Coupon', table: 'coupons', nameCol: 'code', hide: { is_active: false },
+    label: 'Coupon', table: 'coupons', nameCol: 'code', hide: { is_active: false }, uniqueCol: 'code',
     extra: "'' AS image, t.discount_type, t.discount_value, t.used_count",
     blockers: async () => null,
     purge: async (client, id) => { await client.query('DELETE FROM coupons WHERE id=$1', [id]); },
@@ -69,13 +69,39 @@ const trash = async (type, id, actorId) => {
   if (!cur.length) return null;
   const meta = {};
   hideCols.forEach((c) => { meta[c] = cur[0][c]; });
-  const sets = hideCols.map((c, i) => `${c}=$${i + 4}`);
-  const { rows } = await db.query(
-    `UPDATE ${cfg.table} SET deleted_at=now(), deleted_by=$2, trash_meta=$3${sets.length ? ', ' + sets.join(', ') : ''}
-     WHERE id=$1 RETURNING id`,
-    [id, actorId || null, JSON.stringify(meta), ...hideCols.map((c) => cfg.hide[c])]
-  );
-  return rows[0] || null;
+
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    // Free the unique key (coupon code / category slug) so a replacement can be created
+    // while this one sits in Trash; the original value is kept for restore.
+    let renameSql = '';
+    if (cfg.uniqueCol) {
+      const { rows: u } = await client.query(`SELECT ${cfg.uniqueCol} FROM ${cfg.table} WHERE id=$1`, [id]);
+      meta[cfg.uniqueCol] = u[0][cfg.uniqueCol];
+      renameSql = `, ${cfg.uniqueCol} = ${cfg.uniqueCol} || '~trash~' || left(id::text, 8)`;
+    }
+    // A trashed category takes its (currently visible) products off the store with it.
+    if (type === 'categories') {
+      const { rows: hidden } = await client.query(
+        'UPDATE products SET is_hidden=true WHERE category_id=$1 AND deleted_at IS NULL AND is_hidden=false RETURNING id', [id]
+      );
+      meta.hidden_product_ids = hidden.map((r) => r.id);
+    }
+    const sets = hideCols.map((c, i) => `${c}=$${i + 4}`);
+    const { rows } = await client.query(
+      `UPDATE ${cfg.table} SET deleted_at=now(), deleted_by=$2, trash_meta=$3${sets.length ? ', ' + sets.join(', ') : ''}${renameSql}
+       WHERE id=$1 RETURNING id`,
+      [id, actorId || null, JSON.stringify(meta), ...hideCols.map((c) => cfg.hide[c])]
+    );
+    await client.query('COMMIT');
+    return rows[0] || null;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 };
 
 /** Put a trashed record back, restoring the state it had before deletion. */
@@ -85,15 +111,62 @@ const restore = async (type, id) => {
   const { rows: cur } = await db.query(`SELECT trash_meta FROM ${cfg.table} WHERE id=$1 AND deleted_at IS NOT NULL`, [id]);
   if (!cur.length) return null;
   const meta = cur[0].trash_meta || {};
+  if (type === 'products') {
+    const { rows: cat } = await db.query(
+      'SELECT c.deleted_at FROM products p JOIN categories c ON c.id = p.category_id WHERE p.id=$1', [id]
+    );
+    if (cat[0]?.deleted_at) return { blocked: 'Its category is in Trash. Restore the category first (or move the product to another category).' };
+  }
   const hideCols = Object.keys(cfg.hide);
   const sets = hideCols.map((c, i) => `${c}=$${i + 2}`);
   const vals = hideCols.map((c) => (meta[c] !== undefined ? meta[c] : !cfg.hide[c]));
-  const { rows } = await db.query(
-    `UPDATE ${cfg.table} SET deleted_at=NULL, deleted_by=NULL, trash_meta=NULL${sets.length ? ', ' + sets.join(', ') : ''}
-     WHERE id=$1 RETURNING id`,
-    [id, ...vals]
-  );
-  return rows[0] || null;
+  let renameSql = '';
+  if (cfg.uniqueCol && meta[cfg.uniqueCol]) {
+    // Put the original code/slug back unless a newer record took it meanwhile.
+    const { rows: clash } = await db.query(`SELECT 1 FROM ${cfg.table} WHERE ${cfg.uniqueCol}=$1 AND id<>$2`, [meta[cfg.uniqueCol], id]);
+    vals.push(clash.length ? `${meta[cfg.uniqueCol]}-restored` : meta[cfg.uniqueCol]);
+    renameSql = `, ${cfg.uniqueCol}=$${vals.length + 1}`;
+  }
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE ${cfg.table} SET deleted_at=NULL, deleted_by=NULL, trash_meta=NULL${sets.length ? ', ' + sets.join(', ') : ''}${renameSql}
+       WHERE id=$1 RETURNING id`,
+      [id, ...vals]
+    );
+    if (type === 'categories' && Array.isArray(meta.hidden_product_ids) && meta.hidden_product_ids.length) {
+      await client.query('UPDATE products SET is_hidden=false WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL', [meta.hidden_product_ids]);
+      // Products trashed while the category was in Trash remembered "hidden" only because of
+      // the cascade; fix their saved state so restoring them later makes them visible.
+      await client.query(
+        `UPDATE products SET trash_meta = COALESCE(trash_meta, '{}'::jsonb) || '{"is_hidden": false}'::jsonb
+         WHERE id = ANY($1::uuid[]) AND deleted_at IS NOT NULL`, [meta.hidden_product_ids]
+      );
+    }
+    await client.query('COMMIT');
+    return rows[0] || null;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+/** Express middleware: refuse to edit/toggle/read a record that is currently in Trash. */
+const notTrashed = (type, param = 'id') => async (req, res, next) => {
+  const cfg = getType(type);
+  if (!cfg) return next();
+  const id = req.params[param];
+  // Only real record ids are checked; static sub-paths such as /next-code or /bulk pass through.
+  const looksLikeId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || /^\d+$/.test(id);
+  if (!id || !looksLikeId) return next();
+  try {
+    const { rows } = await db.query(`SELECT deleted_at FROM ${cfg.table} WHERE id=$1`, [id]);
+    if (rows.length && rows[0].deleted_at) return notFound(res, `This ${cfg.label.toLowerCase()} is in Trash. Restore it first.`);
+    next();
+  } catch (err) { next(err); }
 };
 
 /** Permanently delete a trashed record. Returns { ok, reason }. */
@@ -159,4 +232,4 @@ const purgeExpired = async () => {
   return removed;
 };
 
-module.exports = { TYPES, RETENTION_DAYS, trash, restore, purge, listType, counts, purgeExpired };
+module.exports = { TYPES, RETENTION_DAYS, trash, restore, purge, listType, counts, purgeExpired, notTrashed };

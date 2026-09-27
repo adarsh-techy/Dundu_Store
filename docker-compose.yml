@@ -26,6 +26,7 @@ services:
     environment:
       PORT: 5000
       NODE_ENV: production
+      # POSTGRES_PASSWORD is interpolated raw into this URL: use letters/digits only (no @ # / % ?).
       DATABASE_URL: postgresql://${POSTGRES_USER:-dundu}:${POSTGRES_PASSWORD:-dundu}@postgres:5432/${POSTGRES_DB:-dundu_db}
       WEB_CLIENT_URL: ${WEB_CLIENT_URL:-http://localhost:3000}
       ADMIN_CLIENT_URL: ${ADMIN_CLIENT_URL:-http://localhost:3001}

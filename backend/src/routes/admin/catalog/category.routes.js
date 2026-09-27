@@ -1,4 +1,7 @@
 const router = require('express').Router();
+const { notTrashed } = require('../../../services/trash/trash.service');
+// Records sitting in Trash cannot be read, edited or toggled here (restore them first).
+router.use('/:id', (req, res, next) => (req.method === 'DELETE' ? next() : notTrashed('categories')(req, res, next)));
 const upload = require('../../../utils/upload');
 const ah = require('../../../utils/asyncHandler');
 const category = require('../../../controllers/admin/catalog/category.controller');

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Pencil, Trash2, Megaphone, Timer,
   Bell, BellOff, Clock, Search, X, RefreshCw,
-  CheckCircle2, Smartphone, Save, Radio
+  CheckCircle2, Smartphone, Save, Radio, XCircle, ShieldCheck
 } from 'lucide-react';
 import { announcementApi, settingsApi } from '../../../api';
 import Button from '../../../components/ui/Button';
@@ -60,6 +60,7 @@ export default function Announcements() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [previewMode, setPreviewMode] = useState('ticker'); // 'ticker' | 'popup'
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState(null);
+  const [activationModal, setActivationModal] = useState(null);
 
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
@@ -148,16 +149,29 @@ export default function Announcements() {
 
   // Toggle Single Active Announcement
   const handleToggleActive = async (a) => {
+    const willBeActive = !a.is_active;
     try {
       await announcementApi.toggle(a.id);
       qc.invalidateQueries({ queryKey: ['admin-announcements'] });
       setSelectedAnnouncementId(a.id);
+      setActivationModal({
+        announcement: a,
+        enabled: willBeActive,
+        status: willBeActive ? 'success' : 'failed',
+      });
       toast.success(
-        a.is_active
-          ? 'Announcement paused — no active ticker on app'
-          : `Activated "${a.text.slice(0, 30)}..." as the single active ticker`
+        willBeActive
+          ? `Activated "${a.text.slice(0, 30)}..." as the single active ticker`
+          : 'Announcement paused — no active ticker on app'
       );
-    } catch {
+    } catch (err) {
+      setActivationModal({
+        announcement: a,
+        enabled: false,
+        status: 'failed',
+        isError: true,
+        errorMessage: err.response?.data?.message || err.message || 'Failed to update announcement status',
+      });
       toast.error('Failed to update announcement status');
     }
   };
@@ -1041,6 +1055,201 @@ export default function Announcements() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* ── Classic Executive Success (Green) / Failed (Red) Centered Popup for Active Ticker ── */}
+      {activationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setActivationModal(null)}
+        >
+          <div
+            className={`bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border text-center relative overflow-hidden animate-in zoom-in-95 duration-200 ${
+              activationModal.status === 'success'
+                ? 'border-emerald-200 shadow-emerald-950/20'
+                : 'border-rose-200 shadow-rose-950/20'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Color Accent Line */}
+            <div
+              className={`absolute top-0 left-0 right-0 h-1.5 ${
+                activationModal.status === 'success'
+                  ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500'
+                  : 'bg-gradient-to-r from-rose-500 via-red-500 to-rose-600'
+              }`}
+            />
+
+            {/* Top Close Button */}
+            <button
+              onClick={() => setActivationModal(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Top Decorative Ambient Glow */}
+            <div
+              className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full blur-2xl opacity-40 pointer-events-none ${
+                activationModal.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
+              }`}
+            />
+
+            {/* Centered Circular Icon Badge */}
+            <div
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 shadow-sm relative z-10 ring-4 ${
+                activationModal.status === 'success'
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-100/60 shadow-emerald-500/10'
+                  : 'bg-rose-50 text-rose-600 border-rose-200 ring-rose-100/60 shadow-rose-500/10'
+              }`}
+            >
+              {activationModal.status === 'success' ? (
+                <Megaphone className="w-8 h-8 text-emerald-600" />
+              ) : activationModal.isError ? (
+                <XCircle className="w-8 h-8 text-rose-600" />
+              ) : (
+                <BellOff className="w-8 h-8 text-rose-600" />
+              )}
+            </div>
+
+            {/* Status Badge */}
+            <div className="relative z-10 mb-2">
+              <span
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
+                  activationModal.status === 'success'
+                    ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-100/80 text-rose-800 border-rose-300'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    activationModal.status === 'success'
+                      ? 'bg-emerald-500 animate-pulse'
+                      : 'bg-rose-500 animate-pulse'
+                  }`}
+                />
+                {activationModal.isError
+                  ? 'UPDATE FAILED — SERVER ERROR'
+                  : activationModal.status === 'success'
+                  ? 'SUCCESS — SINGLE ACTIVE TICKER LIVE'
+                  : 'FAILED / TICKER PAUSED'}
+              </span>
+            </div>
+
+            {/* Title & Description */}
+            <h3
+              className={`text-lg sm:text-xl font-black tracking-tight relative z-10 ${
+                activationModal.status === 'success' ? 'text-emerald-950' : 'text-rose-950'
+              }`}
+            >
+              {activationModal.isError
+                ? 'Failed to Update Ticker'
+                : activationModal.status === 'success'
+                ? 'Header Ticker Activated'
+                : 'Header Ticker Paused'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed relative z-10">
+              {activationModal.isError
+                ? activationModal.errorMessage
+                : activationModal.status === 'success'
+                ? `Activated "${activationModal.announcement.text.slice(0, 32)}..." as the single active ticker.`
+                : 'The announcement ticker has been paused. No active ticker will be shown on the storefront.'}
+            </p>
+
+            {/* Executive Details Breakdown Card */}
+            {!activationModal.isError && (
+              <div
+                className={`border rounded-2xl p-4 text-left space-y-2.5 my-5 text-xs relative z-10 ${
+                  activationModal.status === 'success'
+                    ? 'bg-emerald-50/70 border-emerald-200'
+                    : 'bg-rose-50/70 border-rose-200'
+                }`}
+              >
+                {/* Live Ticker Preview Swatch */}
+                <div>
+                  <span className={`block text-[10px] font-bold uppercase tracking-wider mb-1.5 ${
+                    activationModal.status === 'success' ? 'text-emerald-900/70' : 'text-rose-900/70'
+                  }`}>
+                    {activationModal.status === 'success' ? 'Live Mobile & Web Ticker Preview' : 'Paused Announcement Content'}
+                  </span>
+                  <div
+                    className="rounded-xl py-2 px-3 text-xs font-bold text-center shadow-xs truncate"
+                    style={{
+                      backgroundColor: activationModal.announcement.bg_color || '#E91E8C',
+                      color: activationModal.announcement.text_color || '#ffffff',
+                    }}
+                  >
+                    {activationModal.announcement.text}
+                  </div>
+                </div>
+
+                <div className="flex items-start justify-between gap-2 pt-1 border-t border-slate-200/50">
+                  <span className={activationModal.status === 'success' ? 'text-emerald-900/70 font-medium' : 'text-rose-900/70 font-medium'}>
+                    Enforcement Policy:
+                  </span>
+                  <span
+                    className={`font-bold text-right text-[11px] px-2 py-0.5 rounded ${
+                      activationModal.status === 'success'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-rose-100 text-rose-800'
+                    }`}
+                  >
+                    {activationModal.status === 'success'
+                      ? 'Strictly 1 Ticker Active (All Others Paused)'
+                      : 'Zero Tickers Active'}
+                  </span>
+                </div>
+
+                <div className="flex items-start justify-between gap-2">
+                  <span className={activationModal.status === 'success' ? 'text-emerald-900/70 font-medium' : 'text-rose-900/70 font-medium'}>
+                    Storefront Target:
+                  </span>
+                  <span
+                    className={`font-bold text-right ${
+                      activationModal.status === 'success' ? 'text-emerald-950' : 'text-rose-950'
+                    }`}
+                  >
+                    Mobile App & Desktop Web Header
+                  </span>
+                </div>
+
+                <div
+                  className={`pt-2 border-t flex items-center justify-between text-[11px] ${
+                    activationModal.status === 'success'
+                      ? 'border-emerald-200/80 text-emerald-800/80'
+                      : 'border-rose-200/80 text-rose-800/80'
+                  }`}
+                >
+                  <span>Real-time Storefront Sync</span>
+                  <span className="font-semibold">Immediate Effect</span>
+                </div>
+              </div>
+            )}
+
+            {/* Primary Action Button */}
+            <button
+              type="button"
+              onClick={() => setActivationModal(null)}
+              className={`w-full text-white font-bold text-xs py-3.5 px-5 rounded-xl shadow-lg transition-all cursor-pointer relative z-10 flex items-center justify-center gap-2 mt-4 active:scale-[0.99] ${
+                activationModal.status === 'success'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
+                  : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'
+              }`}
+            >
+              {activationModal.status === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+              ) : (
+                <XCircle className="w-4 h-4 text-rose-100" />
+              )}
+              <span>
+                {activationModal.status === 'success'
+                  ? 'Understood & Keep Active'
+                  : 'Dismiss & Review List'}
+              </span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

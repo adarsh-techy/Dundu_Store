@@ -17,6 +17,7 @@ const restore = async (req, res) => {
   const { type, id } = req.params;
   if (!trashService.TYPES[type]) return badRequest(res, 'Unknown item type');
   const row = await trashService.restore(type, id);
+  if (row?.blocked) return badRequest(res, row.blocked);
   if (!row) return notFound(res, 'Item not found in Trash');
   res.locals.audit = { action: 'update', entityType: type, entityId: id, summary: `Restored ${trashService.TYPES[type].label.toLowerCase()} ${id} from Trash` };
   ok(res, {}, `${trashService.TYPES[type].label} restored`);

@@ -39,4 +39,9 @@ const refundPayment = async (paymentId, amount) => {
   });
 };
 
-module.exports = { createOrder, verifySignature, refundPayment };
+const fetchOrder = async (orderId) => {
+  if (!razorpay) throw new Error('Razorpay credentials not configured');
+  return razorpay.orders.fetch(orderId);
+};
+
+module.exports = { createOrder, verifySignature, refundPayment, fetchOrder };
