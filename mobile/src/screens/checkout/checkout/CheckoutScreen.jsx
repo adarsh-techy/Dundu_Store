@@ -761,7 +761,7 @@ export default function CheckoutScreen() {
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
                           <Text style={styles.confirmProductQty}>Qty: {item.quantity || 1}</Text>
                           <Text style={styles.confirmProductPrice}>
-                            {formatPrice((item.offer_price || item.price || 0) * (item.quantity || 1))}
+                            {formatPrice(lineUnitPrice(item) * (item.quantity || 1))}
                           </Text>
                         </View>
                       </View>
