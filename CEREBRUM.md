@@ -225,7 +225,7 @@ Backend
 - Web + mobile `cartApi.clear` → `DELETE /cart/clear` (the old `/cart` path never existed → mobile checkout always "failed" after creating the order).
 Admin
 - Product list requests `show_hidden=true` (hidden products stay visible/manageable); delete confirmations say "Move to Trash"; `err.message` used everywhere; coupon expiry shown in local time; inventory passes healthy/restock to the server; dashboard low-stock tile → /inventory; banners use v5 `invalidateQueries({ queryKey })`.
-Mobile (see agent report in the same commit): cart clear URL, Payment → OrderDetail param, Pay-now for pending online orders, checkout math mirrors the server (no first-order discount), combo detail unwrap, order detail field names, scratch card reveals only when scratched, quantity clamp 1..99.
+Mobile (verified by a follow-up review — no critical issues): combo cart lines and zero offer prices display correctly (`lineUnitPrice/lineName/lineImage` in `store/cart.store.js`), scratch strokes follow the finger; cart clear URL, Payment → OrderDetail param, Pay-now for pending online orders, checkout math mirrors the server (no first-order discount), combo detail unwrap, order detail field names, scratch card reveals only when scratched, quantity clamp 1..99.
 
 ### 2026-09-27 — Third review fixes (payments, trash edge cases, hosting)
 - `POST /orders/:id/pay` reuses the order's existing Razorpay order instead of minting a new one (a Razorpay order is payable once, so nothing can be orphaned). `verifyPayment` refunds a signature-valid payment that matches no order (`paymentService.fetchOrder`).

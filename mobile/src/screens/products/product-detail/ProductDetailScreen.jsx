@@ -218,7 +218,11 @@ export default function ProductDetailScreen() {
           product_id: product.id,
           product_name: product.name,
           image: (typeof product.images?.[0] === 'object' ? product.images[0].url : product.images?.[0]) || product.primary_image || product.image || null,
-          price: parseFloat(selectedVariant?.offer_price || selectedVariant?.price || product.offer_price || product.price || 0),
+          price: (() => {
+            // offer 0 / "0.00" means no offer — fall through to the regular price
+            const pick = (offer, price) => (Number(offer) > 0 ? Number(offer) : Number(price) || 0);
+            return selectedVariant?.price ? pick(selectedVariant.offer_price, selectedVariant.price) : pick(product.offer_price, product.price);
+          })(),
           variant_id: selectedVariant?.id || null,
           size: selectedSize,
           color: selectedColor,
