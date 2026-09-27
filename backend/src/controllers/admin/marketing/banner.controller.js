@@ -1,9 +1,10 @@
 const db = require('../../../config/db');
+const trashService = require('../../../services/trash/trash.service');
 const { ok, created, notFound } = require('../../../utils/response');
 const { getFileUrl } = require('../../../utils/upload');
 
 const list = async (_req, res) => {
-  const { rows } = await db.query('SELECT * FROM banners ORDER BY sort_order');
+  const { rows } = await db.query('SELECT * FROM banners WHERE deleted_at IS NULL ORDER BY sort_order');
   ok(res, { banners: rows });
 };
 
@@ -46,7 +47,8 @@ const toggle = async (req, res) => {
 };
 
 const remove = async (req, res) => {
-  await db.query('DELETE FROM banners WHERE id=$1', [req.params.id]);
+  const row = await trashService.trash('banners', req.params.id, req.user?.id);
+  if (!row) return notFound(res, 'Banner not found');
   ok(res, { message: 'Banner deleted' });
 };
 

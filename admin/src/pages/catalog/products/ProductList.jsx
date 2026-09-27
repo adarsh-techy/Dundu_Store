@@ -3,7 +3,8 @@ import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-quer
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Eye, EyeOff, Star, Tag, Search, BarChart2,
-  Package, RefreshCw, Filter, ArrowUpRight,
+  Package, RefreshCw, Filter, ArrowUpRight, CheckCircle2, AlertTriangle,
+  Sparkles, RotateCcw,
 } from 'lucide-react';
 import { productApi, categoryApi } from '../../../api';
 import Button from '../../../components/ui/Button';
@@ -17,6 +18,7 @@ export default function ProductList() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
+  const [quickFilter, setQuickFilter] = useState('all'); // 'all' | 'in_stock' | 'restock' | 'promoted'
   const loadMoreRef = useRef(null);
   const limit = 20;
 
@@ -29,10 +31,12 @@ export default function ProductList() {
     isFetchingNextPage,
     refetch,
   } = useInfiniteQuery({
-    queryKey: ['admin-products', search, activeCategory],
+    queryKey: ['admin-products', search, activeCategory, quickFilter],
     queryFn: ({ pageParam }) => productApi.list({
       search: search || undefined,
       category: activeCategory || undefined,
+      stock_status: quickFilter === 'in_stock' ? 'in_stock' : quickFilter === 'restock' ? 'restock' : undefined,
+      featured: quickFilter === 'promoted' ? 'true' : undefined,
       page: pageParam,
       limit,
     }),
@@ -45,6 +49,15 @@ export default function ProductList() {
   });
   const products = data?.pages.flatMap((p) => p.data?.products || []) || [];
   const total = data?.pages?.[0]?.data?.total || 0;
+  const stats = data?.pages?.[0]?.data?.stats || {
+    total_active: total || 0,
+    in_stock: 0,
+    low_stock: 0,
+    out_of_stock: 0,
+    featured_count: 0,
+    offer_count: 0,
+    total_units: 0,
+  };
 
   const { data: catData } = useQuery({ queryKey: ['admin-categories'], queryFn: categoryApi.list });
   const categories = catData?.data?.categories || [];
@@ -131,7 +144,195 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* ── 2. Filters & Search Strip ────────────────────────────────────── */}
+      {/* ── 2. Catalog KPI & Status Health Cards (Easy to Understand) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Catalog Products */}
+        <div
+          onClick={() => setQuickFilter('all')}
+          className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer flex flex-col justify-between select-none relative group ${
+            quickFilter === 'all'
+              ? 'border-slate-900 shadow-md ring-1 ring-slate-900/10'
+              : 'border-slate-200/80 hover:border-slate-300 shadow-2xs hover:shadow-xs'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center border border-slate-200/80 shadow-2xs">
+                <Package className="w-5 h-5" />
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                quickFilter === 'all'
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {quickFilter === 'all' ? 'Active View' : 'All Items'}
+              </span>
+            </div>
+            <div className="mt-3.5">
+              <p className="text-2xl font-black text-slate-900 tracking-tight">
+                {stats.total_active || total}
+              </p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                Total Catalog Products
+              </p>
+            </div>
+          </div>
+          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span className="truncate">{stats.total_units?.toLocaleString?.() || 0} total units in stock</span>
+            <span className="text-[10px] font-bold text-indigo-600 group-hover:translate-x-0.5 transition-transform shrink-0">
+              {categories.length} Depts →
+            </span>
+          </div>
+        </div>
+
+        {/* Card 2: Healthy Stock */}
+        <div
+          onClick={() => setQuickFilter((p) => p === 'in_stock' ? 'all' : 'in_stock')}
+          className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer flex flex-col justify-between select-none relative group ${
+            quickFilter === 'in_stock'
+              ? 'border-emerald-600 shadow-md ring-1 ring-emerald-600/20 bg-emerald-50/20'
+              : 'border-slate-200/80 hover:border-emerald-200 shadow-2xs hover:shadow-xs'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-2xs">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                Ready to Sell
+              </span>
+            </div>
+            <div className="mt-3.5">
+              <p className="text-2xl font-black text-emerald-700 tracking-tight">
+                {stats.in_stock}
+              </p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                Healthy Stock (10+ Units)
+              </p>
+            </div>
+          </div>
+          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span className="truncate">Ready for immediate checkout</span>
+            <span className="text-[10px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition-transform shrink-0">
+              {quickFilter === 'in_stock' ? 'Viewing' : 'Filter →'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 3: Needs Restock Alert */}
+        <div
+          onClick={() => setQuickFilter((p) => p === 'restock' ? 'all' : 'restock')}
+          className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer flex flex-col justify-between select-none relative group ${
+            quickFilter === 'restock'
+              ? 'border-amber-600 shadow-md ring-1 ring-amber-600/20 bg-amber-50/20'
+              : 'border-slate-200/80 hover:border-amber-200 shadow-2xs hover:shadow-xs'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs ${
+                (stats.out_of_stock || 0) > 0
+                  ? 'bg-rose-50 text-rose-600 border-rose-100'
+                  : 'bg-amber-50 text-amber-600 border-amber-100'
+              }`}>
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                (stats.out_of_stock || 0) > 0
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                {(stats.out_of_stock || 0) > 0
+                  ? `${stats.out_of_stock} Out of Stock`
+                  : `${stats.low_stock || 0} Low Stock`}
+              </span>
+            </div>
+            <div className="mt-3.5">
+              <p className="text-2xl font-black text-amber-600 tracking-tight">
+                {(stats.low_stock || 0) + (stats.out_of_stock || 0)}
+              </p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                Restock Attention Needed
+              </p>
+            </div>
+          </div>
+          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span className="truncate">
+              {stats.out_of_stock || 0} out • {stats.low_stock || 0} below 10 units
+            </span>
+            <span className="text-[10px] font-bold text-amber-600 group-hover:translate-x-0.5 transition-transform shrink-0">
+              {quickFilter === 'restock' ? 'Viewing' : 'Inspect →'}
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Storefront Merchandising */}
+        <div
+          onClick={() => setQuickFilter((p) => p === 'promoted' ? 'all' : 'promoted')}
+          className={`bg-white rounded-2xl p-5 border transition-all cursor-pointer flex flex-col justify-between select-none relative group ${
+            quickFilter === 'promoted'
+              ? 'border-violet-600 shadow-md ring-1 ring-violet-600/20 bg-violet-50/20'
+              : 'border-slate-200/80 hover:border-violet-200 shadow-2xs hover:shadow-xs'
+          }`}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100 shadow-2xs">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                Storefront Rails
+              </span>
+            </div>
+            <div className="mt-3.5">
+              <p className="text-2xl font-black text-violet-700 tracking-tight">
+                {(stats.featured_count || 0) + (stats.offer_count || 0)}
+              </p>
+              <p className="text-xs font-bold text-slate-700 mt-0.5">
+                Featured & Special Offers
+              </p>
+            </div>
+          </div>
+          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <span className="truncate">
+              {stats.featured_count || 0} trending • {stats.offer_count || 0} on offer
+            </span>
+            <span className="text-[10px] font-bold text-violet-600 group-hover:translate-x-0.5 transition-transform shrink-0">
+              {quickFilter === 'promoted' ? 'Viewing' : 'Filter →'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Active Filter Banner ── */}
+      {quickFilter !== 'all' && (
+        <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-2xl text-xs font-medium shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>
+              Showing filter view:{' '}
+              <strong className="text-white font-bold">
+                {quickFilter === 'in_stock'
+                  ? 'Healthy In-Stock Products (10+ Units)'
+                  : quickFilter === 'restock'
+                  ? 'Restock Attention (Low & Out of Stock)'
+                  : 'Storefront Promoted & Special Offer Products'}
+              </strong>
+            </span>
+          </div>
+          <button
+            onClick={() => setQuickFilter('all')}
+            className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Show All Products</span>
+          </button>
+        </div>
+      )}
+
+      {/* ── 3. Filters & Search Strip ────────────────────────────────────── */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Search */}
         <div className="relative w-full md:w-80">

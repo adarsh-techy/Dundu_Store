@@ -192,6 +192,13 @@ export const whatsappApi = {
   send:     (data)   => client.post('/admin/whatsapp/send', data),
 };
 
+export const trashApi = {
+  list:    (params)    => client.get('/admin/trash', { params }),
+  restore: (type, id)  => client.post(`/admin/trash/${type}/${id}/restore`),
+  purge:   (type, id)  => client.delete(`/admin/trash/${type}/${id}`),
+  empty:   (type)      => client.delete(type ? `/admin/trash/empty/${type}` : '/admin/trash/empty'),
+};
+
 export const auditApi = {
   list:    (params) => client.get('/admin/audit-logs', { params }),
   filters: ()       => client.get('/admin/audit-logs/filters'),

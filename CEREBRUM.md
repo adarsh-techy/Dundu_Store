@@ -96,6 +96,7 @@ Only JPEG/PNG/WebP. Extension derived from MIME, magic bytes verified after writ
 | `loyalty_cards` | keyed by **phone**, shared with in-store POS |
 | `settings` | key/value store for every feature flag and number (delivery charge, loyalty rules, spin wheel timing…) |
 | `audit_logs` | admin action trail, written by `auditAdminActions`; read-only in the UI |
+| `deleted_at` / `deleted_by` / `trash_meta` | on products, categories, combos, coupons, banners, announcements — Trash; restore reads `trash_meta` |
 
 Tables `scratch_card_prizes` / `scratch_card_logs` are created lazily by `admin/marketing/scratchCard.controller.js` and also by `initDb.js`.
 
@@ -213,6 +214,13 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-27 — Trash (soft delete) for catalogue & marketing
+- Migration `1782300000006_trash` (+ initDb): `deleted_at`, `deleted_by`, `trash_meta` on products, categories, combos, coupons, banners, announcements.
+- `src/services/trash/trash.service.js`: per-type config (hide columns, blockers, purge); `trash()` flips is_hidden/is_active and remembers the prior state; `restore()` puts it back; `purge()` hard-deletes unless blocked (product in orders, category with products); `purgeExpired()` runs 30 s after boot and daily (30-day retention).
+- Admin delete handlers for the six types now call `trash()`; admin lists filter `deleted_at IS NULL`; storefront queries were already filtering on is_active/is_hidden.
+- API (super admin): `GET /api/admin/trash?type&search`, `POST /api/admin/trash/:type/:id/restore`, `DELETE /api/admin/trash/:type/:id`, `DELETE /api/admin/trash/empty/:type?`. All actions are audited.
+- Admin panel: **System → Trash** (`/trash`) with type tabs + counts, search, restore, delete-forever and empty-trash confirmations, purge countdown. Audit Log moved into the System group too.
+
 ### 2026-09-27 — Admin audit log
 - Table `audit_logs` (migration `1782300000005_audit-logs`, mirrored in initDb): actor, action (create/update/delete/login/other), entity_type/id, summary, method, path, status, sanitized details JSON, ip, user agent.
 - `src/services/audit/audit.service.js`: `record()` (never throws, masks pass/secret/token/otp keys, truncates big payloads) and `auditAdminActions` middleware mounted on `/api/admin` — logs every successful POST/PUT/PATCH/DELETE automatically; controllers can override via `res.locals.audit`. Admin logins are recorded from `auth.controller.login`.
@@ -297,7 +305,19 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 - Rate limiting (`express-rate-limit`), unhandled-rejection handler, production CORS strictness, error message hiding.
 - Twilio config key fix (`whatsappFrom`), forgot-password now sends WhatsApp, Google OAuth verified-email check + fragment token.
 - Profile: phone change needs OTP, DOB set once. Mobile: reward calls send JWT, removed hard-coded Razorpay key.
-### 2026-09-27 — Admin Modernization & Colorful Redesign
+- **Return Settings & Abuse Controls:** Added a classic, professional centered success modal in `admin/src/pages/settings/returns/ReturnSettings.jsx`. When "Block Cash on Delivery (COD)" or "Disallow Further Returns" is toggled, a centered executive dialog with a blurred backdrop appears displaying the policy enforcement status, the active trigger threshold (e.g. `≥ 3 completed returns`), the checkout restrictions enforced, and an "Understood & Apply Policy" confirmation.
+- **Promotional Coupons Modal Overhaul:** Rebuilt the "Create / Edit Promotional Coupon" modal in `admin/src/pages/marketing/coupons/Coupons.jsx` to be non-confusing and intuitive. Replaced chaotic conditional shifting fields with a stable, logical 5-section layout:
+  1. **Live Customer Ticket Mockup:** Real-time preview card at the top displaying the code, discount badge, cap, minimum order, and expiration countdown.
+  2. **Coupon Code & 1-Click Presets:** Monospace code input with "Generate Random Code" and 4 quick presets (`WELCOME10`, `FESTIVE20`, `FLAT100`, `MEGA500`).
+  3. **Stable Discount Grid:** Fixed 2-column cards for Percentage (%) vs Flat Rupee (₹), with clear explanation and dedicated Maximum Discount Cap input for percentage.
+  4. **Cart Conditions & Quotas:** Minimum cart subtotal with quick pills (`None`, `₹499`, `₹999`, `₹1,499`), per-customer limits (`1`, `2`, `Unlimited`), storewide usage quota (`100`, `500`, `1,000`, `Unlimited`), and quick expiry buttons (`+7 Days`, `+30 Days`, `Never Expires`).
+  5. **Live Status Switch:** Toggle between Active (redeemable at checkout) and Paused (saved as draft).
+- **Product Catalog Cards:** Added 4 executive, easy-to-understand summary and health KPI cards above the table in `admin/src/pages/catalog/products/ProductList.jsx`:
+  1. **Total Catalog Products:** Displays total active published items, total units in stock across departments, and acts as a 1-click reset to view all items.
+  2. **Healthy Stock:** Emerald card highlighting items with 10+ units ready for immediate checkout & same-day packing, with 1-click filter.
+  3. **Restock Attention Needed:** Amber/Rose alert card clearly surfacing items below 10 units and 0 stock (out-of-stock count + low stock count) to prevent lost sales, with 1-click filter.
+  4. **Featured & Special Offers:** Violet card highlighting promotional merchandise (trending styles + special offers), with 1-click filter.
+  - Backend `product.controller.js` upgraded with PostgreSQL `FILTER (WHERE ...)` real-time stats aggregation and query support for `featured`, `offer`, and `stock_status` (`in_stock`, `low`, `out`, `restock`).
 - **Promotional Banners & Hero Sliders:** Modernized into an executive 2-column studio layout with an **exact mobile app preview**. Features a clean executive header, 4 clean white KPI cards (Total Banners, Active Live, Category Linked, Offer Badges), left-hand filters & banners ledger with 1-click active toggles and reordering, and a sticky right-hand smartphone preview with realistic dimensions (350×700px), Dynamic Island status bar, exact dark header (`#040d04`), dark search bar (`#000000`, `#1a1a1a`), category circles, and live `BannerCarousel` matching `HomeScreen.jsx` (2:1 aspect ratio, floating offer badge, dark gradient text overlay, and interactive dots row).
   - **Banner Artwork Studio Modal:** Replaced the plain, unstyled file input with an executive Artwork Upload Dropzone. Features dual modes ("Upload File" drag & drop or click-to-browse with dashed canvas + "Web URL" for direct image links), instant 16:6 aspect ratio live artwork preview with simulated title/subtitle/badge text overlay directly inside the card, file metadata badge (filename, size), one-click "Change" and "Remove" actions, and validation ensuring no empty banner is submitted without artwork.
 - **Announcements & Top Header Ticker:** Completely modernized to be non-complicated and clean (no over-coloring or garish pastel gradients) with strictly **1 announcement active at a time** (enforced in backend controller + admin UI radio toggles). Features an executive header, 4 clean white KPI cards, compact studio controls, and an **exact mobile app preview** with authentic dimensions (350×700px), Dynamic Island status bar, exact dark header (`#040d04`), dark search bar (`#000000`, `#1a1a1a`), category circles, exact 32px continuous marquee `AnnouncementBar` positioned directly above the banner carousel, and bottom navigation tabs (`MainTabs.jsx`), plus an interactive `WelcomePopup` modal toggle.
@@ -330,4 +350,5 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 | "Invalid status transition" on an order | Cancelled/returned orders are terminal by design (`admin/orders/order.controller.js` updateStatus) |
 | Refund happened twice? | Check `orders.razorpay_refund_id` / `payment_status='refunded'`; `reverseOrderSideEffects` skips when set |
 | Points not restored after cancel | `orders.loyalty_points_earned` must be set at placement (COD) / verifyPayment (online) |
+| Deleted item still missing / "not found" after delete | It is in Trash (`deleted_at`). Restore from System → Trash or `POST /admin/trash/:type/:id/restore` |
 | CORS error in browser | Origin not in `WEB_CLIENT_URL`/`ADMIN_CLIENT_URL`; in dev leave both unset to allow all |

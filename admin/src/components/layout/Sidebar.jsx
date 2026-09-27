@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users, Ticket,
   Image, BarChart2, UserCog, LogOut, ShoppingCart,
-  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders, X, ScrollText,
+  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders, X, ScrollText, Trash2,
 } from 'lucide-react';
 import useAuthStore from '../../store/auth.store';
 import dunduLogo from '../../assets/logo.png';
@@ -47,7 +47,6 @@ export const allNavGroups = [
       { to: '/users',         icon: Users,    label: 'Users',         superOnly: true },
       { to: '/user-activity', icon: Activity, label: 'User Activity', superOnly: true },
       { to: '/admins',        icon: UserCog,  label: 'Admins',        superOnly: true },
-      { to: '/audit-log',     icon: ScrollText, label: 'Audit Log',   superOnly: true },
     ],
   },
   {
@@ -84,6 +83,8 @@ export const allNavGroups = [
       { to: '/delivery-settings', icon: Truck,      label: 'Delivery',         superOnly: true },
       { to: '/return-settings',   icon: RotateCcw,  label: 'Returns',          superOnly: true },
       { to: '/app-update',        icon: Smartphone, label: 'App Update',       superOnly: true },
+      { to: '/audit-log',         icon: ScrollText, label: 'Audit Log',        superOnly: true },
+      { to: '/trash',             icon: Trash2,     label: 'Trash',            superOnly: true },
     ],
   },
 ];

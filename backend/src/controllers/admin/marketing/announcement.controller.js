@@ -1,8 +1,9 @@
 const db = require('../../../config/db');
-const { ok, created, badRequest } = require('../../../utils/response');
+const trashService = require('../../../services/trash/trash.service');
+const { ok, created, badRequest , notFound } = require('../../../utils/response');
 
 const list = async (_req, res) => {
-  const { rows } = await db.query('SELECT * FROM announcements ORDER BY sort_order, id');
+  const { rows } = await db.query('SELECT * FROM announcements WHERE deleted_at IS NULL ORDER BY sort_order, id');
   ok(res, { announcements: rows });
 };
 
@@ -60,7 +61,8 @@ const togglePopup = async (req, res) => {
 };
 
 const remove = async (req, res) => {
-  await db.query('DELETE FROM announcements WHERE id=$1', [req.params.id]);
+  const row = await trashService.trash('announcements', req.params.id, req.user?.id);
+  if (!row) return notFound(res, 'Announcement not found');
   ok(res, { message: 'Deleted' });
 };
 

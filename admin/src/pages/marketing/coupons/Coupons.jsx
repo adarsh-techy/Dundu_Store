@@ -42,6 +42,53 @@ const EMPTY_FORM = {
   is_active: true,
 };
 
+const COUPON_PRESETS = [
+  {
+    label: 'WELCOME10',
+    desc: '10% off • min ₹299',
+    code: 'WELCOME10',
+    discount_type: 'percentage',
+    discount_value: '10',
+    min_order_value: '299',
+    max_discount: '300',
+    usage_limit: '',
+    per_user_limit: '1',
+  },
+  {
+    label: 'FESTIVE20',
+    desc: '20% off • cap ₹500 • min ₹799',
+    code: 'FESTIVE20',
+    discount_type: 'percentage',
+    discount_value: '20',
+    min_order_value: '799',
+    max_discount: '500',
+    usage_limit: '1000',
+    per_user_limit: '1',
+  },
+  {
+    label: 'FLAT100',
+    desc: '₹100 flat • min ₹499',
+    code: 'FLAT100',
+    discount_type: 'fixed',
+    discount_value: '100',
+    min_order_value: '499',
+    max_discount: '',
+    usage_limit: '500',
+    per_user_limit: '1',
+  },
+  {
+    label: 'MEGA500',
+    desc: '₹500 flat • min ₹1,999',
+    code: 'MEGA500',
+    discount_type: 'fixed',
+    discount_value: '500',
+    min_order_value: '1999',
+    max_discount: '',
+    usage_limit: '200',
+    per_user_limit: '1',
+  },
+];
+
 function toFormValues(coupon) {
   return {
     code: coupon.code,
@@ -109,6 +156,32 @@ export default function Coupons() {
     }
     setForm((p) => ({ ...p, code }));
   }
+
+  const applyPreset = (preset) => {
+    setForm((p) => ({
+      ...p,
+      code: preset.code,
+      discount_type: preset.discount_type,
+      discount_value: preset.discount_value,
+      min_order_value: preset.min_order_value,
+      max_discount: preset.max_discount,
+      usage_limit: preset.usage_limit,
+      per_user_limit: preset.per_user_limit,
+    }));
+  };
+
+  const setExpiryDays = (days) => {
+    if (days === null) {
+      setForm((p) => ({ ...p, expires_at: '' }));
+      return;
+    }
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(23, 59, 0, 0);
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setForm((p) => ({ ...p, expires_at: formatted }));
+  };
 
   function handleCopy(code) {
     navigator.clipboard.writeText(code);
@@ -608,19 +681,71 @@ export default function Coupons() {
           title={editTarget ? `Edit Coupon — ${editTarget.code}` : 'Create Promotional Coupon'}
           onClose={closeModal}
         >
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Coupon Code Input with Generator */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Coupon Code
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* ── 1. Live Interactive Ticket Mockup Preview ── */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 text-white rounded-2xl p-4 border border-slate-800 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center border border-white/15 shrink-0 text-amber-300 shadow-2xs">
+                    <Ticket className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-base font-black tracking-widest text-amber-400 bg-white/10 px-2.5 py-0.5 rounded-lg border border-amber-400/30 truncate">
+                        {form.code || 'COUPONCODE'}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                          form.is_active
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {form.is_active ? 'Live at Checkout' : 'Paused / Draft'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-200 mt-1 truncate">
+                      {form.discount_type === 'percentage'
+                        ? `${form.discount_value || '0'}% OFF ${
+                            form.max_discount ? `(Up to ₹${Number(form.max_discount).toLocaleString()})` : ''
+                          }`
+                        : `FLAT ₹${Number(form.discount_value || 0).toLocaleString()} OFF`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right text-[11px] text-slate-300 border-t sm:border-t-0 sm:border-l border-white/10 pt-2 sm:pt-0 sm:pl-4 shrink-0">
+                  <p className="text-white font-medium">
+                    {form.min_order_value && Number(form.min_order_value) > 0
+                      ? `Min. Order: ₹${Number(form.min_order_value).toLocaleString()}`
+                      : 'No min order required'}
+                  </p>
+                  <p className="text-slate-400 mt-0.5">
+                    {form.expires_at
+                      ? `Valid till: ${new Date(form.expires_at).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}`
+                      : 'Never expires'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── 2. Section 1: Coupon Code & Presets ── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Coupon Code *
                 </label>
                 <button
                   type="button"
                   onClick={generateRandomCode}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1"
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 cursor-pointer"
                 >
-                  <Sparkles className="w-3 h-3" /> Generate Code
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Generate Code</span>
                 </button>
               </div>
               <Input
@@ -628,167 +753,269 @@ export default function Coupons() {
                 onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))}
                 placeholder="e.g. FESTIVE20 or FLAT100"
                 required
-                className="font-mono uppercase tracking-wider font-semibold"
+                className="font-mono uppercase tracking-widest font-black text-sm"
               />
+
+              {/* 1-Click Quick Presets */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick Presets:</span>
+                {COUPON_PRESETS.map((p) => (
+                  <button
+                    key={p.code}
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 transition-all cursor-pointer"
+                    title={p.desc}
+                  >
+                    <span>{p.label}</span>
+                    <span className="text-[10px] text-slate-400">({p.desc})</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Discount Type Selector */}
-            <div>
-              <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider block mb-2">
-                Discount Mechanism
+            {/* ── 3. Section 2: Discount Mechanism & Value ── */}
+            <div className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 space-y-3.5">
+              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                Discount Mechanism & Amount
               </label>
+
+              {/* Mechanism Toggle Cards */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setForm((p) => ({ ...p, discount_type: 'percentage' }))}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                     form.discount_type === 'percentage'
-                      ? 'border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-xs ring-1 ring-indigo-600'
-                      : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                      ? 'border-indigo-600 bg-white text-indigo-900 shadow-xs ring-2 ring-indigo-600/20'
+                      : 'border-slate-200 bg-white/60 hover:bg-white text-slate-600'
                   }`}
                 >
                   <div className="flex items-center gap-2 font-bold text-xs text-slate-900">
-                    <Percent className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Percentage Discount (%)</span>
+                    <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Percent className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Percentage (%)</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Deducts a percentage from the cart subtotal.
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Deducts a percentage from cart subtotal (e.g. 10%, 20%).
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setForm((p) => ({ ...p, discount_type: 'fixed' }))}
-                  className={`p-3 rounded-xl border text-left transition-all ${
+                  onClick={() => setForm((p) => ({ ...p, discount_type: 'fixed', max_discount: '' }))}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                     form.discount_type === 'fixed'
-                      ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
-                      : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                      ? 'border-indigo-600 bg-white text-indigo-900 shadow-xs ring-2 ring-indigo-600/20'
+                      : 'border-slate-200 bg-white/60 hover:bg-white text-slate-600'
                   }`}
                 >
-                  <div className="flex items-center gap-2 font-bold text-xs">
-                    <DollarSign
-                      className={`w-3.5 h-3.5 ${
-                        form.discount_type === 'fixed' ? 'text-amber-400' : 'text-slate-500'
-                      }`}
-                    />
-                    <span>Flat Amount Off (₹)</span>
+                  <div className="flex items-center gap-2 font-bold text-xs text-slate-900">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <DollarSign className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Flat Rupee Off (₹)</span>
                   </div>
-                  <p
-                    className={`text-[11px] mt-0.5 ${
-                      form.discount_type === 'fixed' ? 'text-slate-300' : 'text-slate-500'
-                    }`}
-                  >
-                    Deducts a flat rupee amount from cart total.
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Deducts a fixed amount directly from cart total (e.g. ₹100).
                   </p>
                 </button>
               </div>
+
+              {/* Stable 2-Column Amount Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <div>
+                  <Input
+                    label={form.discount_type === 'percentage' ? 'Discount Percentage (%) *' : 'Flat Discount (₹) *'}
+                    type="number"
+                    min="1"
+                    max={form.discount_type === 'percentage' ? '100' : undefined}
+                    placeholder={form.discount_type === 'percentage' ? 'e.g. 20' : 'e.g. 100'}
+                    value={form.discount_value}
+                    onChange={set('discount_value')}
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {form.discount_type === 'percentage'
+                      ? 'Value between 1% and 100%.'
+                      : 'Exact rupee amount to subtract from total.'}
+                  </p>
+                </div>
+
+                <div>
+                  {form.discount_type === 'percentage' ? (
+                    <div>
+                      <Input
+                        label="Maximum Discount Cap (₹) (Optional)"
+                        type="number"
+                        placeholder="e.g. 500 (Leave empty for no limit)"
+                        value={form.max_discount}
+                        onChange={set('max_discount')}
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Protects against huge discounts on large orders.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col justify-center bg-white p-3 rounded-xl border border-slate-200/80">
+                      <p className="text-xs font-bold text-slate-700">Flat Rupee Guarantee</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Cart will receive exactly ₹{form.discount_value || '0'} discount regardless of cart size.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Discount Value & Max Discount */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label={form.discount_type === 'percentage' ? 'Discount Percentage (%)' : 'Flat Discount (₹)'}
-                type="number"
-                min="1"
-                max={form.discount_type === 'percentage' ? '100' : undefined}
-                placeholder={form.discount_type === 'percentage' ? 'e.g. 20' : 'e.g. 150'}
-                value={form.discount_value}
-                onChange={set('discount_value')}
-                required
-              />
+            {/* ── 4. Section 3: Cart Subtotal & Usage Limits ── */}
+            <div className="bg-slate-50/70 border border-slate-200/90 rounded-2xl p-4 space-y-3.5">
+              <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                Cart Conditions & Usage Limits
+              </label>
 
-              {form.discount_type === 'percentage' ? (
-                <Input
-                  label="Maximum Discount Cap (₹)"
-                  type="number"
-                  placeholder="e.g. 500 (Leave empty for no limit)"
-                  value={form.max_discount}
-                  onChange={set('max_discount')}
-                />
-              ) : (
-                <Input
-                  label="Minimum Cart Value (₹)"
-                  type="number"
-                  placeholder="e.g. 499 (0 for no minimum)"
-                  value={form.min_order_value}
-                  onChange={set('min_order_value')}
-                />
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Minimum Cart Subtotal */}
+                <div>
+                  <Input
+                    label="Minimum Cart Subtotal (₹)"
+                    type="number"
+                    placeholder="e.g. 499 (0 for no minimum)"
+                    value={form.min_order_value}
+                    onChange={set('min_order_value')}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {['0', '499', '999', '1499'].map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, min_order_value: v === '0' ? '' : v }))}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                          (v === '0' && !form.min_order_value) || form.min_order_value === v
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {v === '0' ? 'None' : `₹${v}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Per Customer Limit */}
+                <div>
+                  <Input
+                    label="Max Uses Per Customer"
+                    type="number"
+                    placeholder="e.g. 1 use per customer"
+                    value={form.per_user_limit}
+                    onChange={set('per_user_limit')}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {[
+                      { label: '1 Use', val: '1' },
+                      { label: '2 Uses', val: '2' },
+                      { label: 'Unlimited', val: '' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, per_user_limit: opt.val }))}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                          form.per_user_limit === opt.val
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Storewide Limit & Expiry Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                {/* Total Storewide Limit */}
+                <div>
+                  <Input
+                    label="Storewide Usage Quota (Optional)"
+                    type="number"
+                    placeholder="e.g. 1000 (Empty for unlimited)"
+                    value={form.usage_limit}
+                    onChange={set('usage_limit')}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {[
+                      { label: '100', val: '100' },
+                      { label: '500', val: '500' },
+                      { label: '1,000', val: '1000' },
+                      { label: 'Unlimited', val: '' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, usage_limit: opt.val }))}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                          form.usage_limit === opt.val
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Expiration Date */}
+                <div>
+                  <Input
+                    label="Expiration Date & Time"
+                    type="datetime-local"
+                    value={form.expires_at}
+                    onChange={set('expires_at')}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setExpiryDays(7)}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-white text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer"
+                    >
+                      +7 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpiryDays(30)}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-white text-slate-600 border-slate-200 hover:bg-slate-100 cursor-pointer"
+                    >
+                      +30 Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpiryDays(null)}
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border cursor-pointer ${
+                        !form.expires_at
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      Never Expires
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {form.discount_type === 'percentage' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Minimum Cart Value (₹)"
-                  type="number"
-                  placeholder="e.g. 499 (0 for no minimum)"
-                  value={form.min_order_value}
-                  onChange={set('min_order_value')}
-                />
-                <Input
-                  label="Total Usage Limit"
-                  type="number"
-                  placeholder="e.g. 1000 (Empty for unlimited)"
-                  value={form.usage_limit}
-                  onChange={set('usage_limit')}
-                />
-              </div>
-            )}
-
-            {form.discount_type === 'fixed' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Total Usage Limit"
-                  type="number"
-                  placeholder="e.g. 1000 (Empty for unlimited)"
-                  value={form.usage_limit}
-                  onChange={set('usage_limit')}
-                />
-                <Input
-                  label="Max Per Customer"
-                  type="number"
-                  placeholder="e.g. 1 use per customer"
-                  value={form.per_user_limit}
-                  onChange={set('per_user_limit')}
-                />
-              </div>
-            )}
-
-            {form.discount_type === 'percentage' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Max Per Customer"
-                  type="number"
-                  placeholder="e.g. 1 use per customer"
-                  value={form.per_user_limit}
-                  onChange={set('per_user_limit')}
-                />
-                <Input
-                  label="Expiration Date & Time"
-                  type="datetime-local"
-                  value={form.expires_at}
-                  onChange={set('expires_at')}
-                />
-              </div>
-            )}
-
-            {form.discount_type === 'fixed' && (
-              <div>
-                <Input
-                  label="Expiration Date & Time"
-                  type="datetime-local"
-                  value={form.expires_at}
-                  onChange={set('expires_at')}
-                />
-              </div>
-            )}
-
-            {/* Active Toggle Switch */}
+            {/* ── 5. Active Status Switch ── */}
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-slate-800">Coupon Status</p>
-                <p className="text-[11px] text-slate-400">
-                  {form.is_active ? 'Eligible for checkout redemption' : 'Temporarily paused'}
+                <p className="text-xs font-bold text-slate-800">Coupon Live Status</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {form.is_active
+                    ? 'Active — eligible shoppers can redeem this code at checkout.'
+                    : 'Paused — code is saved as a draft and cannot be redeemed.'}
                 </p>
               </div>
               <button

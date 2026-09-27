@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { RotateCcw, Truck, ShieldAlert, AlertCircle, Coins, Sliders } from 'lucide-react';
+import {
+  RotateCcw, Truck, ShieldAlert, AlertCircle, Coins, Sliders,
+  CheckCircle2, ShieldCheck, X
+} from 'lucide-react';
 import { settingsApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -34,6 +37,7 @@ export default function ReturnSettings() {
   const [saving, setSaving] = useState(null);
   const [form, setForm] = useState({ return_courier_charge: '', return_abuse_threshold: '' });
   const [hydrated, setHydrated] = useState(false);
+  const [successModal, setSuccessModal] = useState(null);
 
   if (!isLoading && !hydrated && data) {
     setForm({
@@ -50,10 +54,15 @@ export default function ReturnSettings() {
 
   async function handleToggleBlockCod() {
     setSaving('block-cod');
+    const willBeEnabled = !blockCodOnAbuse;
     try {
-      await settingsApi.update({ return_abuse_block_cod: !blockCodOnAbuse });
+      await settingsApi.update({ return_abuse_block_cod: willBeEnabled });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
-      toast.success(`COD restriction for high returners ${!blockCodOnAbuse ? 'enabled' : 'disabled'}`);
+      setSuccessModal({
+        target: 'cod',
+        enabled: willBeEnabled,
+        threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
+      });
     } catch {
       toast.error('Failed to update setting');
     } finally {
@@ -63,10 +72,15 @@ export default function ReturnSettings() {
 
   async function handleToggleBlockReturn() {
     setSaving('block-return');
+    const willBeEnabled = !blockReturnOnAbuse;
     try {
-      await settingsApi.update({ return_abuse_block_return: !blockReturnOnAbuse });
+      await settingsApi.update({ return_abuse_block_return: willBeEnabled });
       qc.invalidateQueries({ queryKey: ['admin-settings'] });
-      toast.success(`Return request restriction ${!blockReturnOnAbuse ? 'enabled' : 'disabled'}`);
+      setSuccessModal({
+        target: 'return',
+        enabled: willBeEnabled,
+        threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
+      });
     } catch {
       toast.error('Failed to update setting');
     } finally {
@@ -242,6 +256,134 @@ export default function ReturnSettings() {
           </div>
         </div>
       </div>
+
+      {/* ── Classic Executive Success Popup (Centered on Page) ── */}
+      {successModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setSuccessModal(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              onClick={() => setSuccessModal(null)}
+              className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Top Decorative Ambient Glow */}
+            <div
+              className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full blur-2xl opacity-40 pointer-events-none ${
+                successModal.enabled ? 'bg-emerald-400' : 'bg-slate-400'
+              }`}
+            />
+
+            {/* Centered Circular Icon Badge */}
+            <div
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border shadow-sm relative z-10 ${
+                successModal.enabled
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              {successModal.target === 'cod' ? (
+                successModal.enabled ? (
+                  <ShieldCheck className="w-8 h-8" />
+                ) : (
+                  <Truck className="w-8 h-8" />
+                )
+              ) : successModal.enabled ? (
+                <ShieldCheck className="w-8 h-8" />
+              ) : (
+                <RotateCcw className="w-8 h-8" />
+              )}
+            </div>
+
+            {/* Policy Status Badge */}
+            <div className="relative z-10 mb-2">
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
+                  successModal.enabled
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
+              >
+                {successModal.enabled && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+                {successModal.enabled ? 'Protection Active' : 'Restriction Paused'}
+              </span>
+            </div>
+
+            {/* Title & Description */}
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight relative z-10">
+              {successModal.target === 'cod'
+                ? successModal.enabled
+                  ? 'COD Restriction Enabled'
+                  : 'COD Restriction Disabled'
+                : successModal.enabled
+                ? 'Return Restriction Enabled'
+                : 'Return Restriction Disabled'}
+            </h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed relative z-10">
+              {successModal.target === 'cod'
+                ? successModal.enabled
+                  ? 'High-frequency returners are now automatically restricted to prepaid payment methods only.'
+                  : 'Cash on Delivery (COD) is now available again for all customers, including frequent returners.'
+                : successModal.enabled
+                ? 'Customers with excessive return claims will be blocked from submitting further return requests.'
+                : 'All customers can submit return requests normally.'}
+            </p>
+
+            {/* Executive Details Breakdown Card */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5 my-5 text-xs relative z-10">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-500 font-medium">Trigger Threshold:</span>
+                <span className="font-bold text-slate-900 text-right">
+                  ≥ {successModal.threshold} completed returns
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-500 font-medium">Checkout Enforcement:</span>
+                <span className="font-bold text-slate-900 text-right">
+                  {successModal.target === 'cod'
+                    ? successModal.enabled
+                      ? 'COD payment option disabled'
+                      : 'COD allowed'
+                    : successModal.enabled
+                    ? 'Return button blocked'
+                    : 'Returns allowed'}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-slate-500 font-medium">Permitted Payments:</span>
+                <span className="font-bold text-emerald-700 text-right">
+                  Prepaid Only (UPI, Cards, Wallet)
+                </span>
+              </div>
+              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-400">
+                <span>App & Web storefront</span>
+                <span className="font-semibold text-slate-600">Immediate Effect</span>
+              </div>
+            </div>
+
+            {/* Primary Action Button */}
+            <button
+              type="button"
+              onClick={() => setSuccessModal(null)}
+              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 px-5 rounded-xl shadow-sm transition-all cursor-pointer relative z-10 flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>Understood & Apply Policy</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

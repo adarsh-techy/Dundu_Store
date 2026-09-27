@@ -54,6 +54,9 @@ router.use('/admins',            superOnly, require('./users/admin.routes'));
 router.use('/delivery-staff',    superOnly, require('./users/deliveryStaff.routes'));
 router.use('/wallets',           requirePermission('wallet'), require('./users/wallet.routes'));
 
+// Trash (soft-deleted catalogue & marketing records, super admin)
+router.use('/trash',             superOnly, require('./trash/trash.routes'));
+
 // Audit trail (read-only, super admin)
 router.use('/audit-logs',        superOnly, require('./audit/audit.routes'));
 

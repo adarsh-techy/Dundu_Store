@@ -94,7 +94,13 @@ async function startServer() {
     // 3. Run runtime idempotent schema patches
     await initDb();
 
-    // 4. Start Express server listener
+    // 4. Trash housekeeping: hard-delete items trashed more than 30 days ago (daily).
+    const trashService = require('./src/services/trash/trash.service');
+    const runPurge = () => trashService.purgeExpired().then((n) => { if (n) console.log(`🗑  Trash purge removed ${n} item(s)`); }).catch((e) => console.error('trash purge failed:', e.message));
+    setTimeout(runPurge, 30 * 1000);
+    setInterval(runPurge, 24 * 60 * 60 * 1000).unref();
+
+    // 5. Start Express server listener
     app.listen(env.port, '0.0.0.0', () => {
       console.log(`✓ Dundu API server running on port ${env.port} (${env.nodeEnv})`);
     });

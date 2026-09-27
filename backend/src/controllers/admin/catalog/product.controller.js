@@ -1,25 +1,33 @@
 const db = require('../../../config/db');
+const trashService = require('../../../services/trash/trash.service');
 const { ok, created, notFound, badRequest, error } = require('../../../utils/response');
 const { getFileUrl } = require('../../../utils/upload');
 
 const list = async (req, res) => {
-  const { page = 1, limit = 20, search, category, show_hidden, new_arrival } = req.query;
+  const { page = 1, limit = 20, search, category, show_hidden, new_arrival, featured, offer, stock_status } = req.query;
   const offset = (page - 1) * limit;
   const conditions = [];
   const params = [];
 
+  conditions.push('p.deleted_at IS NULL');
   if (show_hidden !== 'true') conditions.push('p.is_hidden = false');
 
   if (search)   { params.push(`%${search}%`); conditions.push(`p.name ILIKE $${params.length}`); }
   if (category) { params.push(category);       conditions.push(`c.slug = $${params.length}`); }
   if (new_arrival === 'true')  conditions.push('p.is_new_arrival = true');
   if (new_arrival === 'false') conditions.push('p.is_new_arrival = false');
+  if (featured === 'true')     conditions.push('p.is_featured = true');
+  if (offer === 'true')        conditions.push('p.is_offer_product = true');
+  if (stock_status === 'out')  conditions.push('p.stock = 0');
+  if (stock_status === 'low')  conditions.push('p.stock > 0 AND p.stock < 10');
+  if (stock_status === 'restock') conditions.push('p.stock < 10');
+  if (stock_status === 'in_stock') conditions.push('p.stock >= 10');
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const countParams = params.slice();
   params.push(limit, offset);
 
-  const [{ rows }, countRes] = await Promise.all([
+  const [{ rows }, countRes, statsRes] = await Promise.all([
     db.query(
       `SELECT p.*, c.name AS category_name, b.name AS brand_name,
               (SELECT url FROM product_images WHERE product_id=p.id AND is_primary=true LIMIT 1) AS primary_image
@@ -35,8 +43,33 @@ const list = async (req, res) => {
       `SELECT COUNT(*) FROM products p JOIN categories c ON p.category_id=c.id ${where}`,
       countParams
     ),
+    db.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE is_hidden = false) AS total_active,
+        COUNT(*) FILTER (WHERE is_hidden = false AND stock >= 10) AS in_stock,
+        COUNT(*) FILTER (WHERE is_hidden = false AND stock > 0 AND stock < 10) AS low_stock,
+        COUNT(*) FILTER (WHERE is_hidden = false AND stock = 0) AS out_of_stock,
+        COUNT(*) FILTER (WHERE is_hidden = false AND is_featured = true) AS featured_count,
+        COUNT(*) FILTER (WHERE is_hidden = false AND is_offer_product = true) AS offer_count,
+        COALESCE(SUM(stock) FILTER (WHERE is_hidden = false), 0) AS total_units
+      FROM products
+    `),
   ]);
-  ok(res, { products: rows, total: parseInt(countRes.rows[0].count) });
+
+  const s = statsRes.rows[0] || {};
+  ok(res, {
+    products: rows,
+    total: parseInt(countRes.rows[0].count),
+    stats: {
+      total_active:   parseInt(s.total_active || 0),
+      in_stock:       parseInt(s.in_stock || 0),
+      low_stock:      parseInt(s.low_stock || 0),
+      out_of_stock:   parseInt(s.out_of_stock || 0),
+      featured_count: parseInt(s.featured_count || 0),
+      offer_count:    parseInt(s.offer_count || 0),
+      total_units:    parseInt(s.total_units || 0),
+    },
+  });
 };
 
 const create = async (req, res) => {
@@ -223,32 +256,11 @@ const update = async (req, res) => {
   }
 };
 
+// Deleting moves the product to Trash (hidden from the store, restorable for 30 days).
 const remove = async (req, res) => {
-  const { id } = req.params;
-
-  const { rows } = await db.query(
-    'SELECT 1 FROM order_items WHERE product_id=$1 LIMIT 1', [id]
-  );
-
-  if (rows.length > 0) {
-    await db.query('UPDATE products SET is_hidden=true, updated_at=now() WHERE id=$1', [id]);
-    return ok(res, { soft_deleted: true }, 'Product hidden (has order history — cannot be permanently deleted)');
-  }
-
-  const client = await db.getClient();
-  try {
-    await client.query('BEGIN');
-    await client.query('DELETE FROM product_images WHERE product_id=$1', [id]);
-    await client.query('DELETE FROM product_variants WHERE product_id=$1', [id]);
-    await client.query('DELETE FROM products WHERE id=$1', [id]);
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-  ok(res, { soft_deleted: false }, 'Product deleted');
+  const row = await trashService.trash('products', req.params.id, req.user?.id);
+  if (!row) return notFound(res, 'Product not found');
+  ok(res, { soft_deleted: true }, 'Product moved to Trash');
 };
 
 const getOne = async (req, res) => {

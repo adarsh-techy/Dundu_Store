@@ -1,4 +1,5 @@
 const db = require('../../../config/db');
+const trashService = require('../../../services/trash/trash.service');
 const { ok, created, notFound } = require('../../../utils/response');
 
 const list = async (_req, res) => {
@@ -8,6 +9,7 @@ const list = async (_req, res) => {
            (SELECT COALESCE(SUM(discount), 0)::float FROM orders WHERE coupon_id = c.id AND status NOT IN ('cancelled')) AS total_discount_given,
            (SELECT COALESCE(SUM(total), 0)::float FROM orders WHERE coupon_id = c.id AND status NOT IN ('cancelled')) AS total_order_revenue
     FROM coupons c
+    WHERE c.deleted_at IS NULL
     ORDER BY c.created_at DESC
   `);
   ok(res, { coupons: rows });
@@ -37,9 +39,9 @@ const update = async (req, res) => {
 
 const remove = async (req, res) => {
   const { id } = req.params;
-  const { rows } = await db.query('DELETE FROM coupons WHERE id=$1 RETURNING id', [id]);
-  if (!rows.length) return notFound(res);
-  ok(res, {});
+  const row = await trashService.trash('coupons', id, req.user?.id);
+  if (!row) return notFound(res);
+  ok(res, {}, 'Coupon moved to Trash');
 };
 
 module.exports = { list, create, update, remove };

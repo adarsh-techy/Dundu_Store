@@ -1,4 +1,5 @@
 const db = require('../../../config/db');
+const trashService = require('../../../services/trash/trash.service');
 const { ok, created, notFound, badRequest } = require('../../../utils/response');
 const { getFileUrl } = require('../../../utils/upload');
 
@@ -43,7 +44,7 @@ const list = async (_req, res) => {
   const { rows: combos } = await db.query(
     `SELECT c.*,
             (SELECT COUNT(DISTINCT order_id)::int FROM order_items WHERE combo_id = c.id) AS orders_count
-     FROM combos c ORDER BY c.sort_order, c.created_at DESC`
+     FROM combos c WHERE c.deleted_at IS NULL ORDER BY c.sort_order, c.created_at DESC`
   );
   for (const combo of combos) {
     const { rows: slots } = await db.query(
@@ -239,10 +240,12 @@ const toggle = async (req, res) => {
   ok(res, { combo: rows[0] });
 };
 
+// Deleting moves the combo to Trash (restorable for 30 days).
 const remove = async (req, res) => {
-  const { rows } = await db.query('DELETE FROM combos WHERE id=$1 RETURNING id', [req.params.id]);
-  if (!rows.length) return notFound(res, 'Combo not found');
-  ok(res, { message: 'Combo deleted' });
+  const row = await trashService.trash('combos', req.params.id, req.user?.id);
+  if (!row) return notFound(res, 'Combo not found');
+  await db.query('DELETE FROM cart WHERE combo_id=$1', [req.params.id]);
+  ok(res, { message: 'Combo moved to Trash' });
 };
 
 module.exports = { list, getOne, create, update, toggle, remove };

@@ -1,9 +1,10 @@
 const db = require('../../../config/db');
+const trashService = require('../../../services/trash/trash.service');
 const { ok, created, notFound, badRequest } = require('../../../utils/response');
 const { getFileUrl } = require('../../../utils/upload');
 
 const list = async (_req, res) => {
-  const { rows } = await db.query('SELECT * FROM categories ORDER BY sort_order');
+  const { rows } = await db.query('SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY sort_order');
   ok(res, { categories: rows });
 };
 
@@ -110,18 +111,16 @@ const saveSizeChartTable = async (req, res) => {
   ok(res, { category: rows[0] });
 };
 
+// Deleting moves the category to Trash. Products may optionally be moved to another
+// category first (reassign_to); otherwise they stay attached and come back on restore.
 const remove = async (req, res) => {
   const { reassign_to } = req.query;
-  const { rows } = await db.query('SELECT COUNT(*) FROM products WHERE category_id=$1', [req.params.id]);
-  const count = parseInt(rows[0].count);
-  if (count > 0) {
-    if (!reassign_to) {
-      return res.status(409).json({ message: `${count} product(s) are using this category.`, count });
-    }
+  if (reassign_to) {
     await db.query('UPDATE products SET category_id=$1 WHERE category_id=$2', [reassign_to, req.params.id]);
   }
-  await db.query('DELETE FROM categories WHERE id=$1', [req.params.id]);
-  ok(res, { message: 'Category deleted' });
+  const row = await trashService.trash('categories', req.params.id, req.user?.id);
+  if (!row) return notFound(res, 'Category not found');
+  ok(res, { message: 'Category moved to Trash' });
 };
 
 const listMaterials = async (_req, res) => {
