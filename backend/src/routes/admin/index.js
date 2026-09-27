@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { authenticate } = require('../../middleware/auth/auth.middleware');
 const { requireRole, requirePermission } = require('../../middleware/role/role.middleware');
+const { auditAdminActions } = require('../../services/audit/audit.service');
 
 router.use(authenticate, requireRole(['admin', 'super_admin']));
 
@@ -9,6 +10,9 @@ router.use(authenticate, requireRole(['admin', 'super_admin']));
 // area is super-admin only — the sidebar hides these for branch admins, and this is the
 // server-side enforcement of the same rule.
 const superOnly = requireRole('super_admin');
+
+// Every successful create/update/delete under /api/admin is written to audit_logs.
+router.use(auditAdminActions);
 
 // Analytics & Reports
 router.get('/dashboard', superOnly, require('../../controllers/admin/analytics/dashboard.controller').getDashboard);
@@ -49,6 +53,9 @@ router.use('/users',             superOnly, require('./users/user.routes'));
 router.use('/admins',            superOnly, require('./users/admin.routes'));
 router.use('/delivery-staff',    superOnly, require('./users/deliveryStaff.routes'));
 router.use('/wallets',           requirePermission('wallet'), require('./users/wallet.routes'));
+
+// Audit trail (read-only, super admin)
+router.use('/audit-logs',        superOnly, require('./audit/audit.routes'));
 
 // Settings
 router.use('/settings',          superOnly, require('./settings/settings.routes'));

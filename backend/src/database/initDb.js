@@ -108,6 +108,7 @@ async function initDb() {
       "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS combo_id UUID REFERENCES combos(id) ON DELETE SET NULL",
       "ALTER TABLE orders ADD COLUMN IF NOT EXISTS loyalty_points_earned INT NOT NULL DEFAULT 0",
       "ALTER TABLE referral_rewards ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ",
+      "CREATE TABLE IF NOT EXISTS audit_logs (id BIGSERIAL PRIMARY KEY, actor_id UUID, actor_name VARCHAR(120), actor_email VARCHAR(255), actor_role VARCHAR(30), action VARCHAR(40) NOT NULL, entity_type VARCHAR(60) NOT NULL, entity_id VARCHAR(80), summary VARCHAR(255) NOT NULL, method VARCHAR(10), path VARCHAR(255), status_code INT, details JSONB, ip VARCHAR(64), user_agent VARCHAR(255), created_at TIMESTAMPTZ NOT NULL DEFAULT now())",
       "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
       "ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_refund_id VARCHAR(100)",
       "ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_balance_non_negative",

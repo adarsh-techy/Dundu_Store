@@ -5,6 +5,7 @@ const { ok, created, badRequest, unauthorized, error } = require('../../../utils
 const otpService = require('../../../services/otp/otp.service');
 const whatsapp = require('../../../services/whatsapp/whatsapp.service');
 const env = require('../../../config/env');
+const audit = require('../../../services/audit/audit.service');
 
 const tokenFor = (user) =>
   sign({ id: user.id, role: user.role, email: user.email, phone: user.phone, permissions: user.permissions || [] });
@@ -104,6 +105,10 @@ const login = async (req, res) => {
 
     db.query('UPDATE users SET last_login_at=now() WHERE id=$1', [user.id]).catch(() => {});
     db.query('INSERT INTO login_logs (user_id) VALUES ($1)', [user.id]).catch(() => {});
+    if (['admin', 'super_admin'].includes(user.role)) {
+      audit.record({ actor: user, action: 'login', entityType: 'auth', entityId: user.id, summary: `${user.name || user.email} signed in to the admin panel`,
+        method: 'POST', path: req.originalUrl, statusCode: 200, ip: req.ip, userAgent: req.get('user-agent') });
+    }
     ok(res, { token: tokenFor(user), user: sanitize(user) });
   } catch (err) {
     console.error('login error:', err);

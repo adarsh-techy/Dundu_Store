@@ -26,17 +26,35 @@ const update = async (req, res) => {
 };
 
 const toggle = async (req, res) => {
+  const cur = await db.query('SELECT is_active FROM announcements WHERE id=$1', [req.params.id]);
+  if (!cur.rows.length) return badRequest(res, 'Announcement not found');
+  const willBeActive = !cur.rows[0].is_active;
+
+  if (willBeActive) {
+    // Only 1 announcement active at a time: deactivate all others first
+    await db.query('UPDATE announcements SET is_active = false');
+  }
+
   const { rows } = await db.query(
-    'UPDATE announcements SET is_active = NOT is_active WHERE id=$1 RETURNING *',
-    [req.params.id]
+    'UPDATE announcements SET is_active = $1 WHERE id=$2 RETURNING *',
+    [willBeActive, req.params.id]
   );
   ok(res, { announcement: rows[0] });
 };
 
 const togglePopup = async (req, res) => {
+  const cur = await db.query('SELECT show_popup FROM announcements WHERE id=$1', [req.params.id]);
+  if (!cur.rows.length) return badRequest(res, 'Announcement not found');
+  const willBePopup = !cur.rows[0].show_popup;
+
+  if (willBePopup) {
+    // Only 1 popup announcement active at a time: deactivate all others first
+    await db.query('UPDATE announcements SET show_popup = false');
+  }
+
   const { rows } = await db.query(
-    'UPDATE announcements SET show_popup = NOT show_popup WHERE id=$1 RETURNING *',
-    [req.params.id]
+    'UPDATE announcements SET show_popup = $1 WHERE id=$2 RETURNING *',
+    [willBePopup, req.params.id]
   );
   ok(res, { announcement: rows[0] });
 };

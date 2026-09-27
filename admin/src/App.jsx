@@ -24,6 +24,7 @@ import Returns from './pages/orders/returns/Returns';
 import Coupons from './pages/marketing/coupons/Coupons';
 import Banners from './pages/marketing/banners/Banners';
 import Admins from './pages/users/admins/Admins';
+import AuditLog from './pages/users/audit-log/AuditLog';
 import Wallets from './pages/users/wallets/Wallets';
 import DeliveryStaff from './pages/users/delivery-staff/DeliveryStaff';
 import CartMonitor from './pages/orders/cart-monitor/CartMonitor';
@@ -78,6 +79,7 @@ function AppRoutes() {
       <Route path="/user-activity" element={<Layout><UserActivity /></Layout>} />
       <Route path="/users/:id" element={<Layout><UserDetail /></Layout>} />
       <Route path="/admins" element={<Layout><Admins /></Layout>} />
+      <Route path="/audit-log" element={<Layout><AuditLog /></Layout>} />
       <Route path="/delivery-staff" element={<Layout><DeliveryStaff /></Layout>} />
       <Route path="/coupons" element={<Layout><Coupons /></Layout>} />
       <Route path="/marketing-control" element={<Layout><MarketingControlPage /></Layout>} />

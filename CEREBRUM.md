@@ -40,10 +40,10 @@ src/middleware/error/         handleValidation (express-validator) + globalError
 src/routes/index.js           Mounts customer routers + public endpoints: /home, /announcements, /settings/payment,
                               /settings/splash, /festival/config, /first-purchase/config, /scratch-card/*
 src/routes/customer/*.js      auth, products, categories, combos, cart, orders, users, coupons, loyalty, delivery, spin-wheel, wallet
-src/routes/admin/index.js     Gate: authenticate + admin|super_admin, then per-area permission or super-only
+src/routes/admin/index.js     Gate: authenticate + admin|super_admin, audit middleware, then per-area permission or super-only
 src/controllers/customer/     auth, catalog(product/combo/review), cart, order, user(profile/address/wishlist/notifications), delivery, spinWheel
 src/controllers/admin/        analytics, catalog, marketing, orders, settings, users
-src/services/                 otp (DB-backed, attempt-limited), payment (Razorpay create/verify/refund), wallet (ledger), whatsapp (Twilio or mock)
+src/services/                 otp (DB-backed, attempt-limited), payment (Razorpay create/verify/refund), wallet (ledger), whatsapp (Twilio or mock), audit (admin action trail)
 src/utils/                    upload.js (multer + magic-byte check), jwt.js, response.js (ok/created/badRequest…), asyncHandler.js, delivery.js
 src/validators/               express-validator rule sets (auth, product review, admin)
 scripts/clear-db.js           Wipes data and seeds admin@dundu.com / admin123 (check the file before running)
@@ -95,6 +95,7 @@ Only JPEG/PNG/WebP. Extension derived from MIME, magic bytes verified after writ
 | `wallets`, `wallet_transactions` | ledger, never negative |
 | `loyalty_cards` | keyed by **phone**, shared with in-store POS |
 | `settings` | key/value store for every feature flag and number (delivery charge, loyalty rules, spin wheel timing…) |
+| `audit_logs` | admin action trail, written by `auditAdminActions`; read-only in the UI |
 
 Tables `scratch_card_prizes` / `scratch_card_logs` are created lazily by `admin/marketing/scratchCard.controller.js` and also by `initDb.js`.
 
@@ -212,6 +213,12 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-27 — Admin audit log
+- Table `audit_logs` (migration `1782300000005_audit-logs`, mirrored in initDb): actor, action (create/update/delete/login/other), entity_type/id, summary, method, path, status, sanitized details JSON, ip, user agent.
+- `src/services/audit/audit.service.js`: `record()` (never throws, masks pass/secret/token/otp keys, truncates big payloads) and `auditAdminActions` middleware mounted on `/api/admin` — logs every successful POST/PUT/PATCH/DELETE automatically; controllers can override via `res.locals.audit`. Admin logins are recorded from `auth.controller.login`.
+- Read API (super admin): `GET /api/admin/audit-logs` (page, limit, search, actor, action, entity, from, to), `/filters` (actors, areas, actions, stats), `/:id`.
+- Admin panel: **Customers → Audit Log** menu (`/audit-log`), `pages/users/audit-log/AuditLog.jsx` with stat cards, search + filters, paginated table, detail modal with copyable JSON.
+
 ### 2026-09-27 — Migrations run at boot
 - `backend/index.js` now applies pending `node-pg-migrate` files on startup (before `initDb`). Fixes Render deploys whose Start Command was only `npm start` ("relation users does not exist"). Opt out with `RUN_MIGRATIONS_ON_START=false`.
 - Hosting: `render.yaml` blueprint, `web/vercel.json`, `admin/vercel.json` added; see §6.1.
@@ -291,6 +298,11 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 - Twilio config key fix (`whatsappFrom`), forgot-password now sends WhatsApp, Google OAuth verified-email check + fragment token.
 - Profile: phone change needs OTP, DOB set once. Mobile: reward calls send JWT, removed hard-coded Razorpay key.
 ### 2026-09-27 — Admin Modernization & Colorful Redesign
+- **Promotional Banners & Hero Sliders:** Modernized into an executive 2-column studio layout with an **exact mobile app preview**. Features a clean executive header, 4 clean white KPI cards (Total Banners, Active Live, Category Linked, Offer Badges), left-hand filters & banners ledger with 1-click active toggles and reordering, and a sticky right-hand smartphone preview with realistic dimensions (350×700px), Dynamic Island status bar, exact dark header (`#040d04`), dark search bar (`#000000`, `#1a1a1a`), category circles, and live `BannerCarousel` matching `HomeScreen.jsx` (2:1 aspect ratio, floating offer badge, dark gradient text overlay, and interactive dots row).
+  - **Banner Artwork Studio Modal:** Replaced the plain, unstyled file input with an executive Artwork Upload Dropzone. Features dual modes ("Upload File" drag & drop or click-to-browse with dashed canvas + "Web URL" for direct image links), instant 16:6 aspect ratio live artwork preview with simulated title/subtitle/badge text overlay directly inside the card, file metadata badge (filename, size), one-click "Change" and "Remove" actions, and validation ensuring no empty banner is submitted without artwork.
+- **Announcements & Top Header Ticker:** Completely modernized to be non-complicated and clean (no over-coloring or garish pastel gradients) with strictly **1 announcement active at a time** (enforced in backend controller + admin UI radio toggles). Features an executive header, 4 clean white KPI cards, compact studio controls, and an **exact mobile app preview** with authentic dimensions (350×700px), Dynamic Island status bar, exact dark header (`#040d04`), dark search bar (`#000000`, `#1a1a1a`), category circles, exact 32px continuous marquee `AnnouncementBar` positioned directly above the banner carousel, and bottom navigation tabs (`MainTabs.jsx`), plus an interactive `WelcomePopup` modal toggle.
+- **Birthday Rewards & Celebrations:** Rebuilt into a colorful, vibrant, and non-complicated interface. Features a rich gradient hero header (`pink → rose → orange`), 4 colorful KPI cards with gradient icon boxes, bulk "Wish All Today" dispatch, 1-click variable tags (`{name}`, `{discount}`, `{store_url}`), clean 2-column layout with WhatsApp mobile preview and step-by-step guidance, pink/rose celebrant avatar cards, and change-triggered blue Save button (`bg-blue-600 hover:bg-blue-700 text-white font-bold`).
+- **WhatsApp Broadcast & Customer Engagement:** Fully modernized and made colorful and non-complicated. Features a radiant emerald/teal/cyan gradient hero header with live gateway status badge, 4 colorful KPI cards with gradient icon containers (Total Broadcasts, Reachable Shoppers, Cart Abandoners, Delivered Messages), guided 3-step composer (Audience selector with 1-click pills, 8 colorful template presets with badges, rich message copywriter with 1-click variables and quick emoji chips), authentic smartphone live WhatsApp preview with chat bubble, delivery history table with full message modal, and high-contrast CTA buttons.
 - **Spin & Win Lucky Wheel:** Simplified from 5 complex tabs down to a clean, non-complicated 3-tab studio (Wheel Settings & Studio, Wheel Slices & Prizes, Winners History). Features 4 vibrant KPI cards, exact Dundu mobile app preview with realistic SVG 3D spinning wheel simulation, interactive test spin with live celebratory winner pop-in card, color-swatch slice cards with odds progress meters, zero emojis in text labels, and blue Save button (`bg-blue-600 hover:bg-blue-700 text-white font-bold`) conditionally displayed only when settings change (`isDirty`).
 - **Festival Offers:** Simplified into a non-complicated 2-column studio layout (controls on left, exact Dundu mobile app preview on right). Features 1-click theme presets, live app header with announcement strip, dynamic island status bar, exact `FestivalPopupModal` simulation with toggle between Home Screen and Popup Offer, zero emojis in text labels, and blue Save button (`bg-blue-600 hover:bg-blue-700 text-white font-bold`) conditionally displayed only on changes (`isDirty`).
 - **1st Purchase Offer & Tier Slabs:** Made colorful with distinct tier slab accents (Emerald, Indigo, Amber, Rose, Purple), interactive checkout simulator with cart range slider, and blue Save button (`bg-blue-600 hover:bg-blue-700 text-white font-bold`) conditionally displayed when changes are made (`isDirty`).
@@ -298,6 +310,7 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 - **Daily Sales Report:** Modernized with 4 executive KPI cards, hourly sales Recharts BarChart, payment split, and top products table.
 - **New Arrivals:** Clean full-width table with category filter pills, search, 3 KPI cards, 1-click toggle buttons.
 - **Splash Screen:** Clean 2-column studio, simple toggles, color swatches + hex pickers, 4 duration buttons, live smartphone preview.
+
 
 ---
 

@@ -192,6 +192,12 @@ export const whatsappApi = {
   send:     (data)   => client.post('/admin/whatsapp/send', data),
 };
 
+export const auditApi = {
+  list:    (params) => client.get('/admin/audit-logs', { params }),
+  filters: ()       => client.get('/admin/audit-logs/filters'),
+  getOne:  (id)     => client.get(`/admin/audit-logs/${id}`),
+};
+
 export const insightsApi = {
   getProducts: () => client.get('/admin/insights/products'),
   getUsers:    () => client.get('/admin/insights/users'),
