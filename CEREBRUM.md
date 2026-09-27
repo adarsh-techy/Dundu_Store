@@ -225,7 +225,7 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 - Table `audit_logs` (migration `1782300000005_audit-logs`, mirrored in initDb): actor, action (create/update/delete/login/other), entity_type/id, summary, method, path, status, sanitized details JSON, ip, user agent.
 - `src/services/audit/audit.service.js`: `record()` (never throws, masks pass/secret/token/otp keys, truncates big payloads) and `auditAdminActions` middleware mounted on `/api/admin` — logs every successful POST/PUT/PATCH/DELETE automatically; controllers can override via `res.locals.audit`. Admin logins are recorded from `auth.controller.login`.
 - Read API (super admin): `GET /api/admin/audit-logs` (page, limit, search, actor, action, entity, from, to), `/filters` (actors, areas, actions, stats), `/:id`.
-- Admin panel: **Customers → Audit Log** menu (`/audit-log`), `pages/users/audit-log/AuditLog.jsx` with stat cards, search + filters, paginated table, detail modal with copyable JSON.
+- Admin panel: **System → Audit Log** (`/audit-log`), `pages/users/audit-log/AuditLog.jsx` with stat cards, search + filters, lazy-loaded table (useInfiniteQuery + IntersectionObserver, 40 rows per page) that scrolls inside a fixed-height container with a sticky header, detail modal with copyable JSON.
 
 ### 2026-09-27 — Migrations run at boot
 - `backend/index.js` now applies pending `node-pg-migrate` files on startup (before `initDb`). Fixes Render deploys whose Start Command was only `npm start` ("relation users does not exist"). Opt out with `RUN_MIGRATIONS_ON_START=false`.
@@ -305,7 +305,10 @@ Verified with a 22-check smoke test on an isolated database (all pass, no server
 - Rate limiting (`express-rate-limit`), unhandled-rejection handler, production CORS strictness, error message hiding.
 - Twilio config key fix (`whatsappFrom`), forgot-password now sends WhatsApp, Google OAuth verified-email check + fragment token.
 - Profile: phone change needs OTP, DOB set once. Mobile: reward calls send JWT, removed hard-coded Razorpay key.
-- **Return Settings & Abuse Controls:** Added a classic, professional centered success modal in `admin/src/pages/settings/returns/ReturnSettings.jsx`. When "Block Cash on Delivery (COD)" or "Disallow Further Returns" is toggled, a centered executive dialog with a blurred backdrop appears displaying the policy enforcement status, the active trigger threshold (e.g. `≥ 3 completed returns`), the checkout restrictions enforced, and an "Understood & Apply Policy" confirmation.
+- **Return Settings & Abuse Controls:** Added a classic, professional centered popup modal in `admin/src/pages/settings/returns/ReturnSettings.jsx`. Designed with strict **Success Green** (`emerald`) and **Failed / Alert Red** (`rose`) themes:
+  - **Success Green Theme:** When COD restriction is enabled or saved successfully, displays a vivid emerald ambient glow, emerald `ShieldCheck` icon, pulsing `SUCCESS — PROTECTION ACTIVE` badge, emerald details breakdown card, and emerald action button (`bg-emerald-600 hover:bg-emerald-700`).
+  - **Failed / Paused Red Theme:** When restriction is disabled, paused, or fails to save on the server, displays a vivid rose ambient glow, rose `ShieldAlert` / `XCircle` icon, `FAILED / RESTRICTION PAUSED` or `UPDATE FAILED` badge, rose details card, and rose button (`bg-rose-600 hover:bg-rose-700`).
+  - **Global Admin Toasts:** Configured `Toaster` in `admin/src/App.jsx` with dedicated success green (`#059669` / `#ecfdf5`) and error red (`#e11d48` / `#fff1f2`) styling.
 - **Promotional Coupons Modal Overhaul:** Rebuilt the "Create / Edit Promotional Coupon" modal in `admin/src/pages/marketing/coupons/Coupons.jsx` to be non-confusing and intuitive. Replaced chaotic conditional shifting fields with a stable, logical 5-section layout:
   1. **Live Customer Ticket Mockup:** Real-time preview card at the top displaying the code, discount badge, cap, minimum order, and expiration countdown.
   2. **Coupon Code & 1-Click Presets:** Monospace code input with "Generate Random Code" and 4 quick presets (`WELCOME10`, `FESTIVE20`, `FLAT100`, `MEGA500`).

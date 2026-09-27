@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   RotateCcw, Truck, ShieldAlert, AlertCircle, Coins, Sliders,
-  CheckCircle2, ShieldCheck, X
+  CheckCircle2, ShieldCheck, XCircle, X
 } from 'lucide-react';
 import { settingsApi } from '../../../api';
 import Button from '../../../components/ui/Button';
@@ -18,7 +18,7 @@ function Toggle({ enabled, onChange, loading }) {
       onClick={onChange}
       disabled={loading}
       className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-        enabled ? 'bg-slate-900' : 'bg-slate-200'
+        enabled ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-300 hover:bg-slate-400'
       } ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
       <span
@@ -61,9 +61,18 @@ export default function ReturnSettings() {
       setSuccessModal({
         target: 'cod',
         enabled: willBeEnabled,
+        status: willBeEnabled ? 'success' : 'failed',
         threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
       });
-    } catch {
+    } catch (err) {
+      setSuccessModal({
+        target: 'cod',
+        enabled: false,
+        status: 'failed',
+        isError: true,
+        errorMessage: err.response?.data?.message || err.message || 'Server failed to update setting. Please try again.',
+        threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
+      });
       toast.error('Failed to update setting');
     } finally {
       setSaving(null);
@@ -79,9 +88,18 @@ export default function ReturnSettings() {
       setSuccessModal({
         target: 'return',
         enabled: willBeEnabled,
+        status: willBeEnabled ? 'success' : 'failed',
         threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
       });
-    } catch {
+    } catch (err) {
+      setSuccessModal({
+        target: 'return',
+        enabled: false,
+        status: 'failed',
+        isError: true,
+        errorMessage: err.response?.data?.message || err.message || 'Server failed to update setting. Please try again.',
+        threshold: form.return_abuse_threshold || settings.return_abuse_threshold || '3',
+      });
       toast.error('Failed to update setting');
     } finally {
       setSaving(null);
@@ -213,18 +231,23 @@ export default function ReturnSettings() {
           )}
 
           {/* Block COD toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
+          <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+            blockCodOnAbuse ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50'
+          }`}>
             <div className="flex items-center gap-3">
-              <Truck className={`h-5 w-5 ${blockCodOnAbuse ? 'text-slate-900' : 'text-slate-400'}`} />
+              <Truck className={`h-5 w-5 ${blockCodOnAbuse ? 'text-emerald-600' : 'text-slate-400'}`} />
               <div>
                 <p className="font-bold text-xs text-slate-900">Block Cash on Delivery (COD)</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Frequent returners are restricted to prepaid online payment methods</p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                blockCodOnAbuse ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+              <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                blockCodOnAbuse
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
               }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${blockCodOnAbuse ? 'bg-emerald-600 animate-pulse' : 'bg-rose-500'}`} />
                 {blockCodOnAbuse ? 'ACTIVE' : 'DISABLED'}
               </span>
               <Toggle enabled={blockCodOnAbuse} onChange={handleToggleBlockCod} loading={saving === 'block-cod'} />
@@ -232,18 +255,23 @@ export default function ReturnSettings() {
           </div>
 
           {/* Block Returns toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50">
+          <div className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+            blockReturnOnAbuse ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-slate-50'
+          }`}>
             <div className="flex items-center gap-3">
-              <RotateCcw className={`h-5 w-5 ${blockReturnOnAbuse ? 'text-slate-900' : 'text-slate-400'}`} />
+              <RotateCcw className={`h-5 w-5 ${blockReturnOnAbuse ? 'text-emerald-600' : 'text-slate-400'}`} />
               <div>
                 <p className="font-bold text-xs text-slate-900">Disallow Further Returns</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">Subsequent return requests are blocked at the customer app level</p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                blockReturnOnAbuse ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-200 text-slate-600 border-slate-300'
+              <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                blockReturnOnAbuse
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
               }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${blockReturnOnAbuse ? 'bg-emerald-600 animate-pulse' : 'bg-rose-500'}`} />
                 {blockReturnOnAbuse ? 'ACTIVE' : 'DISABLED'}
               </span>
               <Toggle enabled={blockReturnOnAbuse} onChange={handleToggleBlockReturn} loading={saving === 'block-return'} />
@@ -257,16 +285,29 @@ export default function ReturnSettings() {
         </div>
       </div>
 
-      {/* ── Classic Executive Success Popup (Centered on Page) ── */}
+      {/* ── Classic Executive Success (Green) / Failed (Red) Centered Popup ── */}
       {successModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200"
           onClick={() => setSuccessModal(null)}
         >
           <div
-            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-in zoom-in-95 duration-200"
+            className={`bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border text-center relative overflow-hidden animate-in zoom-in-95 duration-200 ${
+              successModal.status === 'success'
+                ? 'border-emerald-200 shadow-emerald-950/20'
+                : 'border-rose-200 shadow-rose-950/20'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Top Color Accent Line */}
+            <div
+              className={`absolute top-0 left-0 right-0 h-1.5 ${
+                successModal.status === 'success'
+                  ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500'
+                  : 'bg-gradient-to-r from-rose-500 via-red-500 to-rose-600'
+              }`}
+            />
+
             {/* Top Close Button */}
             <button
               onClick={() => setSuccessModal(null)}
@@ -279,50 +320,60 @@ export default function ReturnSettings() {
             {/* Top Decorative Ambient Glow */}
             <div
               className={`absolute top-0 left-1/2 -translate-x-1/2 w-48 h-24 rounded-full blur-2xl opacity-40 pointer-events-none ${
-                successModal.enabled ? 'bg-emerald-400' : 'bg-slate-400'
+                successModal.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
               }`}
             />
 
             {/* Centered Circular Icon Badge */}
             <div
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border shadow-sm relative z-10 ${
-                successModal.enabled
-                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 shadow-sm relative z-10 ring-4 ${
+                successModal.status === 'success'
+                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-emerald-100/60 shadow-emerald-500/10'
+                  : 'bg-rose-50 text-rose-600 border-rose-200 ring-rose-100/60 shadow-rose-500/10'
               }`}
             >
-              {successModal.target === 'cod' ? (
-                successModal.enabled ? (
-                  <ShieldCheck className="w-8 h-8" />
-                ) : (
-                  <Truck className="w-8 h-8" />
-                )
-              ) : successModal.enabled ? (
+              {successModal.status === 'success' ? (
                 <ShieldCheck className="w-8 h-8" />
+              ) : successModal.isError ? (
+                <XCircle className="w-8 h-8" />
               ) : (
-                <RotateCcw className="w-8 h-8" />
+                <ShieldAlert className="w-8 h-8" />
               )}
             </div>
 
             {/* Policy Status Badge */}
             <div className="relative z-10 mb-2">
               <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
-                  successModal.enabled
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
+                  successModal.status === 'success'
+                    ? 'bg-emerald-100/80 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-100/80 text-rose-800 border-rose-300'
                 }`}
               >
-                {successModal.enabled && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                )}
-                {successModal.enabled ? 'Protection Active' : 'Restriction Paused'}
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    successModal.status === 'success'
+                      ? 'bg-emerald-500 animate-pulse'
+                      : 'bg-rose-500 animate-pulse'
+                  }`}
+                />
+                {successModal.isError
+                  ? 'UPDATE FAILED — SERVER ERROR'
+                  : successModal.status === 'success'
+                  ? 'SUCCESS — PROTECTION ACTIVE'
+                  : 'FAILED / RESTRICTION DISABLED'}
               </span>
             </div>
 
             {/* Title & Description */}
-            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight relative z-10">
-              {successModal.target === 'cod'
+            <h3
+              className={`text-lg sm:text-xl font-black tracking-tight relative z-10 ${
+                successModal.status === 'success' ? 'text-emerald-950' : 'text-rose-950'
+              }`}
+            >
+              {successModal.isError
+                ? 'Failed to Update Setting'
+                : successModal.target === 'cod'
                 ? successModal.enabled
                   ? 'COD Restriction Enabled'
                   : 'COD Restriction Disabled'
@@ -331,7 +382,9 @@ export default function ReturnSettings() {
                 : 'Return Restriction Disabled'}
             </h3>
             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed relative z-10">
-              {successModal.target === 'cod'
+              {successModal.isError
+                ? successModal.errorMessage
+                : successModal.target === 'cod'
                 ? successModal.enabled
                   ? 'High-frequency returners are now automatically restricted to prepaid payment methods only.'
                   : 'Cash on Delivery (COD) is now available again for all customers, including frequent returners.'
@@ -341,45 +394,91 @@ export default function ReturnSettings() {
             </p>
 
             {/* Executive Details Breakdown Card */}
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5 my-5 text-xs relative z-10">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-slate-500 font-medium">Trigger Threshold:</span>
-                <span className="font-bold text-slate-900 text-right">
-                  ≥ {successModal.threshold} completed returns
-                </span>
+            {!successModal.isError && (
+              <div
+                className={`border rounded-2xl p-4 text-left space-y-2.5 my-5 text-xs relative z-10 ${
+                  successModal.status === 'success'
+                    ? 'bg-emerald-50/70 border-emerald-200'
+                    : 'bg-rose-50/70 border-rose-200'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className={successModal.status === 'success' ? 'text-emerald-900/70 font-medium' : 'text-rose-900/70 font-medium'}>
+                    Trigger Threshold:
+                  </span>
+                  <span
+                    className={`font-bold text-right ${
+                      successModal.status === 'success' ? 'text-emerald-950' : 'text-rose-950'
+                    }`}
+                  >
+                    ≥ {successModal.threshold} completed returns
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <span className={successModal.status === 'success' ? 'text-emerald-900/70 font-medium' : 'text-rose-900/70 font-medium'}>
+                    Checkout Enforcement:
+                  </span>
+                  <span
+                    className={`font-bold text-right px-2 py-0.5 rounded text-[11px] ${
+                      successModal.status === 'success'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-rose-100 text-rose-800'
+                    }`}
+                  >
+                    {successModal.target === 'cod'
+                      ? successModal.enabled
+                        ? 'COD payment option disabled'
+                        : 'COD allowed for all'
+                      : successModal.enabled
+                      ? 'Return button blocked'
+                      : 'Returns allowed for all'}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-2">
+                  <span className={successModal.status === 'success' ? 'text-emerald-900/70 font-medium' : 'text-rose-900/70 font-medium'}>
+                    Permitted Payments:
+                  </span>
+                  <span
+                    className={`font-bold text-right ${
+                      successModal.status === 'success' ? 'text-emerald-800' : 'text-rose-800'
+                    }`}
+                  >
+                    {successModal.enabled ? 'Prepaid Only (UPI, Cards, Wallet)' : 'All Payment Methods (COD + Online)'}
+                  </span>
+                </div>
+                <div
+                  className={`pt-2 border-t flex items-center justify-between text-[11px] ${
+                    successModal.status === 'success'
+                      ? 'border-emerald-200/80 text-emerald-800/80'
+                      : 'border-rose-200/80 text-rose-800/80'
+                  }`}
+                >
+                  <span>App & Web storefront</span>
+                  <span className="font-semibold">Immediate Effect</span>
+                </div>
               </div>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-slate-500 font-medium">Checkout Enforcement:</span>
-                <span className="font-bold text-slate-900 text-right">
-                  {successModal.target === 'cod'
-                    ? successModal.enabled
-                      ? 'COD payment option disabled'
-                      : 'COD allowed'
-                    : successModal.enabled
-                    ? 'Return button blocked'
-                    : 'Returns allowed'}
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-slate-500 font-medium">Permitted Payments:</span>
-                <span className="font-bold text-emerald-700 text-right">
-                  Prepaid Only (UPI, Cards, Wallet)
-                </span>
-              </div>
-              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-400">
-                <span>App & Web storefront</span>
-                <span className="font-semibold text-slate-600">Immediate Effect</span>
-              </div>
-            </div>
+            )}
 
             {/* Primary Action Button */}
             <button
               type="button"
               onClick={() => setSuccessModal(null)}
-              className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-3 px-5 rounded-xl shadow-sm transition-all cursor-pointer relative z-10 flex items-center justify-center gap-2"
+              className={`w-full text-white font-bold text-xs py-3.5 px-5 rounded-xl shadow-lg transition-all cursor-pointer relative z-10 flex items-center justify-center gap-2 mt-4 active:scale-[0.99] ${
+                successModal.status === 'success'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/30'
+                  : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'
+              }`}
             >
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Understood & Apply Policy</span>
+              {successModal.status === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+              ) : (
+                <XCircle className="w-4 h-4 text-rose-100" />
+              )}
+              <span>
+                {successModal.status === 'success'
+                  ? 'Understood & Apply Policy'
+                  : 'Dismiss & Review Setting'}
+              </span>
             </button>
           </div>
         </div>

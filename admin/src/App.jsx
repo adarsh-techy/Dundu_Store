@@ -119,7 +119,36 @@ export default function App() {
     <QueryClientProvider client={qc}>
       <BrowserRouter>
         <AppRoutes />
-        <Toaster position="top-right" toastOptions={{ className: 'text-sm font-medium' }} />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            className: 'text-sm font-medium',
+            success: {
+              style: {
+                background: '#ecfdf5',
+                color: '#065f46',
+                border: '1px solid #a7f3d0',
+                fontWeight: '600',
+              },
+              iconTheme: {
+                primary: '#059669',
+                secondary: '#ffffff',
+              },
+            },
+            error: {
+              style: {
+                background: '#fff1f2',
+                color: '#9f1239',
+                border: '1px solid #fecdd3',
+                fontWeight: '600',
+              },
+              iconTheme: {
+                primary: '#e11d48',
+                secondary: '#ffffff',
+              },
+            },
+          }}
+        />
       </BrowserRouter>
     </QueryClientProvider>
   );

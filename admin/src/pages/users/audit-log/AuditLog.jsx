@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import {
-  ScrollText, Search, X, RefreshCw, ChevronLeft, ChevronRight, Filter, Plus, Pencil, Trash2, LogIn, Activity,
+  ScrollText, Search, X, RefreshCw, Filter, Plus, Pencil, Trash2, LogIn, Activity,
   Users, AlertTriangle, Clock, Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -29,37 +29,56 @@ const ago = (d) => {
 const humanEntity = (e) => (e || '').replace(/[-_]/g, ' ');
 
 export default function AuditLog() {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
+  const limit = 40;
+  const scrollRef = useRef(null);
+  const sentinelRef = useRef(null);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const [filters, setFilters] = useState({ actor: '', action: '', entity: '', from: '', to: '' });
   const [selected, setSelected] = useState(null);
 
   // Debounce the search box without an effect: derive when the user pauses typing.
-  const applySearch = (v) => { setSearch(v); clearTimeout(applySearch.t); applySearch.t = setTimeout(() => { setDebounced(v); setPage(1); }, 300); };
+  const applySearch = (v) => { setSearch(v); clearTimeout(applySearch.t); applySearch.t = setTimeout(() => setDebounced(v), 300); };
 
   const params = useMemo(() => ({
-    page, limit,
+    limit,
     search: debounced.trim() || undefined,
     actor: filters.actor || undefined, action: filters.action || undefined, entity: filters.entity || undefined,
     from: filters.from || undefined, to: filters.to || undefined,
-  }), [page, limit, debounced, filters]);
+  }), [limit, debounced, filters]);
 
-  const { data, isLoading, isFetching, refetch } = useQuery({ queryKey: ['audit-logs', params], queryFn: () => auditApi.list(params), placeholderData: (prev) => prev });
+  // Lazy loading: pages are fetched as the table is scrolled to the bottom.
+  const { data, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ['audit-logs', params],
+    queryFn: ({ pageParam = 1 }) => auditApi.list({ ...params, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last, all) => {
+      const total = last?.data?.total || 0;
+      const loaded = all.reduce((n, p) => n + (p?.data?.logs?.length || 0), 0);
+      return loaded < total ? all.length + 1 : undefined;
+    },
+  });
+  useEffect(() => {
+    const root = scrollRef.current; const el = sentinelRef.current;
+    if (!root || !el) return undefined;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
+    }, { root, rootMargin: '200px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
   const { data: fData } = useQuery({ queryKey: ['audit-filters'], queryFn: auditApi.filters, staleTime: 60_000 });
   const { data: detail } = useQuery({ queryKey: ['audit-log', selected], queryFn: () => auditApi.getOne(selected), enabled: !!selected });
 
-  const logs = data?.data?.logs || [];
-  const total = data?.data?.total || 0;
-  const pages = Math.max(1, Math.ceil(total / limit));
+  const logs = useMemo(() => (data?.pages || []).flatMap((p) => p?.data?.logs || []), [data]);
+  const total = data?.pages?.[0]?.data?.total || 0;
   const stats = fData?.data?.stats || {};
   const actors = fData?.data?.actors || [];
   const entities = fData?.data?.entities || [];
   const actions = fData?.data?.actions || [];
   const activeFilters = Object.values(filters).filter(Boolean).length + (debounced ? 1 : 0);
-  const setF = (k, v) => { setFilters((f) => ({ ...f, [k]: v })); setPage(1); };
-  const clearAll = () => { setFilters({ actor: '', action: '', entity: '', from: '', to: '' }); setSearch(''); setDebounced(''); setPage(1); };
+  const setF = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
+  const clearAll = () => { setFilters({ actor: '', action: '', entity: '', from: '', to: '' }); setSearch(''); setDebounced(''); };
 
   const copyJson = (obj) => { navigator.clipboard.writeText(JSON.stringify(obj, null, 2)).then(() => toast.success('Copied')); };
   const log = detail?.data?.log;
@@ -118,9 +137,9 @@ export default function AuditLog() {
             <p className="text-sm mt-1">{activeFilters ? 'Try widening the date range or clearing filters.' : 'Actions taken in the admin panel will appear here automatically.'}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: 'calc(100vh - 380px)', minHeight: 320 }}>
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
+              <thead className="sticky top-0 z-10 bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 shadow-[0_1px_0_#e5e7eb]">
                 <tr>
                   <th className="text-left px-4 py-2.5 font-semibold w-10">#</th>
                   <th className="text-left px-4 py-2.5 font-semibold">When</th>
@@ -137,7 +156,7 @@ export default function AuditLog() {
                   const Icon = m.icon;
                   return (
                     <tr key={l.id} onClick={() => setSelected(l.id)} className="hover:bg-indigo-50/40 cursor-pointer">
-                      <td className="px-4 py-2.5 text-gray-400 text-xs">{(page - 1) * limit + i + 1}</td>
+                      <td className="px-4 py-2.5 text-gray-400 text-xs">{i + 1}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <p className="text-gray-800 text-xs font-medium">{ago(l.created_at)}</p>
                         <p className="text-[11px] text-gray-400">{fmt(l.created_at)}</p>
@@ -160,19 +179,15 @@ export default function AuditLog() {
                 })}
               </tbody>
             </table>
+            <div ref={sentinelRef} className="h-px" />
+            {isFetchingNextPage && <div className="py-3 text-center text-xs text-gray-400">Loading more…</div>}
+            {!hasNextPage && logs.length > 0 && <div className="py-3 text-center text-[11px] text-gray-300">End of log</div>}
           </div>
         )}
         {total > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-100 text-xs text-gray-500">
-            <span>Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}</span>
-            <div className="flex items-center gap-2">
-              <select value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }} className="border border-gray-200 rounded-lg px-2 py-1 bg-white">
-                {[25, 50, 100].map((n) => <option key={n} value={n}>{n} / page</option>)}
-              </select>
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50"><ChevronLeft className="h-4 w-4" /></button>
-              <span className="font-medium text-gray-700">{page} / {pages}</span>
-              <button disabled={page >= pages} onClick={() => setPage((p) => p + 1)} className="p-1.5 rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50"><ChevronRight className="h-4 w-4" /></button>
-            </div>
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 text-xs text-gray-500">
+            <span>Loaded {logs.length} of {total}</span>
+            {hasNextPage && <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="text-indigo-600 font-medium hover:underline disabled:opacity-50">Load more</button>}
           </div>
         )}
       </div>
