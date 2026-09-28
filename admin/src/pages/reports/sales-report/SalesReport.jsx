@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import {
   BarChart3,
   Calendar,
@@ -274,7 +269,7 @@ export default function SalesReport() {
                 </div>
               ) : (
                 <div className="w-full h-64 pt-2">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveChart width="100%" height="100%">
                     <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                       <XAxis
@@ -312,7 +307,7 @@ export default function SalesReport() {
                         maxBarSize={36}
                       />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveChart>
                 </div>
               )}
             </div>

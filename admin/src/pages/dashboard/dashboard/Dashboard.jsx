@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import {
   TrendingUp, ShoppingBag, IndianRupee,
   AlertTriangle, Clock, Package, Users, UserCheck, ShoppingCart, RotateCcw,
@@ -461,7 +461,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="w-full h-64 mt-2">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveChart width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revenueGradArea" x1="0" y1="0" x2="0" y2="1">
@@ -494,7 +494,7 @@ export default function Dashboard() {
                     activeDot={{ r: 5, fill: '#059669', stroke: '#ffffff', strokeWidth: 2 }}
                   />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ResponsiveChart>
             </div>
           )}
         </div>

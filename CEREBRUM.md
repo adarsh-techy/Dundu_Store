@@ -215,11 +215,14 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-29 — Chart size console warning fixed
+- New `admin/src/components/ui/ResponsiveChart.jsx` wraps Recharts `ResponsiveContainer` with `initialDimension` 1×1. Recharts 3 otherwise renders once at -1×-1 before measuring and logs "The width(-1) and height(-1) of chart should be greater than 0" on every chart mount. All 6 admin charts (Dashboard, Finance, Sales Report, Marketing Control, Product Detail, Stock Check detail) now use it — **use `ResponsiveChart` for new charts, not `ResponsiveContainer` directly.**
+
 ### 2026-09-29 — Admin "Stock Check" page
 - New sidebar item **Catalog → Stock Check** (`/stock-check`, super admin) and detail page `/stock-check/:id` (`admin/src/pages/dashboard/stock-check/`).
 - API `GET /api/admin/stock-check` and `/:id` (`controllers/admin/catalog/stockCheck.controller.js`). Rules: balance = `products.stock`; sold = order_items on orders not `cancelled`/`returned` (those restock); purchased = balance + sold (there is no purchase ledger); buy price = `order_items.cost_price` else `products.cost_price` — if unset, cost/profit are null (no 60% guess, unlike Finance); free replacement orders count as sold with ₹0 revenue. Speed from last-30-day units/day: fast ≥1, medium ≥0.2, slow >0.
 - List table: Product, Category, Buy/Sell per pc, Purchased, Purchase total, Sold, Balance, Revenue, Profit; pink header (`bg-pink-100/40`, `text-pink-800`), white rows with black text. Speed and last-sale date are shown only on the detail page (still in the CSV export).
-- Detail page (redesigned same day, then made fully neutral white/slate — no colour at all; profit vs loss reads from the +/− sign): hero (image, badges, total profit/loss), stock-flow Purchased → Sold → Balance with sell-through bar, price-per-piece card, sales-speed card (per day, days of stock, first/last sale), 7/30/90-day bar chart, size/colour cards, sales history (table on desktop, cards on phones). Last 200 sale lines.
+- Detail page (redesigned same day, final: white/slate cards with colour only for meaning — green = sold/profit, red = loss/sold out, amber = low stock/pending/missing buy price): hero (image, badges, total profit/loss), stock-flow Purchased → Sold → Balance with sell-through bar, price-per-piece card, sales-speed card (per day, days of stock, first/last sale), 7/30/90-day bar chart, size/colour cards, sales history (table on desktop, cards on phones). Last 200 sale lines.
 
 ### 2026-09-29 — Local .env files set to development
 - `mobile/.env` (gitignored) now points to the local backend via the Mac's Wi-Fi IP (`http://192.168.31.243:5000`); live Render URLs kept as comments. backend/admin `.env` were already localhost + `NODE_ENV=development`; web has no `.env` (Vite proxy → :5000). `mobile/eas.json` build profiles intentionally still use the live API (installed builds can't reach a laptop).

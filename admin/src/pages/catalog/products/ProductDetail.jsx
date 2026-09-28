@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import {
   ArrowLeft, Package, ShoppingBag, RotateCcw, TrendingUp, User, Phone, Calendar,
   Pencil, CheckCircle2, AlertTriangle, Layers,
@@ -272,7 +273,7 @@ export default function ProductDetail() {
               No sales logged yet for this product
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={230}>
+            <ResponsiveChart width="100%" height={230}>
               <BarChart data={chartData} barSize={24}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
@@ -288,7 +289,7 @@ export default function ProductDetail() {
                 />
                 <Bar dataKey="units" fill="#0f172a" radius={[6, 6, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveChart>
           )}
         </div>
 

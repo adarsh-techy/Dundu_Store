@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import {
   TrendingUp, IndianRupee, ShoppingBag,
   Calendar, Search, Package, Layers, Edit3, Check, RefreshCw,
@@ -469,7 +469,7 @@ export default function FinancePage() {
               </div>
             ) : (
               <div className="w-full h-80">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveChart width="100%" height="100%">
                   <BarChart data={monthlyChartData} margin={{ top: 12, right: 12, left: -10, bottom: 0 }} barGap={6}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
@@ -486,7 +486,7 @@ export default function FinancePage() {
                     <Bar dataKey="Buy Cost" fill="#94a3b8" radius={[6, 6, 0, 0]} barSize={20} />
                     <Bar dataKey="Profit" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={20} />
                   </BarChart>
-                </ResponsiveContainer>
+                </ResponsiveChart>
               </div>
             )}
           </div>

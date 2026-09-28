@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import {
   ArrowLeft, Package, Pencil, ArrowRight, ShoppingBag, Boxes, PackageCheck, Users,
   TrendingUp, TrendingDown, Zap, CalendarDays, CalendarClock, Hourglass, AlertTriangle, Receipt,
@@ -9,15 +10,20 @@ import {
 import { inventoryApi } from '../../../api';
 import Spinner from '../../../components/ui/Spinner';
 import { formatPrice, formatDate, formatDateTime } from '../../../utils/format';
+import Badge from './Badge';
 import { RESULT_BADGE } from './badges';
 
 const money = (n) => (n === null || n === undefined ? '—' : formatPrice(n));
 const signed = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatPrice(Math.abs(n))}`);
-// Neutral on purpose — profit vs loss reads from the +/− sign, not colour.
-const profitTone = (n) => (n === null || n === undefined ? 'text-slate-400' : 'text-slate-900');
+// Colour is kept to meaning only: green = sold/profit, red = loss/sold out, amber = needs attention.
+const profitTone = (n) => (n === null || n === undefined ? 'text-slate-400' : n < 0 ? 'text-rose-600' : n > 0 ? 'text-emerald-600' : 'text-slate-900');
 
 const HERO_LABEL = { profit: 'Total profit', loss: 'Total loss', break_even: 'Break-even' };
 const PILL = 'bg-slate-50 text-slate-600 border-slate-200';
+const STATUS_PILL = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
 
 const SPEED_LEVEL = { none: 0, slow: 1, medium: 2, fast: 3 };
 
@@ -48,14 +54,14 @@ function SectionTitle({ icon: Icon, title, sub, right }) {
   );
 }
 
-function FlowStep({ icon: Icon, label, qty, money: amount, moneyLabel }) {
+function FlowStep({ icon: Icon, label, qty, money: amount, moneyLabel, iconTone = 'text-slate-600', qtyTone = 'text-slate-900' }) {
   return (
     <div className="flex-1 min-w-0 rounded-2xl p-3 sm:p-4 border border-slate-200 bg-slate-50/60">
       <div className="flex items-center gap-2">
-        <div className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center bg-white border border-slate-200 text-slate-600"><Icon className="h-4 w-4" /></div>
+        <div className={`hidden sm:flex w-8 h-8 rounded-xl items-center justify-center bg-white border border-slate-200 ${iconTone}`}><Icon className="h-4 w-4" /></div>
         <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wide truncate">{label}</p>
       </div>
-      <p className={`text-2xl sm:text-3xl font-black mt-2 text-slate-900 sm:mt-3 tabular-nums`}>{qty}<span className="text-xs sm:text-sm font-bold text-slate-400 ml-1">pcs</span></p>
+      <p className={`text-2xl sm:text-3xl font-black mt-2 ${qtyTone} sm:mt-3 tabular-nums`}>{qty}<span className="text-xs sm:text-sm font-bold text-slate-400 ml-1">pcs</span></p>
       <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">{moneyLabel} <span className="block sm:inline font-bold text-slate-700">{money(amount)}</span></p>
     </div>
   );
@@ -125,7 +131,7 @@ export default function StockCheckDetail() {
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {p.category && <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">{p.category}</span>}
               {p.sku && <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 text-[11px] font-mono">{p.sku}</span>}
-              <span className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-[11px] font-bold">{RESULT_BADGE[p.result]?.label}</span>
+              <Badge map={RESULT_BADGE} value={p.result} />
               {p.is_hidden && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold">Hidden</span>}
             </div>
           </div>
@@ -144,9 +150,9 @@ export default function StockCheckDetail() {
       </Card>
 
       {p.cost_price === null && (
-        <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3">
-          <AlertTriangle className="h-4 w-4 text-slate-500 mt-0.5 shrink-0" />
-          <p className="text-xs text-slate-600 font-medium">
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-800 font-medium">
             This product has no <b>Buy Price</b>, so purchase total, cost and profit can't be calculated.{' '}
             <Link to={`/products/${p.id}/edit`} className="underline font-bold">Add it now</Link>
           </p>
@@ -158,11 +164,13 @@ export default function StockCheckDetail() {
         <Card className="xl:col-span-8 p-5 sm:p-6">
           <SectionTitle icon={Boxes} title="Stock flow" sub="Everything we bought, what went out, and what is left" />
           <div className="flex flex-row items-stretch gap-2 sm:gap-3">
-            <FlowStep icon={PackageCheck} label="Purchased" qty={p.purchased_qty} money={p.purchase_total} moneyLabel="Cost" />
+            <FlowStep icon={PackageCheck} label="Purchased" qty={p.purchased_qty} money={p.purchase_total} moneyLabel="Cost" iconTone="text-sky-600" />
             <div className="hidden sm:flex items-center text-slate-300"><ArrowRight className="h-5 w-5" /></div>
-            <FlowStep icon={ShoppingBag} label="Sold" qty={p.units_sold} money={p.revenue} moneyLabel="Revenue" />
+            <FlowStep icon={ShoppingBag} label="Sold" qty={p.units_sold} money={p.revenue} moneyLabel="Revenue" iconTone="text-emerald-600" qtyTone="text-emerald-600" />
             <div className="hidden sm:flex items-center text-slate-300"><ArrowRight className="h-5 w-5" /></div>
-            <FlowStep icon={Boxes} label="Balance" qty={p.balance_qty} money={p.balance_value} moneyLabel="Worth" />
+            <FlowStep icon={Boxes} label="Balance" qty={p.balance_qty} money={p.balance_value} moneyLabel="Worth"
+              iconTone={p.balance_qty === 0 ? 'text-rose-600' : p.balance_qty < 10 ? 'text-amber-600' : 'text-slate-600'}
+              qtyTone={p.balance_qty === 0 ? 'text-rose-600' : p.balance_qty < 10 ? 'text-amber-600' : 'text-slate-900'} />
           </div>
 
           <div className="mt-5">
@@ -171,7 +179,7 @@ export default function StockCheckDetail() {
               <span>{Math.round((100 - p.sell_through_pct) * 10) / 10}% still in stock</span>
             </div>
             <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
-              <div className="h-full bg-slate-800 rounded-full transition-all duration-700" style={{ width: `${soldPct}%` }} />
+              <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${soldPct}%` }} />
             </div>
           </div>
 
@@ -207,7 +215,7 @@ export default function StockCheckDetail() {
             </div>
             <div className="flex items-center justify-between rounded-2xl px-4 py-3 border border-slate-200">
               <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                {perPiece !== null && perPiece < 0 ? <TrendingDown className="h-4 w-4 text-slate-500" /> : <TrendingUp className="h-4 w-4 text-slate-500" />}
+                {perPiece !== null && perPiece < 0 ? <TrendingDown className="h-4 w-4 text-rose-600" /> : <TrendingUp className="h-4 w-4 text-emerald-600" />}
                 {perPiece !== null && perPiece < 0 ? 'Loss / piece' : 'Profit / piece'}
               </span>
               <span className={`text-xl font-black tabular-nums ${profitTone(perPiece)}`}>{signed(perPiece)}</span>
@@ -216,7 +224,7 @@ export default function StockCheckDetail() {
           {costShare !== null && (
             <div className="mt-4">
               <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
-                <div className={`h-full bg-slate-700`} style={{ width: `${costShare}%` }} />
+                <div className={`h-full ${costShare >= 100 ? 'bg-rose-500' : 'bg-slate-700'}`} style={{ width: `${costShare}%` }} />
               </div>
               <p className="text-[11px] text-slate-500 mt-1.5">
                 Buy price is <b className="text-slate-700">{Math.round((p.cost_price / p.sell_price) * 100)}%</b> of the sell price
@@ -276,16 +284,16 @@ export default function StockCheckDetail() {
             }
           />
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveChart width="100%" height="100%">
               <BarChart data={chart} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false}
                   interval={range === 7 ? 0 : range === 30 ? 4 : 14} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
-                <Bar dataKey="units" fill="#334155" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="units" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveChart>
           </div>
         </Card>
       </div>
@@ -305,15 +313,15 @@ export default function StockCheckDetail() {
                       {v.color && <span className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold">{v.color}</span>}
                       {!v.size && !v.color && <span className="text-xs font-bold text-slate-500">Default</span>}
                     </div>
-                    {v.stock === 0 && <span className="text-[10px] font-bold text-slate-500 border border-slate-200 rounded-md px-1.5 py-0.5">Sold out</span>}
+                    {v.stock === 0 && <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-1.5 py-0.5">Sold out</span>}
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                    {[['Bought', v.purchased_qty, 'text-slate-900'], ['Sold', v.units_sold, 'text-slate-900'], ['Left', v.stock, 'text-slate-900']].map(([k, n, c]) => (
+                    {[['Bought', v.purchased_qty, 'text-slate-900'], ['Sold', v.units_sold, 'text-emerald-600'], ['Left', v.stock, v.stock === 0 ? 'text-rose-600' : v.stock < 3 ? 'text-amber-600' : 'text-slate-900']].map(([k, n, c]) => (
                       <div key={k}><p className={`text-lg font-black tabular-nums ${c}`}>{n}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{k}</p></div>
                     ))}
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-3">
-                    <div className="h-full bg-slate-700 rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   {v.sku && <p className="text-[10px] text-slate-400 font-mono mt-2 truncate">{v.sku}</p>}
                 </div>
@@ -352,7 +360,7 @@ export default function StockCheckDetail() {
                       <Link to={`/orders/${s.order_id}`} className="font-mono font-bold text-slate-900 hover:underline">{s.order_number}</Link>
                       {' · '}{formatDate(s.created_at)}{variantText(s.variant_info) ? ` · ${variantText(s.variant_info)}` : ''}
                     </p>
-                    <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold capitalize shrink-0 ${PILL}`}>
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold capitalize shrink-0 ${STATUS_PILL[s.status] || PILL}`}>
                       {s.status.replace(/_/g, ' ')}
                     </span>
                   </div>
@@ -398,7 +406,7 @@ export default function StockCheckDetail() {
                     </td>
                     <td className={`px-5 py-3 text-right font-bold tabular-nums ${profitTone(s.profit)}`}>{signed(s.profit)}</td>
                     <td className="px-5 py-3">
-                      <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold capitalize ${PILL}`}>
+                      <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold capitalize ${STATUS_PILL[s.status] || PILL}`}>
                         {s.status.replace(/_/g, ' ')}
                       </span>
                     </td>

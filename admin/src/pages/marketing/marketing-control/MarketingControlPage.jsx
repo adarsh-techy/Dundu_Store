@@ -35,14 +35,9 @@ import {
   Clock,
 } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
+import ResponsiveChart from '../../../components/ui/ResponsiveChart';
 import { marketingControlApi } from '../../../api';
 
 // Icon mapper helper
@@ -361,7 +356,7 @@ export default function MarketingControlPage() {
           </div>
 
           <div className="h-60 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveChart width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis
@@ -391,7 +386,7 @@ export default function MarketingControlPage() {
                 <Bar dataKey="revenue" name="revenue" fill="#0f172a" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="cost" name="cost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveChart>
           </div>
         </div>
       )}
