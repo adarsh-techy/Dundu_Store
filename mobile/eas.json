@@ -1,0 +1,35 @@
+{
+  "cli": { "version": ">= 12.0.0", "appVersionSource": "remote" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dundu-store-backend.onrender.com/api",
+        "EXPO_PUBLIC_UPLOADS_URL": "https://dundu-store-backend.onrender.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dundu-store-backend.onrender.com/api",
+        "EXPO_PUBLIC_UPLOADS_URL": "https://dundu-store-backend.onrender.com",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_xxxxxxxxxxxxxx"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://dundu-store-backend.onrender.com/api",
+        "EXPO_PUBLIC_UPLOADS_URL": "https://dundu-store-backend.onrender.com",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_live_xxxxxxxxxxxxxx"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

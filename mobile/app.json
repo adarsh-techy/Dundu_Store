@@ -10,13 +10,20 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Delivery staff use the camera to scan hub pickup QR codes."
-      }
+      },
+      "bundleIdentifier": "com.dundu.store",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.dundu.store",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/icon.png"
@@ -28,6 +35,13 @@
           "cameraPermission": "Delivery staff use the camera to scan hub pickup QR codes."
         }
       ]
-    ]
+    ],
+    "scheme": "dundu",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/PLACEHOLDER-PROJECT-ID"
+    }
   }
 }
