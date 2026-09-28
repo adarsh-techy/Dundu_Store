@@ -10,28 +10,14 @@ import { inventoryApi } from '../../../api';
 import Spinner from '../../../components/ui/Spinner';
 import { formatPrice, formatDate, formatDateTime } from '../../../utils/format';
 import Badge from './Badge';
-import { RESULT_BADGE, SPEED_BADGE } from './badges';
+import { RESULT_BADGE } from './badges';
 
 const money = (n) => (n === null || n === undefined ? '—' : formatPrice(n));
 const signed = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatPrice(Math.abs(n))}`);
 const profitTone = (n) => (n === null || n === undefined ? 'text-slate-400' : n < 0 ? 'text-rose-600' : n > 0 ? 'text-emerald-600' : 'text-slate-500');
 
-// Hero accent follows the product's result.
-const HERO = {
-  profit:       { band: 'from-emerald-500 via-teal-500 to-cyan-500',   glow: 'bg-emerald-50 border-emerald-200', label: 'Total profit' },
-  loss:         { band: 'from-rose-500 via-red-500 to-orange-500',     glow: 'bg-rose-50 border-rose-200',       label: 'Total loss' },
-  break_even:   { band: 'from-slate-400 via-slate-500 to-slate-600',   glow: 'bg-slate-50 border-slate-200',     label: 'Break-even' },
-  no_sales:     { band: 'from-indigo-400 via-violet-500 to-purple-500',glow: 'bg-violet-50 border-violet-200',   label: 'Profit' },
-  cost_missing: { band: 'from-amber-400 via-orange-400 to-amber-500',  glow: 'bg-amber-50 border-amber-200',     label: 'Profit' },
-};
-
-const STATUS_PILL = {
-  pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  packed: 'bg-sky-50 text-sky-700 border-sky-200',
-  shipped: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  delivered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  return_requested: 'bg-orange-50 text-orange-700 border-orange-200',
-};
+const HERO_LABEL = { profit: 'Total profit', loss: 'Total loss', break_even: 'Break-even' };
+const PILL = 'bg-slate-50 text-slate-600 border-slate-200';
 
 const SPEED_LEVEL = { none: 0, slow: 1, medium: 2, fast: 3 };
 
@@ -62,14 +48,14 @@ function SectionTitle({ icon: Icon, title, sub, right }) {
   );
 }
 
-function FlowStep({ icon: Icon, label, qty, money: amount, moneyLabel, tone }) {
+function FlowStep({ icon: Icon, label, qty, money: amount, moneyLabel, alert }) {
   return (
-    <div className={`flex-1 min-w-0 rounded-2xl p-3 sm:p-4 border ${tone.box}`}>
+    <div className="flex-1 min-w-0 rounded-2xl p-3 sm:p-4 border border-slate-200 bg-slate-50/60">
       <div className="flex items-center gap-2">
-        <div className={`hidden sm:flex w-8 h-8 rounded-xl items-center justify-center ${tone.icon}`}><Icon className="h-4 w-4" /></div>
+        <div className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center bg-white border border-slate-200 text-slate-600"><Icon className="h-4 w-4" /></div>
         <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wide truncate">{label}</p>
       </div>
-      <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-2 sm:mt-3 tabular-nums">{qty}<span className="text-xs sm:text-sm font-bold text-slate-400 ml-1">pcs</span></p>
+      <p className={`text-2xl sm:text-3xl font-black mt-2 ${alert ? 'text-rose-600' : 'text-slate-900'} sm:mt-3 tabular-nums`}>{qty}<span className="text-xs sm:text-sm font-bold text-slate-400 ml-1">pcs</span></p>
       <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1">{moneyLabel} <span className="block sm:inline font-bold text-slate-700">{money(amount)}</span></p>
     </div>
   );
@@ -115,7 +101,7 @@ export default function StockCheckDetail() {
   }
 
   const p = d.product;
-  const hero = HERO[p.result] || HERO.no_sales;
+  const heroLabel = HERO_LABEL[p.result] || 'Profit';
   const perPiece = p.cost_price === null ? null : p.sell_price - p.cost_price;
   const costShare = p.cost_price === null || !p.sell_price ? null : Math.min(100, Math.round((p.cost_price / p.sell_price) * 100));
   const soldPct = p.purchased_qty ? (p.units_sold / p.purchased_qty) * 100 : 0;
@@ -126,31 +112,27 @@ export default function StockCheckDetail() {
   return (
     <div className="w-full space-y-5 pb-16">
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      <Card className="overflow-hidden">
-        <div className={`h-24 bg-gradient-to-r ${hero.band} relative`}>
-          <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:14px_14px]" />
-        </div>
-        <div className="px-5 sm:px-7 pb-6 -mt-14 relative flex flex-col lg:flex-row lg:items-end gap-5">
-          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white p-1.5 shadow-lg shrink-0">
-            <div className="w-full h-full rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center">
+      <Card>
+        <div className="p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center gap-5">
+          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border border-slate-200 p-1 shrink-0">
+            <div className="w-full h-full rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center">
               {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> : <Package className="h-10 w-10 text-slate-300" />}
             </div>
           </div>
 
-          <div className="flex-1 min-w-0 lg:pb-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight break-words">{p.name}</h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               {p.category && <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold">{p.category}</span>}
               {p.sku && <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-500 text-[11px] font-mono">{p.sku}</span>}
               <Badge map={RESULT_BADGE} value={p.result} />
-              <Badge map={SPEED_BADGE} value={p.speed} />
               {p.is_hidden && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-white text-[11px] font-bold">Hidden</span>}
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3">
-            <div className={`rounded-2xl border px-5 py-3 text-right ${hero.glow}`}>
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">{hero.label}</p>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-3 text-right">
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">{heroLabel}</p>
               <p className={`text-2xl font-black tabular-nums ${profitTone(p.profit)}`}>{signed(p.profit)}</p>
               <p className="text-[11px] text-slate-500">{p.margin_pct !== null ? `${p.margin_pct}% margin on sales` : p.cost_price === null ? 'Set a buy price to see profit' : 'No sales yet'}</p>
             </div>
@@ -176,16 +158,11 @@ export default function StockCheckDetail() {
         <Card className="xl:col-span-8 p-5 sm:p-6">
           <SectionTitle icon={Boxes} title="Stock flow" sub="Everything we bought, what went out, and what is left" />
           <div className="flex flex-row items-stretch gap-2 sm:gap-3">
-            <FlowStep icon={PackageCheck} label="Purchased" qty={p.purchased_qty} money={p.purchase_total} moneyLabel="Cost"
-              tone={{ box: 'bg-indigo-50/60 border-indigo-100', icon: 'bg-indigo-100 text-indigo-700' }} />
+            <FlowStep icon={PackageCheck} label="Purchased" qty={p.purchased_qty} money={p.purchase_total} moneyLabel="Cost" />
             <div className="hidden sm:flex items-center text-slate-300"><ArrowRight className="h-5 w-5" /></div>
-            <FlowStep icon={ShoppingBag} label="Sold" qty={p.units_sold} money={p.revenue} moneyLabel="Revenue"
-              tone={{ box: 'bg-emerald-50/60 border-emerald-100', icon: 'bg-emerald-100 text-emerald-700' }} />
+            <FlowStep icon={ShoppingBag} label="Sold" qty={p.units_sold} money={p.revenue} moneyLabel="Revenue" />
             <div className="hidden sm:flex items-center text-slate-300"><ArrowRight className="h-5 w-5" /></div>
-            <FlowStep icon={Boxes} label="Balance" qty={p.balance_qty} money={p.balance_value} moneyLabel="Worth"
-              tone={p.balance_qty === 0
-                ? { box: 'bg-rose-50/60 border-rose-100', icon: 'bg-rose-100 text-rose-700' }
-                : { box: 'bg-amber-50/60 border-amber-100', icon: 'bg-amber-100 text-amber-700' }} />
+            <FlowStep icon={Boxes} label="Balance" qty={p.balance_qty} money={p.balance_value} moneyLabel="Worth" alert={p.balance_qty === 0} />
           </div>
 
           <div className="mt-5">
@@ -193,8 +170,8 @@ export default function StockCheckDetail() {
               <span>{p.sell_through_pct}% sold</span>
               <span>{Math.round((100 - p.sell_through_pct) * 10) / 10}% still in stock</span>
             </div>
-            <div className="h-3 rounded-full bg-amber-100 overflow-hidden flex">
-              <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-700" style={{ width: `${soldPct}%` }} />
+            <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
+              <div className="h-full bg-slate-800 rounded-full transition-all duration-700" style={{ width: `${soldPct}%` }} />
             </div>
           </div>
 
@@ -228,9 +205,9 @@ export default function StockCheckDetail() {
               </span>
               <span className="text-lg font-black text-slate-900 tabular-nums">{money(p.sell_price)}</span>
             </div>
-            <div className={`flex items-center justify-between rounded-2xl px-4 py-3 border ${perPiece === null ? 'bg-slate-50 border-slate-100' : perPiece < 0 ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
+            <div className="flex items-center justify-between rounded-2xl px-4 py-3 border border-slate-200">
               <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                {perPiece !== null && perPiece < 0 ? <TrendingDown className="h-4 w-4 text-rose-600" /> : <TrendingUp className="h-4 w-4 text-emerald-600" />}
+                {perPiece !== null && perPiece < 0 ? <TrendingDown className="h-4 w-4 text-slate-500" /> : <TrendingUp className="h-4 w-4 text-slate-500" />}
                 {perPiece !== null && perPiece < 0 ? 'Loss / piece' : 'Profit / piece'}
               </span>
               <span className={`text-xl font-black tabular-nums ${profitTone(perPiece)}`}>{signed(perPiece)}</span>
@@ -238,7 +215,7 @@ export default function StockCheckDetail() {
           </div>
           {costShare !== null && (
             <div className="mt-4">
-              <div className="h-2.5 rounded-full bg-emerald-100 overflow-hidden flex">
+              <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden flex">
                 <div className={`h-full ${costShare >= 100 ? 'bg-rose-500' : 'bg-slate-700'}`} style={{ width: `${costShare}%` }} />
               </div>
               <p className="text-[11px] text-slate-500 mt-1.5">
@@ -251,21 +228,17 @@ export default function StockCheckDetail() {
 
       {/* ── Sales speed + chart ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-        <div className="xl:col-span-4 rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white shadow-lg relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-indigo-500/20 blur-2xl" />
-          <div className="relative">
-            <div className="flex items-center gap-2 text-indigo-200">
-              <Zap className="h-4 w-4" />
-              <p className="text-xs font-bold uppercase tracking-wider">Sales speed</p>
-            </div>
-            <p className="text-4xl font-black mt-3 tabular-nums">{p.per_day}<span className="text-base font-bold text-slate-400 ml-1.5">pcs / day</span></p>
+        <Card className="xl:col-span-4 p-5 sm:p-6">
+          <div>
+            <SectionTitle icon={Zap} title="Sales speed" sub="Based on the last 30 days" />
+            <p className="text-4xl font-black text-slate-900 tabular-nums">{p.per_day}<span className="text-base font-bold text-slate-400 ml-1.5">pcs / day</span></p>
             <p className="text-xs text-slate-400 mt-1">{p.units_sold_30d} pcs sold in the last 30 days</p>
 
             <div className="flex gap-1.5 mt-4">
               {['Slow', 'Medium', 'Fast'].map((l, i) => (
                 <div key={l} className="flex-1">
-                  <div className={`h-2 rounded-full ${i < level ? ['bg-amber-400', 'bg-sky-400', 'bg-emerald-400'][i] : 'bg-white/10'}`} />
-                  <p className={`text-[10px] font-bold mt-1 ${i + 1 === level ? 'text-white' : 'text-slate-500'}`}>{l}</p>
+                  <div className={`h-2 rounded-full ${i < level ? 'bg-slate-800' : 'bg-slate-100'}`} />
+                  <p className={`text-[10px] font-bold mt-1 ${i + 1 === level ? 'text-slate-900' : 'text-slate-400'}`}>{l}</p>
                 </div>
               ))}
             </div>
@@ -276,15 +249,15 @@ export default function StockCheckDetail() {
                 [CalendarDays, 'First sale', p.first_sale_at ? formatDate(p.first_sale_at) : '—'],
                 [CalendarClock, 'Last sale', p.last_sale_at ? `${formatDate(p.last_sale_at)}${lastSaleDays !== null ? ` · ${lastSaleDays === 0 ? 'today' : `${lastSaleDays}d ago`}` : ''}` : '—'],
               ].map(([Icon, k, v]) => (
-                <div key={k} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5">
-                  <span className="flex items-center gap-2 text-xs text-slate-300"><Icon className="h-3.5 w-3.5" />{k}</span>
-                  <span className="text-xs font-bold text-right">{v}</span>
+                <div key={k} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-100 px-3 py-2.5">
+                  <span className="flex items-center gap-2 text-xs text-slate-500"><Icon className="h-3.5 w-3.5" />{k}</span>
+                  <span className="text-xs font-bold text-slate-900 text-right">{v}</span>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-slate-500 mt-4">Fast = 1+ pc/day · Medium = 1 pc every 5 days or better</p>
+            <p className="text-[10px] text-slate-400 mt-4">Fast = 1+ pc/day · Medium = 1 pc every 5 days or better</p>
           </div>
-        </div>
+        </Card>
 
         <Card className="xl:col-span-8 p-5 sm:p-6">
           <SectionTitle
@@ -305,18 +278,12 @@ export default function StockCheckDetail() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chart} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="stockSold" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#a78bfa" />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false}
                   interval={range === 7 ? 0 : range === 30 ? 4 : 14} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#eef2ff' }} />
-                <Bar dataKey="units" fill="url(#stockSold)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f1f5f9' }} />
+                <Bar dataKey="units" fill="#334155" radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -334,19 +301,19 @@ export default function StockCheckDetail() {
                 <div key={v.id} className="rounded-2xl border border-slate-200 p-4 hover:border-slate-300 hover:shadow-xs transition-all">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {v.size && <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-black">{v.size}</span>}
-                      {v.color && <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold">{v.color}</span>}
+                      {v.size && <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 text-xs font-black">{v.size}</span>}
+                      {v.color && <span className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold">{v.color}</span>}
                       {!v.size && !v.color && <span className="text-xs font-bold text-slate-500">Default</span>}
                     </div>
-                    {v.stock === 0 && <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-1.5 py-0.5">Sold out</span>}
+                    {v.stock === 0 && <span className="text-[10px] font-bold text-rose-600">Sold out</span>}
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                    {[['Bought', v.purchased_qty, 'text-slate-900'], ['Sold', v.units_sold, 'text-emerald-600'], ['Left', v.stock, v.stock === 0 ? 'text-rose-600' : 'text-amber-600']].map(([k, n, c]) => (
+                    {[['Bought', v.purchased_qty, 'text-slate-900'], ['Sold', v.units_sold, 'text-slate-900'], ['Left', v.stock, v.stock === 0 ? 'text-rose-600' : 'text-slate-900']].map(([k, n, c]) => (
                       <div key={k}><p className={`text-lg font-black tabular-nums ${c}`}>{n}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{k}</p></div>
                     ))}
                   </div>
-                  <div className="h-1.5 rounded-full bg-amber-100 overflow-hidden mt-3">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pct}%` }} />
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-3">
+                    <div className="h-full bg-slate-700 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   {v.sku && <p className="text-[10px] text-slate-400 font-mono mt-2 truncate">{v.sku}</p>}
                 </div>
@@ -372,7 +339,7 @@ export default function StockCheckDetail() {
           <div className="md:hidden divide-y divide-slate-100 border-t border-slate-100">
             {d.sales.map((s, i) => (
               <div key={`${s.order_id}-${i}`} className="px-5 py-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs font-black flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">
                   {(s.customer_name || '?').trim().charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -382,16 +349,16 @@ export default function StockCheckDetail() {
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <p className="text-[11px] text-slate-500 truncate">
-                      <Link to={`/orders/${s.order_id}`} className="font-mono font-bold text-indigo-600">{s.order_number}</Link>
+                      <Link to={`/orders/${s.order_id}`} className="font-mono font-bold text-slate-900 hover:underline">{s.order_number}</Link>
                       {' · '}{formatDate(s.created_at)}{variantText(s.variant_info) ? ` · ${variantText(s.variant_info)}` : ''}
                     </p>
-                    <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold capitalize shrink-0 ${STATUS_PILL[s.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                    <span className={`px-1.5 py-0.5 rounded-md border text-[10px] font-bold capitalize shrink-0 ${PILL}`}>
                       {s.status.replace(/_/g, ' ')}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     {s.quantity} × {formatPrice(s.unit_price)} = <b className="text-slate-700">{formatPrice(s.revenue)}</b>
-                    {s.payment_method === 'replacement' && <span className="text-amber-600 font-bold"> · Free replacement</span>}
+                    {s.payment_method === 'replacement' && <span className="text-slate-500 font-bold"> · Free replacement</span>}
                   </p>
                 </div>
               </div>
@@ -411,7 +378,7 @@ export default function StockCheckDetail() {
                   <tr key={`${s.order_id}-${i}`} className="hover:bg-slate-50/70">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white text-xs font-black flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 text-xs font-black flex items-center justify-center">
                           {(s.customer_name || '?').trim().charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -421,17 +388,17 @@ export default function StockCheckDetail() {
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <Link to={`/orders/${s.order_id}`} className="font-mono text-xs font-bold text-indigo-600 hover:underline">{s.order_number}</Link>
+                      <Link to={`/orders/${s.order_id}`} className="font-mono text-xs font-bold text-slate-900 hover:underline">{s.order_number}</Link>
                     </td>
                     <td className="px-5 py-3 text-xs text-slate-600">{formatDateTime(s.created_at)}</td>
                     <td className="px-5 py-3 text-right text-slate-700 tabular-nums">{s.quantity} × {formatPrice(s.unit_price)}</td>
                     <td className="px-5 py-3 text-right tabular-nums">
                       <span className="font-semibold text-slate-900">{formatPrice(s.revenue)}</span>
-                      {s.payment_method === 'replacement' && <span className="block text-[10px] font-bold text-amber-600">Free replacement</span>}
+                      {s.payment_method === 'replacement' && <span className="block text-[10px] font-bold text-slate-500">Free replacement</span>}
                     </td>
                     <td className={`px-5 py-3 text-right font-bold tabular-nums ${profitTone(s.profit)}`}>{signed(s.profit)}</td>
                     <td className="px-5 py-3">
-                      <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold capitalize ${STATUS_PILL[s.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                      <span className={`px-2 py-0.5 rounded-md border text-[11px] font-bold capitalize ${PILL}`}>
                         {s.status.replace(/_/g, ' ')}
                       </span>
                     </td>
