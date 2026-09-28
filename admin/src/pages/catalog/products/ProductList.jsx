@@ -19,6 +19,7 @@ export default function ProductList() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [quickFilter, setQuickFilter] = useState('all'); // 'all' | 'in_stock' | 'restock' | 'promoted'
+  const [loadingToggle, setLoadingToggle] = useState(null); // e.g. `${p.id}_${field}`
   const tableContainerRef = useRef(null);
   const loadMoreRef = useRef(null);
   const limit = 20;
@@ -100,12 +101,41 @@ export default function ProductList() {
     }
   };
 
-  const toggle = async (action, id, label) => {
+  const toggle = async (action, id, field, label) => {
+    const key = `${id}_${field}`;
+    setLoadingToggle(key);
+
+    // Optimistically update React Query cache immediately for instant response
+    qc.setQueriesData({ queryKey: ['admin-products'] }, (oldData) => {
+      if (!oldData?.pages) return oldData;
+      return {
+        ...oldData,
+        pages: oldData.pages.map((pg) => ({
+          ...pg,
+          data: {
+            ...pg.data,
+            products: (pg.data?.products || []).map((prod) => {
+              if (prod.id !== id) return prod;
+              if (field === 'hidden') return { ...prod, is_hidden: !prod.is_hidden };
+              if (field === 'featured') return { ...prod, is_featured: !prod.is_featured };
+              if (field === 'offer') return { ...prod, is_offer_product: !prod.is_offer_product };
+              return prod;
+            }),
+          },
+        })),
+      };
+    });
+
     try {
       await action(id);
       invalidate();
       toast.success(`Product ${label}`);
-    } catch { toast.error('Failed to update product state'); }
+    } catch {
+      invalidate();
+      toast.error('Failed to update product state');
+    } finally {
+      setLoadingToggle(null);
+    }
   };
 
   const remove = async (id) => {
@@ -577,30 +607,66 @@ export default function ProductList() {
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
+                          {/* 1. Store Visibility Toggle */}
                           <button
-                            onClick={() => toggle(productApi.toggleHidden, p.id, p.is_hidden ? 'shown' : 'hidden')}
-                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
-                            title={p.is_hidden ? 'Make Visible' : 'Hide from Store'}
-                          >
-                            {p.is_hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                          </button>
-                          <button
-                            onClick={() => toggle(productApi.toggleFeatured, p.id, p.is_featured ? 'unfeatured' : 'featured')}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              p.is_featured ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'
+                            onClick={() => toggle(productApi.toggleHidden, p.id, 'hidden', p.is_hidden ? 'now visible in store' : 'now hidden from store')}
+                            disabled={loadingToggle === `${p.id}_hidden`}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              loadingToggle === `${p.id}_hidden`
+                                ? 'bg-slate-100 text-slate-400 border-slate-200'
+                                : !p.is_hidden
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-300 hover:bg-emerald-100 shadow-xs'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600'
                             }`}
-                            title="Toggle Trending"
+                            title={!p.is_hidden ? 'Status: Active (Visible in Store) · Click to Hide' : 'Status: Hidden from Store · Click to Make Visible'}
                           >
-                            <Star className="h-4 w-4" />
+                            {loadingToggle === `${p.id}_hidden` ? (
+                              <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
+                            ) : !p.is_hidden ? (
+                              <Eye className="h-4 w-4 text-emerald-600" />
+                            ) : (
+                              <EyeOff className="h-4 w-4 text-slate-400" />
+                            )}
                           </button>
+
+                          {/* 2. Featured / Trending Toggle */}
                           <button
-                            onClick={() => toggle(productApi.toggleOffer, p.id, p.is_offer_product ? 'removed from offers' : 'marked as offer')}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              p.is_offer_product ? 'text-rose-500 hover:bg-rose-50' : 'text-slate-400 hover:bg-slate-100'
+                            onClick={() => toggle(productApi.toggleFeatured, p.id, 'featured', p.is_featured ? 'removed from featured' : 'marked as featured')}
+                            disabled={loadingToggle === `${p.id}_featured`}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              loadingToggle === `${p.id}_featured`
+                                ? 'bg-amber-50 text-amber-500 border-amber-200'
+                                : p.is_featured
+                                ? 'bg-amber-50 text-amber-600 border-amber-300 hover:bg-amber-100 shadow-xs ring-1 ring-amber-400/30'
+                                : 'text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
                             }`}
-                            title="Toggle Special Offer"
+                            title={p.is_featured ? 'Status: Featured / Trending (Active) · Click to Remove' : 'Status: Not Featured · Click to Make Featured'}
                           >
-                            <Tag className="h-4 w-4" />
+                            {loadingToggle === `${p.id}_featured` ? (
+                              <RefreshCw className="h-4 w-4 animate-spin text-amber-500" />
+                            ) : (
+                              <Star className={`h-4 w-4 transition-transform ${p.is_featured ? 'fill-amber-400 text-amber-500 scale-110' : 'text-slate-400'}`} />
+                            )}
+                          </button>
+
+                          {/* 3. Special Offer Toggle */}
+                          <button
+                            onClick={() => toggle(productApi.toggleOffer, p.id, 'offer', p.is_offer_product ? 'removed from special offers' : 'marked as special offer')}
+                            disabled={loadingToggle === `${p.id}_offer`}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              loadingToggle === `${p.id}_offer`
+                                ? 'bg-rose-50 text-rose-500 border-rose-200'
+                                : p.is_offer_product
+                                ? 'bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100 shadow-xs ring-1 ring-rose-400/30'
+                                : 'text-slate-400 border-transparent hover:bg-slate-100 hover:text-slate-600'
+                            }`}
+                            title={p.is_offer_product ? 'Status: Special Offer Active · Click to Remove' : 'Status: No Special Offer · Click to Mark as Offer'}
+                          >
+                            {loadingToggle === `${p.id}_offer` ? (
+                              <RefreshCw className="h-4 w-4 animate-spin text-rose-500" />
+                            ) : (
+                              <Tag className={`h-4 w-4 transition-transform ${p.is_offer_product ? 'fill-rose-500 text-rose-500 scale-110' : 'text-slate-400'}`} />
+                            )}
                           </button>
                           <button
                             onClick={() => remove(p.id)}
