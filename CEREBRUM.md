@@ -218,7 +218,7 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 ### 2026-09-29 — Admin "Stock Check" page
 - New sidebar item **Catalog → Stock Check** (`/stock-check`, super admin) and detail page `/stock-check/:id` (`admin/src/pages/dashboard/stock-check/`).
 - API `GET /api/admin/stock-check` and `/:id` (`controllers/admin/catalog/stockCheck.controller.js`). Rules: balance = `products.stock`; sold = order_items on orders not `cancelled`/`returned` (those restock); purchased = balance + sold (there is no purchase ledger); buy price = `order_items.cost_price` else `products.cost_price` — if unset, cost/profit are null (no 60% guess, unlike Finance); free replacement orders count as sold with ₹0 revenue. Speed from last-30-day units/day: fast ≥1, medium ≥0.2, slow >0.
-- List table: Product, Category, Buy/Sell per pc, Purchased, Purchase total, Sold, Balance, Revenue, Profit; pink theme (`bg-pink-100/20`, `text-pink-800`). Speed and last-sale date are shown only on the detail page (still in the CSV export).
+- List table: Product, Category, Buy/Sell per pc, Purchased, Purchase total, Sold, Balance, Revenue, Profit; pink header (`bg-pink-100/40`, `text-pink-800`), white rows with black text. Speed and last-sale date are shown only on the detail page (still in the CSV export).
 - Detail page (redesigned same day): result-coloured hero (image, badges, total profit/loss), stock-flow Purchased → Sold → Balance with sell-through bar, price-per-piece card, dark sales-speed card (per day, days of stock, first/last sale), 7/30/90-day bar chart, size/colour cards, sales history (table on desktop, cards on phones). Last 200 sale lines.
 
 ### 2026-09-29 — Local .env files set to development

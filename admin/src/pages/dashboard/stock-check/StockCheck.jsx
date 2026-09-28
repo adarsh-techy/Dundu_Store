@@ -170,7 +170,7 @@ export default function StockCheck() {
         </div>
 
         <div className="overflow-x-auto bg-pink-100/20">
-          <table className="w-full text-left text-sm text-pink-800">
+          <table className="w-full text-left text-sm">
             <thead>
               <tr className="bg-pink-100/40 border-b border-pink-100 text-[11px] font-bold text-pink-800 uppercase tracking-wider whitespace-nowrap">
                 <th className="px-4 py-3">Product</th>
@@ -186,10 +186,10 @@ export default function StockCheck() {
                 <th className="px-2 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-pink-100">
+            <tbody className="divide-y divide-pink-100 bg-white text-black">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-14 text-center text-pink-800/70 text-xs">
+                  <td colSpan={11} className="py-14 text-center text-black/60 text-xs">
                     <Package className="h-9 w-9 text-pink-200 mx-auto mb-2" />
                     No products match
                   </td>
@@ -204,7 +204,7 @@ export default function StockCheck() {
                       <div className="min-w-0">
                         <p className="font-semibold truncate max-w-[220px]">{p.name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          {p.sku && <span className="text-[11px] text-pink-800/70">{p.sku}</span>}
+                          {p.sku && <span className="text-[11px] text-black/60">{p.sku}</span>}
                           <Badge map={RESULT_BADGE} value={p.result} />
                         </div>
                       </div>
@@ -217,13 +217,13 @@ export default function StockCheck() {
                   <td className="px-4 py-3 text-right">{money(p.purchase_total)}</td>
                   <td className="px-4 py-3 text-right">
                     <span className="font-semibold">{p.units_sold}</span>
-                    <span className="block text-[11px] text-pink-800/70">{p.buyers_count} buyer{p.buyers_count === 1 ? '' : 's'}</span>
+                    <span className="block text-[11px] text-black/60">{p.buyers_count} buyer{p.buyers_count === 1 ? '' : 's'}</span>
                   </td>
                   <td className={`px-4 py-3 text-right font-semibold ${p.balance_qty === 0 ? 'text-rose-600' : ''}`}>
                     {p.balance_qty}
                   </td>
                   <td className="px-4 py-3 text-right">{money(p.revenue)}</td>
-                  <td className={`px-4 py-3 text-right font-bold ${p.profit === null ? 'text-pink-800/50' : p.profit < 0 ? 'text-rose-600' : p.profit > 0 ? 'text-emerald-600' : ''}`}>
+                  <td className={`px-4 py-3 text-right font-bold ${p.profit === null ? 'text-black/40' : p.profit < 0 ? 'text-rose-600' : p.profit > 0 ? 'text-emerald-600' : ''}`}>
                     {money(p.profit)}
                     {p.margin_pct !== null && <span className="block text-[11px] font-medium">{p.margin_pct}%</span>}
                   </td>
