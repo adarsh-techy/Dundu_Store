@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Image, AppState } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -59,19 +60,19 @@ import { navigationRef } from './navigationRef';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function TabIcon({ icon, focused }) {
-  return (
-    <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
-      {icon}
-    </Text>
-  );
+// Ionicons: outline when inactive, filled when active; colour comes from the tab bar's
+// active/inactive tint (so the festival navbar colour applies too).
+const TAB_ICON_SIZE = 24;
+
+function TabIcon({ name, focused, color }) {
+  return <Ionicons name={focused ? name : `${name}-outline`} size={TAB_ICON_SIZE} color={color} />;
 }
 
-function CartTabIcon({ focused }) {
+function CartTabIcon({ focused, color }) {
   const count = useCartStore((state) => state.count);
   return (
     <View style={styles.cartIconContainer}>
-      <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>🛒</Text>
+      <TabIcon name="cart" focused={focused} color={color} />
       {count > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
@@ -108,7 +109,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: t('home', 'Home'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏠" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon name="home" focused={focused} color={color} />,
         }}
       />
       <Tab.Screen
@@ -116,7 +117,7 @@ function MainTabs() {
         component={ProductsScreen}
         options={{
           tabBarLabel: t('shop', 'Shop'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="🛍" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon name="bag-handle" focused={focused} color={color} />,
         }}
       />
       <Tab.Screen
@@ -124,7 +125,7 @@ function MainTabs() {
         component={CartScreen}
         options={{
           tabBarLabel: t('cart', 'Cart'),
-          tabBarIcon: ({ focused }) => <CartTabIcon focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <CartTabIcon focused={focused} color={color} />,
         }}
       />
       <Tab.Screen
@@ -132,7 +133,7 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           tabBarLabel: t('profile', 'Profile'),
-          tabBarIcon: ({ focused }) => <TabIcon icon="👤" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon name="person" focused={focused} color={color} />,
         }}
       />
     </Tab.Navigator>
@@ -354,13 +355,13 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   tabLabel: { fontSize: 11, fontWeight: '500' },
-  tabIcon: { fontSize: 22 },
-  tabIconFocused: { transform: [{ scale: 1.1 }] },
   cartIconContainer: { position: 'relative' },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -8,
+    top: -5,
+    right: -10,
+    borderWidth: 1.5,
+    borderColor: COLORS.white,
     backgroundColor: COLORS.primary,
     borderRadius: 8,
     minWidth: 16,

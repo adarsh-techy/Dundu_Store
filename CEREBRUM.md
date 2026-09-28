@@ -215,8 +215,12 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-29 — Mobile bottom tab icons
+- `mobile/src/navigation/AppNavigator.jsx`: emoji tab icons (🏠 🛍 🛒 👤) replaced with Ionicons from `@expo/vector-icons` (added via `npx expo install`, v15.0.2 = SDK-matched): `home`, `bag-handle`, `cart`, `person` — outline when inactive, filled when active, coloured by the tab tint (festival navbar colour applies). Cart badge got a white ring.
+- Import per family (`@expo/vector-icons/Ionicons`), not the package root — the root import bundles all 19 icon fonts (+4.3 MB); per-family adds only Ionicons.ttf (+0.4 MB).
+
 ### 2026-09-29 — Hero banner crop & preview
-- Banners (`admin/src/pages/marketing/banners/Banners.jsx`): picking/dropping a file opens `ImageCropperModal` with `previewType="banner"` at 16:6 (output 1200×450 JPEG); a **Crop** button re-crops from the original. Accept list is JPEG/PNG/WebP (GIF was offered but the server rejects it). URL-mode images are not cropped.
+- Banners (`admin/src/pages/marketing/banners/Banners.jsx`): picking/dropping a file opens `ImageCropperModal` with `previewType="banner"` at 16:6 (output 1200×450 JPEG); a **Crop** button re-crops from the original. Accept list is JPEG/PNG/WebP (GIF was offered but the server rejects it). The Crop button shows for any banner image: the original picked file, a pasted web link ("Crop & preview" next to the URL box) or an existing banner's saved image — links/saved images are fetched first; if the host blocks it (CORS) a toast says so and the link is used as-is. A cropped link is uploaded as a file.
 - Cropper `banner` mode: full-width 16:6 frame (up to 820px), dashed guides for what the narrower placements keep (App 2:1, Web phone 4:2.6 — both object-cover centred), and a preview of the three real placements (web desktop 16:6, web phone, mobile app) with title/subtitle/badge. New props `subtitle`, `badgeText`, `badgeColor`.
 
 ### 2026-09-29 — Combo image cropper fixes (`components/ui/ImageCropperModal.jsx`)

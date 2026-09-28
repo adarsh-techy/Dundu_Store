@@ -127,10 +127,35 @@ export default function Banners() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // Crop whatever the banner currently shows: the original picked file, a pasted web link,
+  // or an existing banner's saved image. Links are downloaded first (the canvas needs the
+  // pixels); if the host blocks that (CORS), the link is kept as-is.
+  const openCropper = async () => {
+    if (cropSource) { setCropperOpen(true); return; }
+    if (!previewUrl) return;
+    try {
+      const res = await fetch(previewUrl);
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('not an image');
+      const src = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      setCropSource({ src, name: fileInfo?.name || 'Banner image' });
+      setCropperOpen(true);
+    } catch {
+      toast.error("This image can't be cropped here (its website blocks it). It will be used as-is.");
+    }
+  };
+
   const handleCropComplete = (file, url) => {
     setImage(file);
     setPreviewUrl(url);
     setImageUrlInput('');
+    setUploadMode('file');
     setFileInfo({
       name: cropSource?.name || file.name,
       size: (file.size / 1024).toFixed(1) + ' KB · cropped 16:6',
@@ -140,6 +165,7 @@ export default function Banners() {
   const handleImageUrlChange = (url) => {
     setImageUrlInput(url);
     setImage(null);
+    setCropSource(null);
     setPreviewUrl(url.trim());
     if (url.trim()) {
       setFileInfo({ name: 'Web Image URL', size: null });
@@ -993,6 +1019,15 @@ export default function Banners() {
                     {imageUrlInput && (
                       <button
                         type="button"
+                        onClick={openCropper}
+                        className="inline-flex items-center gap-1 px-2.5 py-2 text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl border border-slate-200 cursor-pointer whitespace-nowrap"
+                      >
+                        <Crop className="w-3.5 h-3.5" /> Crop & preview
+                      </button>
+                    )}
+                    {imageUrlInput && (
+                      <button
+                        type="button"
                         onClick={handleClearImage}
                         className="px-2.5 py-2 text-xs text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 cursor-pointer"
                       >
@@ -1062,10 +1097,10 @@ export default function Banners() {
 
                     {/* Action Overlay Controls */}
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
-                      {cropSource && image && (
+                      {previewUrl && (
                         <button
                           type="button"
-                          onClick={() => setCropperOpen(true)}
+                          onClick={openCropper}
                           className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/95 text-slate-800 hover:bg-white hover:text-indigo-600 px-2.5 py-1 rounded-lg shadow-xs border border-slate-200/80 backdrop-blur-xs cursor-pointer transition-colors"
                           title="Adjust the crop"
                         >
