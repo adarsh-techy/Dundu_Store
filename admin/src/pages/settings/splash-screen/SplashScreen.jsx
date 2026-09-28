@@ -188,7 +188,7 @@ export default function SplashScreenPage() {
             <button
               type="button"
               onClick={resetForm}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               <RotateCcw className="h-4 w-4" />
               Discard
@@ -197,16 +197,11 @@ export default function SplashScreenPage() {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!isDirty || loading}
             loading={loading}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl shadow-sm text-sm font-semibold transition-all ${
-              isDirty
-                ? 'bg-slate-900 text-white hover:bg-slate-800'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-            }`}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl shadow-sm text-sm font-semibold bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer"
           >
             <Save className="h-4 w-4" />
-            {isDirty ? 'Save Changes' : 'Saved'}
+            Save Changes
           </Button>
         </div>
       </div>
@@ -406,20 +401,27 @@ export default function SplashScreenPage() {
             </div>
           </div>
 
-          {/* Bottom Save Button */}
-          {isDirty && (
-            <div className="pt-2">
-              <Button
+          {/* Bottom Action Bar */}
+          <div className="pt-2 flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              loading={loading}
+              className="flex-1 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+            >
+              <Save className="h-4 w-4" />
+              Save Splash Screen
+            </Button>
+            {isDirty && (
+              <button
                 type="button"
-                onClick={handleSubmit}
-                loading={loading}
-                className="w-full py-3 rounded-2xl bg-slate-900 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2"
+                onClick={resetForm}
+                className="px-5 py-3.5 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <Save className="h-4 w-4" />
-                Save Splash Screen
-              </Button>
-            </div>
-          )}
+                Discard
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Right: Live Phone Mockup (5 cols) */}
