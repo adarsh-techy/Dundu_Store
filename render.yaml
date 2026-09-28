@@ -34,11 +34,11 @@ services:
           name: dundu-db
           property: connectionString # auto-wired; change later in Environment if you move the DB
       - key: WEB_CLIENT_URL
-        value: https://dundu-web.vercel.app     # update after Vercel deploy
+        value: https://dundu-web-demo.vercel.app   # live website
       - key: ADMIN_CLIENT_URL
-        value: https://dundu-admin.vercel.app   # update after Vercel deploy
+        value: https://dundu-store.vercel.app      # live admin panel
       - key: GOOGLE_CALLBACK_URL
-        value: https://dundu-api.onrender.com/api/auth/google/callback
+        value: https://dundu-backend-demo.onrender.com/api/auth/google/callback
       - key: TWILIO_WHATSAPP_FROM
         value: "whatsapp:+14155238886"
       # Fill these in the Render dashboard when you have them (Environment tab):

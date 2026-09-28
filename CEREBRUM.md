@@ -169,8 +169,9 @@ Restart the backend after editing anything under `backend/` if it was started wi
 ---
 
 ## 6.1 Hosting (developer/staging)
+**Live URLs (2026-09-28):** website `https://dundu-web-demo.vercel.app` · admin `https://dundu-store.vercel.app` · API `https://dundu-backend-demo.onrender.com`. Render env `WEB_CLIENT_URL`/`ADMIN_CLIENT_URL` must equal the first two exactly. Copy-paste env templates live in `deploy/`.
 - **Backend + Postgres → Render** via `render.yaml` at the repo root (Dashboard → New + → Blueprint → this repo → Apply). DB URL and JWT secret are auto-generated; add Cloudinary/Razorpay/Twilio/Google keys in the service's Environment tab. Free plan sleeps after 15 min idle. Cloudinary is required because Render's disk is wiped per deploy.
-- **web/ and admin/ → Vercel** as two projects (root dirs `web`, `admin`, framework Vite). Set `VITE_API_BASE_URL=https://dundu-api.onrender.com`; web also needs `VITE_RAZORPAY_KEY_ID`, `VITE_SUPPORT_WHATSAPP`. Then set `WEB_CLIENT_URL`/`ADMIN_CLIENT_URL` on Render to the Vercel URLs (CORS).
+- **web/ and admin/ → Vercel** as two projects (root dirs `web`, `admin`, framework Vite). Set `VITE_API_BASE_URL=https://dundu-backend-demo.onrender.com`; web also needs `VITE_RAZORPAY_KEY_ID`, `VITE_SUPPORT_WHATSAPP`. Then set `WEB_CLIENT_URL`/`ADMIN_CLIENT_URL` on Render to the Vercel URLs (CORS).
 - **mobile/ → Expo** (Expo Go for devs, EAS Build/Update for testers) with `EXPO_PUBLIC_API_URL`.
 - First super admin: open the admin panel's `/register` page once (locks after the first admin exists).
 
@@ -231,7 +232,7 @@ Mobile (verified by a follow-up review — no critical issues): combo cart lines
 - `POST /orders/:id/pay` reuses the order's existing Razorpay order instead of minting a new one (a Razorpay order is payable once, so nothing can be orphaned). `verifyPayment` refunds a signature-valid payment that matches no order (`paymentService.fetchOrder`).
 - Trash: `/empty/:type` route registered before `/:type/:id`; `notTrashed(type)` middleware on the six admin routers (GET/PUT/PATCH on a trashed id → 404 "in Trash", static sub-paths like `/next-code` pass); trashing a category hides its visible products (ids in `trash_meta.hidden_product_ids`) and restore un-hides them (also fixing the saved state of products trashed meanwhile); product restore is blocked while its category is trashed; coupon `code` / category `slug` are renamed `<value>~trash~<id8>` in Trash and restored (with `-restored` suffix on clash); category `reassign_to` validated (UUID, exists, not trashed, not self).
 - Audit: search debounce uses a ref; `from`/`to` must be YYYY-MM-DD (400 otherwise).
-- Hosting: both `vercel.json` files proxy `/api/*` and `/uploads/*` to `https://dundu-store-backend.onrender.com`, so the apps work even without `VITE_API_BASE_URL`; compose password must be alphanumeric (documented).
+- Hosting: both `vercel.json` files proxy `/api/*` and `/uploads/*` to the live API (`https://dundu-backend-demo.onrender.com`), so the apps work even without `VITE_API_BASE_URL`; compose password must be alphanumeric (documented).
 
 ### 2026-09-27 — Trash (soft delete) for catalogue & marketing
 - Migration `1782300000006_trash` (+ initDb): `deleted_at`, `deleted_by`, `trash_meta` on products, categories, combos, coupons, banners, announcements.
