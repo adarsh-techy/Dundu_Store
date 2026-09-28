@@ -90,13 +90,16 @@ export default function SplashScreen({ config, onDone }) {
 
       {/* Full screen background image — fills the entire screen edge-to-edge */}
       {bgImageUri ? (
-        <Animated.Image
-          source={{ uri: bgImageUri }}
-          style={[styles.backgroundImage, { opacity: imageOpacity }]}
-          resizeMode="cover"
-          onLoad={handleImageLoad}
-          onError={() => {/* fallback to bgColor seamlessly */}}
-        />
+        <>
+          <Animated.Image
+            source={{ uri: bgImageUri }}
+            style={[styles.backgroundImage, { opacity: imageOpacity }]}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+            onError={() => {/* fallback to bgColor seamlessly */}}
+          />
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} pointerEvents="none" />
+        </>
       ) : null}
 
       {/* Center content */}

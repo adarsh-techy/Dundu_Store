@@ -94,7 +94,9 @@ export default function ImageCropperModal({
         ? 'Crop & Position Combo Cover'
         : resolvedPreviewType === 'banner'
           ? 'Crop & Position Hero Banner'
-          : 'Crop & Position Product Image'
+          : resolvedPreviewType === 'splash'
+            ? 'Crop & Position Splash Screen'
+            : 'Crop & Position Product Image'
   );
 
   // Base scale calculation so image cleanly covers or fits the frame
@@ -267,7 +269,9 @@ export default function ImageCropperModal({
             ? 'combo'
             : resolvedPreviewType === 'banner'
               ? 'banner'
-              : 'product'
+              : resolvedPreviewType === 'splash'
+                ? 'splash'
+                : 'product'
       );
       const croppedFile = new File([blob], `cropped_${prefix}_${Date.now()}.jpg`, {
         type: 'image/jpeg',
@@ -633,6 +637,61 @@ export default function ImageCropperModal({
                 </div>
                 <p className="text-[11px] text-neutral-500 text-center max-w-md">
                   Phones show only the middle of the banner — keep faces and text inside the dashed guides.
+                </p>
+              </div>
+            ) : resolvedPreviewType === 'splash' ? (
+              /* SPLASH SCREEN MOBILE PREVIEW */
+              <div className="flex-1 flex flex-col items-center justify-center space-y-3 py-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                  📱 Mobile Splash Screen Preview
+                </span>
+                <div className="relative w-[190px] h-[338px] rounded-[32px] border-[6px] border-slate-900 shadow-2xl overflow-hidden bg-slate-950 flex flex-col items-center justify-center">
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3 bg-slate-900 rounded-full z-30" />
+                  <div className="absolute top-2.5 left-4 right-4 flex items-center justify-between text-[8px] font-semibold text-white/80 z-20">
+                    <span>9:41</span>
+                    <span>5G</span>
+                  </div>
+
+                  <div className="absolute inset-0 z-0 overflow-hidden bg-black">
+                    {naturalSize.width > 0 && (
+                      <img
+                        src={imageSrc}
+                        alt="Splash cropped preview"
+                        className="max-w-none select-none pointer-events-none"
+                        style={{
+                          position: 'absolute',
+                          left: '50%',
+                          top: '50%',
+                          width: `${naturalSize.width}px`,
+                          height: `${naturalSize.height}px`,
+                          transform: `translate(-50%, -50%) translate(${offset.x * (178 / boxWidth)}px, ${offset.y * (178 / boxWidth)}px) rotate(${rotation}deg) scale(${zoom * coverScale * (178 / boxWidth)})`,
+                          transformOrigin: 'center center',
+                        }}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-black/40" />
+                  </div>
+
+                  <div className="relative z-10 flex flex-col items-center justify-center px-4 text-center">
+                    <h4 className="text-xl font-black text-white tracking-tight drop-shadow-md line-clamp-2">
+                      {itemName || 'Dundu'}
+                    </h4>
+                    {subtitle && (
+                      <p className="text-[10px] font-medium text-white/90 mt-1 max-w-[150px] leading-tight drop-shadow-sm line-clamp-2">
+                        {subtitle}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1 mt-4">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-16 h-0.5 rounded-full bg-white/40 z-20" />
+                </div>
+                <p className="text-[11px] text-neutral-500 text-center max-w-xs leading-relaxed">
+                  Shows how customers see your photo with text and subtext when opening the mobile app.
                 </p>
               </div>
             ) : resolvedPreviewType === 'category' ? (
