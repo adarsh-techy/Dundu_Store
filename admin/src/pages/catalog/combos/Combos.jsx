@@ -324,6 +324,12 @@ function ComboModal({ editing, duplicateOf, allProducts, onClose, onSaved }) {
         isOpen={cropper.isOpen}
         imageSrc={cropper.src}
         aspectRatio={4 / 3}
+        allowRatioSwitch={false}
+        previewType="combo"
+        itemName={form.name}
+        price={bundle}
+        originalPrice={regularTotal > bundle ? regularTotal : null}
+        fileNamePrefix="combo"
         onClose={() => setCropper({ isOpen: false, src: null })}
         onCropComplete={(file, url) => { setImageFile(file); setPreview(url); setRemoveImage(false); setCropper({ isOpen: false, src: null }); }}
       />

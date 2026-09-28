@@ -24,6 +24,18 @@ const ASPECT_RATIOS = [
   { id: '4:5', label: '4:5 Mobile', ratio: 4 / 5, desc: 'Feed Standard' },
 ];
 
+const RATIO_NAMES = [
+  [3 / 4, '3:4 Portrait'], [1, '1:1 Square'], [4 / 5, '4:5 Mobile'], [4 / 3, '4:3 Landscape'], [16 / 9, '16:9 Wide'],
+];
+const ratioName = (r) => RATIO_NAMES.find(([v]) => Math.abs(v - r) < 0.01)?.[1] || `${Math.round(r * 100) / 100}:1`;
+
+// Largest crop box that fits the modal: at most 340px tall and 440px wide (less on phones).
+const fitBox = (ratio) => {
+  const maxW = Math.min(440, (typeof window !== 'undefined' ? window.innerWidth : 1024) - 72);
+  const height = Math.min(340, maxW / ratio);
+  return { width: Math.round(height * ratio), height: Math.round(height) };
+};
+
 export default function ImageCropperModal({
   isOpen,
   imageSrc,
@@ -33,7 +45,7 @@ export default function ImageCropperModal({
   previewType = 'product', // 'product' | 'category' | 'combo'
   itemName = '',
   price = 999,
-  originalPrice = 1999,
+  originalPrice = null,
   fileNamePrefix,
   onClose,
   onCropComplete,
@@ -59,8 +71,7 @@ export default function ImageCropperModal({
 
   // Fixed container dimensions for the interactive crop workspace
   // Height is constrained to ~340px for comfortable modal layout
-  const boxHeight = 340;
-  const boxWidth = Math.round(boxHeight * (selectedRatio || 3 / 4));
+  const { width: boxWidth, height: boxHeight } = fitBox(selectedRatio || 3 / 4);
 
   const resolvedPreviewType = previewType || (selectedRatio !== 1 ? 'product' : 'category');
   const modalTitle = title || (
@@ -98,6 +109,20 @@ export default function ImageCropperModal({
       img.src = imageSrc;
     }
   }, [isOpen, imageSrc, aspectRatio, previewType]);
+
+  // React attaches onWheel as a passive listener, so preventDefault there is ignored (and logs
+  // an error) and the modal scrolls while zooming. Use a native non-passive listener instead.
+  useEffect(() => {
+    const el = workspaceRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.08 : -0.08;
+      setZoom((prev) => Math.min(4, Math.max(0.4, +(prev + delta).toFixed(2))));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [isOpen, imageSrc, isLoaded]);
 
   if (!isOpen || !imageSrc) return null;
 
@@ -140,12 +165,6 @@ export default function ImageCropperModal({
 
   const handleTouchEnd = () => {
     setIsDragging(false);
-  };
-
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.08 : -0.08;
-    setZoom((prev) => Math.min(4, Math.max(0.4, +(prev + delta).toFixed(2))));
   };
 
   // ── Quick Helpers ────────────────────────────────────────────────────────
@@ -248,8 +267,11 @@ export default function ImageCropperModal({
   const previewScaleFactor = previewBoxWidth / boxWidth;
 
   const displayProductName = itemName || 'Premium Oversized Cotton T-Shirt';
-  const displayPrice = price ? Number(price).toLocaleString('en-IN') : '999';
-  const displayOriginalPrice = originalPrice ? Number(originalPrice).toLocaleString('en-IN') : '1,999';
+  const displayPrice = Number(price) > 0 ? Number(price).toLocaleString('en-IN') : '999';
+  // Show a struck-through price / discount only when the caller passed a real higher price.
+  const hasOriginal = Number(originalPrice) > Number(price);
+  const displayOriginalPrice = hasOriginal ? Number(originalPrice).toLocaleString('en-IN') : null;
+  const discountPct = hasOriginal ? Math.round((1 - Number(price) / Number(originalPrice)) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4 backdrop-blur-md overflow-y-auto">
@@ -266,9 +288,9 @@ export default function ImageCropperModal({
                 <h3 className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white leading-tight">
                   {modalTitle}
                 </h3>
-                {resolvedPreviewType === 'product' && (
+                {resolvedPreviewType !== 'category' && (
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                    {selectedRatio === 3 / 4 ? '3:4 Store Fit' : selectedRatio === 1 ? '1:1 Square' : '4:5 Mobile'}
+                    {ratioName(selectedRatio)}
                   </span>
                 )}
               </div>
@@ -345,7 +367,6 @@ export default function ImageCropperModal({
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                onWheel={handleWheel}
               >
                 {/* Image being cropped */}
                 {naturalSize.width > 0 && (
@@ -487,8 +508,8 @@ export default function ImageCropperModal({
                 </span>
               </div>
               
-              {/* Product Preview Tabs: Customer Card vs Raw Cut */}
-              {resolvedPreviewType === 'product' && (
+              {/* Preview Tabs: Customer Card vs Raw Cut */}
+              {resolvedPreviewType !== 'category' && (
                 <div className="flex bg-neutral-200 dark:bg-neutral-800 p-0.5 rounded-lg text-[10px] font-bold">
                   <button
                     type="button"
@@ -582,14 +603,14 @@ export default function ImageCropperModal({
                 </p>
               </div>
 
-            ) : resolvedPreviewType === 'combo' ? (
+            ) : resolvedPreviewType === 'combo' && activePreviewTab === 'card' ? (
               /* COMBO PREVIEW */
               <div className="flex-1 flex flex-col items-center justify-center space-y-3 py-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                   🎁 Customer Combo Card
                 </span>
                 <div className="w-56 bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-                  <div className="w-56 h-42 bg-neutral-950 overflow-hidden relative flex items-center justify-center">
+                  <div className="w-56 bg-neutral-950 overflow-hidden relative flex items-center justify-center" style={{ height: `${Math.round(224 / (selectedRatio || 4 / 3))}px` }}>
                     {naturalSize.width > 0 && (
                       <img
                         src={imageSrc}
@@ -616,7 +637,8 @@ export default function ImageCropperModal({
                     </span>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">₹{displayPrice}</span>
-                      <span className="text-[11px] text-neutral-400 line-through">₹{displayOriginalPrice}</span>
+                      {displayOriginalPrice && <span className="text-[11px] text-neutral-400 line-through">₹{displayOriginalPrice}</span>}
+                      {discountPct > 0 && <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400">{discountPct}% OFF</span>}
                     </div>
                   </div>
                 </div>
@@ -661,7 +683,7 @@ export default function ImageCropperModal({
                 {/* Specs badges */}
                 <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-xs mt-2">
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
-                    Ratio: {selectedRatio === 3 / 4 ? '3:4 Portrait' : selectedRatio === 1 ? '1:1 Square' : '4:5 Mobile'}
+                    Ratio: {ratioName(selectedRatio)}
                   </span>
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
                     Format: High-Res JPEG
@@ -671,7 +693,7 @@ export default function ImageCropperModal({
                   </span>
                 </div>
                 <p className="text-[11px] text-neutral-500 text-center leading-relaxed">
-                  This is the exact cropped file that will be saved to your product gallery.
+                  This is the exact cropped file that will be saved.
                 </p>
               </div>
 
@@ -738,9 +760,11 @@ export default function ImageCropperModal({
                           ₹{displayOriginalPrice}
                         </span>
                       )}
-                      <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400">
-                        50% OFF
-                      </span>
+                      {discountPct > 0 && (
+                        <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {discountPct}% OFF
+                        </span>
+                      )}
                     </div>
 
                     {/* Color Swatch Dots */}
@@ -782,7 +806,7 @@ export default function ImageCropperModal({
               </button>
             ) : (
               <span className="text-xs text-neutral-400">
-                Crop ratio: <strong className="text-neutral-700 dark:text-neutral-300 font-bold">{selectedRatio === 3 / 4 ? '3:4 (Store Standard)' : selectedRatio === 1 ? '1:1 (Square)' : '4:5'}</strong>
+                Crop ratio: <strong className="text-neutral-700 dark:text-neutral-300 font-bold">{ratioName(selectedRatio)}</strong>
               </span>
             )}
           </div>
