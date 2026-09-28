@@ -281,8 +281,21 @@ export default function ProductsScreen() {
     filters.type, filters.age_group, filters.offer,
   ].filter(Boolean).length;
 
-  const isGenzy = activeSlug?.toLowerCase().includes('genzy');
-  const T = isGenzy ? GENZY_THEME : DEFAULT_THEME;
+  const activeCat = categories.find((c) => c.slug === activeSlug);
+  const isGenzy = Boolean(activeSlug?.toLowerCase().includes('genz') || categoryName?.toLowerCase().includes('genz'));
+  const hasCustomTheme = Boolean(activeCat?.theme_enabled && activeCat?.theme_color);
+
+  const T = hasCustomTheme ? {
+    primary:     activeCat.theme_color,
+    bg:          activeCat.theme_bg_color || '#090d12',
+    topBg:       activeCat.theme_bg_color || '#090d12',
+    surface:     '#111720',
+    border:      activeCat.theme_color + '40',
+    tagBg:       activeCat.theme_color + '26',
+    inputBg:     '#151d28',
+    inputBorder: activeCat.theme_color + '40',
+    stripBorder: activeCat.theme_color,
+  } : (isGenzy ? GENZY_THEME : DEFAULT_THEME);
 
   const festEnabled = useSettingsStore((s) => s.festivalEnabled);
   const festBgColor = useSettingsStore((s) => s.festivalBgColor);
@@ -420,7 +433,7 @@ export default function ProductsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: festEnabled ? festNavBg : T.bg }]} edges={['left', 'right', 'bottom']}>
 
-      <AppHeader logo showCart showWishlist logoColor={isGenzy ? GENZY_THEME.primary : undefined} />
+      <AppHeader logo showCart showWishlist logoColor={(hasCustomTheme || isGenzy) ? T.primary : undefined} />
 
       {/* Search bar */}
       <View style={[styles.searchBar, { backgroundColor: festEnabled ? festNavBg : T.topBg, borderBottomColor: festEnabled ? festNavBg : T.border }]}>

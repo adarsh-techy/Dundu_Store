@@ -1,5 +1,5 @@
 const VARIANTS = {
-  primary: 'bg-primary text-white hover:bg-primary-deep shadow-[0_8px_24px_-10px_rgba(233,30,140,.7)]',
+  primary: 'bg-primary text-white hover:bg-primary-deep shadow-[0_8px_24px_-10px_var(--shadow-glow-color,rgba(233,30,140,.7))]',
   secondary: 'bg-elevated text-ink border border-line hover:border-line-strong',
   outline: 'bg-transparent text-primary border border-primary/70 hover:bg-primary/10',
   ghost: 'bg-transparent text-ink-2 hover:bg-white/5 hover:text-ink',

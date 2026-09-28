@@ -5,11 +5,17 @@ const { v4: uuidv4 } = require('uuid');
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 
-const isCloudinaryConfigured = !!(
-  process.env.CLOUDINARY_CLOUD_NAME &&
-  process.env.CLOUDINARY_API_KEY &&
-  process.env.CLOUDINARY_API_SECRET
-);
+// Cloudinary is used only when all three keys are real values (not the `your_...`
+// placeholders from .env.example) AND it is switched on. USE_CLOUDINARY=true|false
+// forces it; when unset it is on in production and off in development, so local dev
+// saves to the uploads/ folder.
+const hasCloudinaryKeys = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']
+  .every((key) => process.env[key] && !process.env[key].startsWith('your_'));
+const cloudinaryWanted = process.env.USE_CLOUDINARY
+  ? process.env.USE_CLOUDINARY === 'true'
+  : process.env.NODE_ENV === 'production';
+const isCloudinaryConfigured = hasCloudinaryKeys && cloudinaryWanted;
+console.log(`[upload] storage: ${isCloudinaryConfigured ? 'Cloudinary' : 'local disk (uploads/)'}`);
 
 // Allowed image types. The stored extension is derived from the declared type (never
 // from the client-supplied filename) and the file's magic bytes are checked after the

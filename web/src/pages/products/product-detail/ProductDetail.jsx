@@ -21,6 +21,7 @@ import Badge from '../../../components/ui/Badge';
 import EmptyState from '../../../components/ui/EmptyState';
 import SectionHeader from '../../../components/ui/SectionHeader';
 import useDocumentTitle from '../../../hooks/useDocumentTitle';
+import useThemeStore, { isGenzyMatch } from '../../../store/theme.store';
 
 const COLOR_HEX = {
   white: '#ffffff', black: '#111111', red: '#ef4444', pink: '#ec4899', rose: '#fb7185',
@@ -69,6 +70,16 @@ export default function ProductDetail() {
 
   const product = data?.data?.product;
   useDocumentTitle(product?.name || 'Product');
+
+  const setOverrideCategory = useThemeStore((s) => s.setOverrideCategory);
+  useEffect(() => {
+    if (product) {
+      const isGenzy = isGenzyMatch(product.category_slug, product.category_name);
+      if (isGenzy) setOverrideCategory(product.category_slug || product.category_name);
+      else setOverrideCategory(null);
+    }
+    return () => setOverrideCategory(null);
+  }, [product, setOverrideCategory]);
 
   const variants = product?.variants || [];
   const allImages = product?.images || [];

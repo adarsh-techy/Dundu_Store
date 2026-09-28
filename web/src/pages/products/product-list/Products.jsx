@@ -8,6 +8,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import Button from '../../../components/ui/Button';
 import { ProductGridSkeleton } from '../../../components/ui/Skeleton';
 import useDocumentTitle from '../../../hooks/useDocumentTitle';
+import { isGenzyMatch } from '../../../store/theme.store';
 
 const COLOR_SWATCHES = {
   red: '#ef4444', blue: '#3b82f6', green: '#22c55e', yellow: '#eab308',
@@ -119,6 +120,11 @@ export default function Products() {
       : isNewArrival ? 'New arrivals'
       : isFeatured ? 'Trending'
       : 'All products';
+  const activeCategoryObj = categories.find((c) => c.slug === activeCategory);
+  const isGenzy = isGenzyMatch(activeCategory, activeCategoryObj?.name);
+  const isCustomThemed = Boolean((activeCategoryObj?.theme_enabled && activeCategoryObj?.theme_color) || isGenzy);
+  const themeAccent = activeCategoryObj?.theme_color || (isGenzy ? '#22c55e' : null);
+  const themeBg = activeCategoryObj?.theme_bg_color || (isGenzy ? '#040d04' : null);
   useDocumentTitle(title);
 
   // Draft is keyed on the URL values, so it resets whenever a chip/clear changes them.
@@ -214,11 +220,61 @@ export default function Products() {
         </div>
       )}
 
+      {isCustomThemed && !isOffer && (
+        <div
+          className="relative overflow-hidden border-b border-line"
+          style={{
+            background: themeBg
+              ? `linear-gradient(180deg, ${themeBg} 0%, rgba(10,10,12,0.95) 100%)`
+              : `linear-gradient(180deg, ${themeAccent}22 0%, transparent 100%)`,
+          }}
+        >
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse at center, ${themeAccent}33 0%, transparent 70%)`,
+            }}
+          />
+          <div className="container-x relative py-10 md:py-14 text-center">
+            <span
+              className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-widest mb-3.5"
+              style={{
+                backgroundColor: `${themeAccent}20`,
+                color: themeAccent,
+                border: `1px solid ${themeAccent}50`,
+                boxShadow: `0 0 24px ${themeAccent}40`,
+              }}
+            >
+              ✦ {title.toUpperCase()} · EXCLUSIVE THEME ✦
+            </span>
+            <h1 className="font-display text-4xl md:text-6xl text-ink font-black tracking-tight drop-shadow-sm">
+              {title}
+            </h1>
+            <p
+              className="mt-3 text-sm md:text-base max-w-lg mx-auto font-medium leading-relaxed"
+              style={{ color: `${themeAccent}dd` }}
+            >
+              {isGenzy
+                ? 'Next-gen streetwear, oversized silhouettes & cyber aesthetics curated for the bold.'
+                : `Explore exclusive curated collections and trending items in ${title}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="container-x py-6 md:py-10">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
-            {!isOffer && <h1 className="font-display text-3xl md:text-4xl text-ink">{title}</h1>}
+            {!isOffer && !isCustomThemed && <h1 className="font-display text-3xl md:text-4xl text-ink">{title}</h1>}
+            {isCustomThemed && (
+              <p
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: themeAccent }}
+              >
+                {title} Collection
+              </p>
+            )}
             <p className="text-xs text-muted mt-1">{isLoading ? 'Loading…' : `${total} ${total === 1 ? 'product' : 'products'}`}</p>
           </div>
           <div className="flex items-center gap-2">

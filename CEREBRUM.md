@@ -80,7 +80,7 @@ Any early exit inside the transaction must call `fail()` (does ROLLBACK). Never 
 - Changing a phone number from the profile requires an OTP for the new number. Date of birth can be set once.
 
 ### 2.4 Uploads
-Only JPEG/PNG/WebP. Extension derived from MIME, magic bytes verified after write, `/uploads` served with `nosniff` + sandbox CSP. Cloudinary is used automatically when `CLOUDINARY_*` env vars are set.
+Only JPEG/PNG/WebP. Extension derived from MIME, magic bytes verified after write, `/uploads` served with `nosniff` + sandbox CSP. Storage: Cloudinary (folder `dundu`) when all `CLOUDINARY_*` keys are real (not `your_...` placeholders) and it is switched on; `USE_CLOUDINARY=true|false` forces it, unset = on in production, off in development (local `uploads/`). Startup logs `[upload] storage: ...`.
 
 ### 2.5 Important tables (beyond the obvious)
 | Table | Notes |
@@ -214,6 +214,12 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 ---
 
 ## 9. Changelog (newest first)
+
+### 2026-09-29 — Local .env files set to development
+- `mobile/.env` (gitignored) now points to the local backend via the Mac's Wi-Fi IP (`http://192.168.31.243:5000`); live Render URLs kept as comments. backend/admin `.env` were already localhost + `NODE_ENV=development`; web has no `.env` (Vite proxy → :5000). `mobile/eas.json` build profiles intentionally still use the live API (installed builds can't reach a laptop).
+
+### 2026-09-29 — Local disk uploads in development
+- `backend/src/utils/upload.js`: Cloudinary now off by default when `NODE_ENV` isn't production; `USE_CLOUDINARY` env override; placeholder `your_...` keys no longer count as configured (previously local dev with the example .env tried Cloudinary with fake keys). Logs chosen storage at startup. `.env.example` documents `USE_CLOUDINARY`.
 
 ### 2026-09-27 — Mobile + admin review fixes
 Backend

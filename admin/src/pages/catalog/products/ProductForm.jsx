@@ -1720,7 +1720,15 @@ const catPatterns    = parseJson(selectedCat?.patterns).filter(p => p.is_active)
       <ImageCropperModal
         isOpen={cropperModal.isOpen}
         imageSrc={cropperModal.imageSrc}
+        aspectRatio={3 / 4}
+        allowRatioSwitch={true}
+        previewType="product"
+        itemName={form.name || 'Sample Product'}
+        price={form.offer_price || form.price || 999}
+        originalPrice={form.price && form.offer_price ? form.price : null}
+        fileNamePrefix={form.product_code || 'product'}
         onClose={() => setCropperModal({ isOpen: false, imageSrc: null, imageIndex: null })}
+        onSkipCrop={() => setCropperModal({ isOpen: false, imageSrc: null, imageIndex: null })}
         onCropComplete={handleCroppedImageSave}
       />
     </div>

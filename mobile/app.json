@@ -16,12 +16,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/dundu-adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.dundu.store",
       "versionCode": 1,
       "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
         "CAMERA",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
@@ -44,6 +47,12 @@
         "projectId": "d74fde9d-45e1-4e95-bdbc-92b970b73158"
       }
     },
-    "owner": "workadarshs-team"
+    "owner": "workadarshs-team",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d74fde9d-45e1-4e95-bdbc-92b970b73158"
+    }
   }
 }

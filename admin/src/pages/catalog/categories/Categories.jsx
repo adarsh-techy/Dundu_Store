@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Settings, X, Table, Tag, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Settings, X, Table, Tag, ChevronUp, ChevronDown, Crop, ImagePlus, Upload } from 'lucide-react';
 import { categoryApi, brandApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Modal from '../../../components/ui/Modal';
 import Spinner from '../../../components/ui/Spinner';
+import ImageCropperModal from '../../../components/ui/ImageCropperModal';
 import toast from 'react-hot-toast';
 
 const PREDEFINED = [
@@ -404,6 +405,17 @@ function CategoryMetaModal({ cat, onClose, onSaved }) {
   );
 }
 
+const THEME_PRESETS = [
+  { name: 'Genzy Green', primary: '#22c55e', bg: '#040d04' },
+  { name: 'Electric Violet', primary: '#8b5cf6', bg: '#090514' },
+  { name: 'Cyber Cyan', primary: '#06b6d4', bg: '#030c14' },
+  { name: 'Sunset Amber', primary: '#f59e0b', bg: '#140902' },
+  { name: 'Neon Lime', primary: '#84cc16', bg: '#081202' },
+  { name: 'Ruby Crimson', primary: '#ef4444', bg: '#140303' },
+  { name: 'Hot Pink', primary: '#e91e8c', bg: '#14030b' },
+  { name: 'Royal Indigo', primary: '#6366f1', bg: '#050617' },
+];
+
 function CategoryModal({ editing, onClose, onSaved }) {
   const isEdit = !!editing;
   const [form, setForm] = useState({
@@ -413,22 +425,74 @@ function CategoryModal({ editing, onClose, onSaved }) {
   });
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(editing?.image_url || '');
+  const [themeEnabled, setThemeEnabled] = useState(Boolean(editing?.theme_enabled));
+  const [themeColor, setThemeColor] = useState(editing?.theme_color || '#22c55e');
+  const [themeBgColor, setThemeBgColor] = useState(editing?.theme_bg_color || '#040d04');
+  const [cropper, setCropper] = useState({ isOpen: false, src: null });
+  const [isDragOver, setIsDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const autoSlug = (name) =>
     name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+  const capitalizeFirstLetters = (val) => {
+    if (!val) return '';
+    return val.replace(/(^\s*|\s+|-)([a-z])/g, (_, boundary, c) => boundary + c.toUpperCase());
+  };
+
   const handleNameChange = (e) => {
-    const name = e.target.value;
+    const raw = e.target.value;
+    const name = capitalizeFirstLetters(raw);
     setForm((p) => ({ ...p, name, ...(isEdit ? {} : { slug: autoSlug(name) }) }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const openCropperForFile = (file) => {
     if (!file) return;
-    setImageFile(file);
-    setPreview(URL.createObjectURL(file));
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (JPEG, PNG, WebP)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be under 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropper({ isOpen: true, src: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) openCropperForFile(file);
+    e.target.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) openCropperForFile(file);
+  };
+
+  const handleCropComplete = (croppedFile, croppedPreview) => {
+    setImageFile(croppedFile);
+    setPreview(croppedPreview);
+    setCropper({ isOpen: false, src: null });
+    toast.success('Category image cropped & ready');
+  };
+
+  const handleAdjustCrop = () => {
+    if (preview) {
+      setCropper({ isOpen: true, src: preview });
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setPreview('');
   };
 
   const handleSubmit = async (e) => {
@@ -440,6 +504,9 @@ function CategoryModal({ editing, onClose, onSaved }) {
       fd.append('slug', form.slug);
       fd.append('sort_order', form.sort_order);
       if (imageFile) fd.append('image', imageFile);
+      fd.append('theme_enabled', themeEnabled);
+      fd.append('theme_color', themeEnabled ? themeColor : '');
+      fd.append('theme_bg_color', themeEnabled ? themeBgColor : '');
       isEdit ? await categoryApi.update(editing.id, fd) : await categoryApi.create(fd);
       toast.success(isEdit ? 'Category updated' : 'Category created');
       onSaved();
@@ -448,33 +515,289 @@ function CategoryModal({ editing, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? 'Edit Category' : 'Add Category'} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Input label="Name" value={form.name} onChange={handleNameChange} required />
-        <Input label="Slug" value={form.slug} onChange={set('slug')} placeholder="auto-generated" required />
-
-        {/* Image picker */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
-          <div className="flex items-center gap-3">
-            {preview && (
-              <img src={preview} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-gray-200 shrink-0" />
-            )}
-            <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-3 px-4 cursor-pointer hover:border-indigo-400 transition-colors">
-              <span className="text-xs text-gray-500">{imageFile ? imageFile.name : 'Click to choose image'}</span>
-              <span className="text-[10px] text-gray-400 mt-0.5">JPEG, PNG, WebP · max 5MB</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
-            </label>
+    <>
+      <Modal title={isEdit ? 'Edit Category' : 'Add Category'} onClose={onClose} size="lg">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input label="Name" value={form.name} onChange={handleNameChange} placeholder="e.g. Sarees, Dresses" required />
+            <Input label="Slug" value={form.slug} onChange={set('slug')} placeholder="auto-generated" required />
           </div>
-        </div>
 
-        <Input label="Sort Order" type="number" value={form.sort_order} onChange={set('sort_order')} />
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={loading}>{isEdit ? 'Save Changes' : 'Create'}</Button>
-        </div>
-      </form>
-    </Modal>
+          {/* Image picker with Crop & Preview */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-gray-700">Category Image</label>
+              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 flex items-center gap-1">
+                <Crop className="w-3 h-3" /> 1:1 Square Cropping
+              </span>
+            </div>
+
+            {preview ? (
+              <div className="rounded-2xl border border-gray-200 bg-slate-50/80 p-4 flex flex-col sm:flex-row items-center gap-4 transition-all">
+                <div className="relative group shrink-0">
+                  <img
+                    src={preview}
+                    alt="Category preview"
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-500/50 bg-white shadow-md ring-4 ring-emerald-500/15"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAdjustCrop}
+                    title="Adjust Crop"
+                    className="absolute inset-0 bg-black/60 text-white rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-[11px] font-semibold cursor-pointer"
+                  >
+                    <Crop className="w-4 h-4 mb-0.5" />
+                    Crop
+                  </button>
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-1.5 text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-gray-900 truncate max-w-56">
+                      {imageFile ? (imageFile.name || 'Cropped image ready') : 'Current category image'}
+                    </span>
+                    {imageFile ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                        CROPPED
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">
+                        SAVED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Perfect 1:1 aspect ratio. Used across the mobile app category strip, header icons, and catalog browsing.
+                  </p>
+
+                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleAdjustCrop}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Crop className="w-3.5 h-3.5 text-emerald-600" /> Adjust Crop
+                    </button>
+
+                    <label className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-xs transition-colors cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" /> Replace
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageChange}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl py-7 px-4 cursor-pointer transition-all ${
+                  isDragOver
+                    ? 'border-emerald-500 bg-emerald-50/70 scale-[1.01]'
+                    : 'border-gray-200 hover:border-emerald-400 bg-gray-50/50 hover:bg-emerald-50/20'
+                }`}
+              >
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-2 shadow-xs ring-4 ring-emerald-500/10">
+                  <ImagePlus className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-gray-800">
+                  Click to choose image & crop
+                </span>
+                <span className="text-[11px] text-gray-500 mt-0.5">
+                  or drag and drop your category picture here
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-600 mt-1.5 flex items-center gap-1">
+                  <Crop className="w-3 h-3" /> Auto-opens preview & crop modal · max 5MB (JPEG, PNG, WebP)
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            )}
+          </div>
+
+          {/* Custom Category Theme Section */}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <label className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  Custom Category Theme & Color Change
+                </label>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  When shoppers view this category on the web store or mobile app, the theme dynamically changes to this color.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={themeEnabled}
+                  onChange={(e) => setThemeEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            {themeEnabled && (
+              <div className="pt-3 border-t border-slate-200 space-y-4">
+                {/* 1-Click Color Presets */}
+                <div>
+                  <span className="block text-xs font-semibold text-gray-700 mb-2">
+                    Quick Preset Color Palettes
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {THEME_PRESETS.map((p) => {
+                      const isSelected = themeColor.toLowerCase() === p.primary.toLowerCase();
+                      return (
+                        <button
+                          key={p.name}
+                          type="button"
+                          onClick={() => {
+                            setThemeColor(p.primary);
+                            setThemeBgColor(p.bg);
+                          }}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-gray-900 bg-white shadow-xs ring-2 ring-gray-900/10'
+                              : 'border-gray-200 bg-white/80 hover:border-gray-300'
+                          }`}
+                        >
+                          <span
+                            className="w-4 h-4 rounded-full shrink-0 shadow-xs border border-black/10"
+                            style={{ backgroundColor: p.primary }}
+                          />
+                          <span className="text-xs font-medium text-gray-800 truncate">
+                            {p.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Pickers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Primary Accent Color
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={themeColor}
+                        onChange={(e) => setThemeColor(e.target.value)}
+                        className="w-10 h-10 rounded-xl border border-gray-300 p-0.5 cursor-pointer bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={themeColor}
+                        onChange={(e) => setThemeColor(e.target.value)}
+                        placeholder="#22c55e"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Dark Background Hue
+                    </label>
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="color"
+                        value={themeBgColor}
+                        onChange={(e) => setThemeBgColor(e.target.value)}
+                        className="w-10 h-10 rounded-xl border border-gray-300 p-0.5 cursor-pointer bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={themeBgColor}
+                        onChange={(e) => setThemeBgColor(e.target.value)}
+                        placeholder="#040d04"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Mini Preview */}
+                <div
+                  className="rounded-xl p-3.5 border flex items-center justify-between transition-colors shadow-inner"
+                  style={{
+                    backgroundColor: themeBgColor,
+                    borderColor: themeColor + '55',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shadow-md shrink-0"
+                      style={{
+                        backgroundColor: themeColor + '25',
+                        borderColor: themeColor,
+                        borderWidth: 2,
+                        color: themeColor,
+                      }}
+                    >
+                      {form.name?.[0] || 'C'}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">
+                        {form.name || 'Category'} Custom Theme Active
+                      </p>
+                      <p className="text-[10px] text-gray-300">
+                        Primary buttons, mobile bubble, glow & badges will use this color
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white shadow-xs shrink-0"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    Live Preview
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Input label="Sort Order" type="number" value={form.sort_order} onChange={set('sort_order')} />
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" loading={loading}>{isEdit ? 'Save Changes' : 'Create'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Interactive Category Image Cropper Modal */}
+      <ImageCropperModal
+        isOpen={cropper.isOpen}
+        imageSrc={cropper.src}
+        aspectRatio={1}
+        title={form.name ? `Crop Image · ${form.name}` : 'Crop Category Image'}
+        previewType="category"
+        itemName={form.name || 'Category'}
+        fileNamePrefix="category"
+        onClose={() => setCropper({ isOpen: false, src: null })}
+        onCropComplete={handleCropComplete}
+      />
+    </>
   );
 }
 
@@ -549,6 +872,13 @@ function BrandModal({ editing, onClose, onSaved }) {
   const isEdit = !!editing;
   const [name, setName] = useState(editing?.name || '');
   const [loading, setLoading] = useState(false);
+
+  const handleNameChange = (e) => {
+    const raw = e.target.value;
+    const formatted = raw.replace(/(^\s*|\s+|-)([a-z])/g, (_, boundary, c) => boundary + c.toUpperCase());
+    setName(formatted);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault(); setLoading(true);
     try {
@@ -561,7 +891,7 @@ function BrandModal({ editing, onClose, onSaved }) {
   return (
     <Modal title={isEdit ? 'Edit Brand' : 'Add Brand'} onClose={onClose} size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input label="Brand Name" value={name} onChange={(e) => setName(e.target.value)} required />
+        <Input label="Brand Name" value={name} onChange={handleNameChange} required />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={loading}>{isEdit ? 'Save Changes' : 'Create'}</Button>
@@ -807,7 +1137,16 @@ export default function Categories() {
                     : <div className="w-11 h-11 rounded-xl bg-slate-100 shrink-0 flex items-center justify-center text-slate-700 font-bold text-base">{c.name[0]}</div>
                   }
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-sm text-slate-900 truncate">{c.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-sm text-slate-900 truncate">{c.name}</p>
+                      {c.theme_enabled && c.theme_color && (
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-xs ring-1 ring-slate-300"
+                          style={{ backgroundColor: c.theme_color }}
+                          title={`Custom theme: ${c.theme_color}`}
+                        />
+                      )}
+                    </div>
                     <p className="text-xs text-slate-400 truncate font-mono mt-0.5">/{c.slug}</p>
                   </div>
                 </div>

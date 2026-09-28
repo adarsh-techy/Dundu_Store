@@ -6,6 +6,7 @@ import useAuthStore from '../../store/auth.store';
 import useCartStore from '../../store/cart.store';
 import { categoryApi } from '../../api';
 import logo from '../../assets/logo.png';
+import { isGenzyMatch } from '../../store/theme.store';
 
 const NAV = [
   { to: '/products', label: 'Shop' },
@@ -82,7 +83,7 @@ export default function Header() {
       <div className="container-x">
         <div className="flex items-center gap-3 md:gap-6 h-16">
           <Link to="/" className="flex items-center gap-2 shrink-0" aria-label="Dundu home">
-            <img src={logo} alt="" className="h-9 w-9 object-contain drop-shadow-[0_0_12px_rgba(233,30,140,.45)]" />
+            <img src={logo} alt="" className="h-9 w-9 object-contain drop-shadow-[0_0_12px_var(--logo-glow,rgba(233,30,140,.45))]" />
             <span className="font-display text-[1.45rem] font-semibold tracking-wide text-ink">Dundu</span>
           </Link>
 
@@ -186,14 +187,26 @@ export default function Header() {
               </Link>
               {categories.map((c) => {
                 const isActive = activeCategory === c.slug;
+                const isGenzy = isGenzyMatch(c.slug, c.name);
                 return (
                   <NavLink key={c.id} to={`/products?category=${c.slug}`} className="flex flex-col items-center gap-1.5 shrink-0 group">
-                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden bg-elevated border transition-all group-hover:scale-105 ${isActive ? 'border-primary ring-2 ring-primary/30' : 'border-line'}`}>
+                    <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden bg-elevated border transition-all group-hover:scale-105 ${
+                      isActive
+                        ? 'border-primary ring-2 ring-primary/30'
+                        : isGenzy
+                          ? 'border-emerald-500/50 hover:border-emerald-400'
+                          : 'border-line'
+                    }`}>
                       {c.image_url
                         ? <img src={c.image_url} alt="" className="w-full h-full object-cover" loading="lazy" />
                         : <div className="w-full h-full flex items-center justify-center font-display text-lg text-primary-soft bg-primary/10">{c.name[0]}</div>}
+                      {isGenzy && (
+                        <span className="absolute top-0.5 right-0.5 w-3 h-3 bg-emerald-500 text-black text-[7px] font-black rounded-full flex items-center justify-center shadow-xs">
+                          ⚡
+                        </span>
+                      )}
                     </div>
-                    <span className={`text-[11px] font-semibold text-center leading-tight max-w-16 truncate ${isActive ? 'text-primary-soft' : 'text-ink-2'}`}>{c.name}</span>
+                    <span className={`text-[11px] font-semibold text-center leading-tight max-w-16 truncate ${isActive ? 'text-primary-soft font-bold' : isGenzy ? 'text-emerald-400 font-bold' : 'text-ink-2'}`}>{c.name}</span>
                   </NavLink>
                 );
               })}

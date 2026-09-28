@@ -9,31 +9,39 @@ const list = async (_req, res) => {
 };
 
 const create = async (req, res) => {
-  const { name, slug, sort_order } = req.body;
+  const { name, slug, sort_order, theme_enabled, theme_color, theme_bg_color } = req.body;
   const image_url = req.file ? getFileUrl(req.file) : (req.body.image_url || null);
+  const isThemeEnabled = theme_enabled === 'true' || theme_enabled === true;
   const { rows } = await db.query(
-    'INSERT INTO categories (name, slug, image_url, sort_order) VALUES ($1,$2,$3,$4) RETURNING *',
-    [name, slug, image_url, sort_order || 0]
+    'INSERT INTO categories (name, slug, image_url, sort_order, theme_enabled, theme_color, theme_bg_color) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [name, slug, image_url, sort_order || 0, isThemeEnabled, theme_color || null, theme_bg_color || null]
   );
   created(res, { category: rows[0] });
 };
 
 const update = async (req, res) => {
-  const { name, slug, sort_order, sub_categories, types } = req.body;
+  const { name, slug, sort_order, sub_categories, types, theme_enabled, theme_color, theme_bg_color } = req.body;
   const existing = await db.query('SELECT * FROM categories WHERE id=$1', [req.params.id]);
   if (!existing.rows.length) return notFound(res, 'Category not found');
+  const existingRow = existing.rows[0];
   const image_url = req.file
     ? getFileUrl(req.file)
-    : (req.body.image_url || existing.rows[0].image_url);
+    : (req.body.image_url || existingRow.image_url);
   const subCatsJson = sub_categories !== undefined
     ? (typeof sub_categories === 'string' ? sub_categories : JSON.stringify(sub_categories))
-    : JSON.stringify(existing.rows[0].sub_categories || []);
+    : JSON.stringify(existingRow.sub_categories || []);
   const typesJson = types !== undefined
     ? (typeof types === 'string' ? types : JSON.stringify(types))
-    : JSON.stringify(existing.rows[0].types || []);
+    : JSON.stringify(existingRow.types || []);
+  const isThemeEnabled = theme_enabled !== undefined
+    ? (theme_enabled === 'true' || theme_enabled === true)
+    : Boolean(existingRow.theme_enabled);
+  const finalThemeColor = theme_color !== undefined ? (theme_color || null) : existingRow.theme_color;
+  const finalThemeBgColor = theme_bg_color !== undefined ? (theme_bg_color || null) : existingRow.theme_bg_color;
+
   const { rows } = await db.query(
-    'UPDATE categories SET name=$1, slug=$2, image_url=$3, sort_order=$4, sub_categories=$5, types=$6 WHERE id=$7 RETURNING *',
-    [name, slug, image_url, sort_order || 0, subCatsJson, typesJson, req.params.id]
+    'UPDATE categories SET name=$1, slug=$2, image_url=$3, sort_order=$4, sub_categories=$5, types=$6, theme_enabled=$7, theme_color=$8, theme_bg_color=$9 WHERE id=$10 RETURNING *',
+    [name, slug, image_url, sort_order || 0, subCatsJson, typesJson, isThemeEnabled, finalThemeColor, finalThemeBgColor, req.params.id]
   );
   ok(res, { category: rows[0] });
 };
