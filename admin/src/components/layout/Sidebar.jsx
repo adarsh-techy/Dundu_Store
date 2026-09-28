@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Tag, ShoppingBag, Users, Ticket,
   Image, BarChart2, UserCog, LogOut, ShoppingCart,
-  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders, X, ScrollText, Trash2,
+  TrendingUp, Star, Sparkles, CreditCard, Megaphone, Gift, Settings2, Heart, FlameKindling, MessageCircle, Cake, Smartphone, Layers, Activity, Bike, Truck, RotateCcw, PartyPopper, PackagePlus, Wallet, Sliders, X, ScrollText, Trash2, ClipboardCheck,
 } from 'lucide-react';
 import useAuthStore from '../../store/auth.store';
 import dunduLogo from '../../assets/logo.png';
@@ -23,6 +23,7 @@ export const allNavGroups = [
     superOnly: true,
     items: [
       { to: '/inventory',    icon: BarChart2,    label: 'Inventory',       superOnly: true },
+      { to: '/stock-check',  icon: ClipboardCheck, label: 'Stock Check',   superOnly: true },
       { to: '/products',     icon: Package,     label: 'Products',        superOnly: true },
       { to: '/categories',   icon: Tag,         label: 'Categories',      superOnly: true },
       { to: '/combos',       icon: PackagePlus, label: 'Combos',          superOnly: true },

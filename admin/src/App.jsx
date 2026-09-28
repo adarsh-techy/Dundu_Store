@@ -43,6 +43,8 @@ import WhatsAppBroadcast from './pages/marketing/whatsapp/WhatsAppBroadcast';
 import Birthdays from './pages/users/birthdays/Birthdays';
 import AppUpdate from './pages/settings/app-update/AppUpdate';
 import InventoryDashboard from './pages/dashboard/inventory/InventoryDashboard';
+import StockCheck from './pages/dashboard/stock-check/StockCheck';
+import StockCheckDetail from './pages/dashboard/stock-check/StockCheckDetail';
 import SplashScreenPage from './pages/settings/splash-screen/SplashScreen';
 import PaymentMethods from './pages/settings/payment-methods/PaymentMethods';
 import DeliverySettings from './pages/settings/delivery/DeliverySettings';
@@ -108,6 +110,8 @@ function AppRoutes() {
       <Route path="/birthdays" element={<Layout><Birthdays /></Layout>} />
       <Route path="/app-update" element={<Layout><AppUpdate /></Layout>} />
       <Route path="/inventory" element={<Layout><InventoryDashboard /></Layout>} />
+      <Route path="/stock-check" element={<Layout><StockCheck /></Layout>} />
+      <Route path="/stock-check/:id" element={<Layout><StockCheckDetail /></Layout>} />
       <Route path="/splash-config" element={<Layout><SplashScreenPage /></Layout>} />
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -17,6 +17,7 @@ router.use(auditAdminActions);
 // Analytics & Reports
 router.get('/dashboard', superOnly, require('../../controllers/admin/analytics/dashboard.controller').getDashboard);
 router.get('/inventory', superOnly, require('../../controllers/admin/catalog/inventory.controller').getInventory);
+router.use('/stock-check', superOnly, require('./catalog/stockCheck.routes'));
 router.use('/insights', superOnly, require('./analytics/insights.routes'));
 router.use('/reports',  requirePermission('reports'), require('./analytics/reports.routes'));
 
