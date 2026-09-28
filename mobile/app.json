@@ -36,12 +36,6 @@
         }
       ]
     ],
-    "scheme": "dundu",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/PLACEHOLDER-PROJECT-ID"
-    }
+    "scheme": "dundu"
   }
 }
