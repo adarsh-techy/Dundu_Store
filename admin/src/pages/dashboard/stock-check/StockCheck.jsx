@@ -38,8 +38,6 @@ const SORTS = {
   profit:  { label: 'Most profit',   fn: (a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity) },
   loss:    { label: 'Most loss',     fn: (a, b) => (a.profit ?? Infinity) - (b.profit ?? Infinity) },
   sold:    { label: 'Most sold',     fn: (a, b) => b.units_sold - a.units_sold },
-  fast:    { label: 'Fastest selling', fn: (a, b) => b.per_day - a.per_day || b.units_sold - a.units_sold },
-  slow:    { label: 'Slowest selling', fn: (a, b) => a.per_day - b.per_day || a.units_sold - b.units_sold },
   balance: { label: 'Most balance',  fn: (a, b) => b.balance_qty - a.balance_qty },
   name:    { label: 'Name (A–Z)',    fn: (a, b) => a.name.localeCompare(b.name) },
 };
@@ -171,11 +169,12 @@ export default function StockCheck() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto bg-pink-100/20">
+          <table className="w-full text-left text-sm text-pink-800">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+              <tr className="bg-pink-100/40 border-b border-pink-100 text-[11px] font-bold text-pink-800 uppercase tracking-wider whitespace-nowrap">
                 <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3 text-right">Buy / pc</th>
                 <th className="px-4 py-3 text-right">Sell / pc</th>
                 <th className="px-4 py-3 text-right">Purchased</th>
@@ -184,57 +183,51 @@ export default function StockCheck() {
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3 text-right">Revenue</th>
                 <th className="px-4 py-3 text-right">Profit</th>
-                <th className="px-4 py-3">Speed</th>
-                <th className="px-4 py-3">Last sale</th>
                 <th className="px-2 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-pink-100">
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-14 text-center text-slate-400 text-xs">
-                    <Package className="h-9 w-9 text-slate-300 mx-auto mb-2" />
+                  <td colSpan={11} className="py-14 text-center text-pink-800/70 text-xs">
+                    <Package className="h-9 w-9 text-pink-200 mx-auto mb-2" />
                     No products match
                   </td>
                 </tr>
               ) : rows.map((p) => (
-                <tr key={p.id} onClick={() => navigate(`/stock-check/${p.id}`)} className="hover:bg-slate-50/70 cursor-pointer whitespace-nowrap">
+                <tr key={p.id} onClick={() => navigate(`/stock-check/${p.id}`)} className="hover:bg-pink-100/40 cursor-pointer whitespace-nowrap">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                        {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> : <Package className="h-4 w-4 text-slate-400" />}
+                      <div className="w-10 h-10 rounded-lg bg-white border border-pink-100 overflow-hidden shrink-0 flex items-center justify-center">
+                        {p.image ? <img src={p.image} alt={p.name} className="w-full h-full object-cover" /> : <Package className="h-4 w-4 text-pink-300" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 truncate max-w-[220px]">{p.name}</p>
+                        <p className="font-semibold truncate max-w-[220px]">{p.name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[11px] text-slate-500">{p.sku || p.category || '—'}</span>
+                          {p.sku && <span className="text-[11px] text-pink-800/70">{p.sku}</span>}
                           <Badge map={RESULT_BADGE} value={p.result} />
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">{money(p.cost_price)}</td>
-                  <td className="px-4 py-3 text-right text-slate-700">{money(p.sell_price)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-900">{p.purchased_qty}</td>
-                  <td className="px-4 py-3 text-right text-slate-700">{money(p.purchase_total)}</td>
+                  <td className="px-4 py-3">{p.category || '—'}</td>
+                  <td className="px-4 py-3 text-right">{money(p.cost_price)}</td>
+                  <td className="px-4 py-3 text-right">{money(p.sell_price)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{p.purchased_qty}</td>
+                  <td className="px-4 py-3 text-right">{money(p.purchase_total)}</td>
                   <td className="px-4 py-3 text-right">
-                    <span className="font-semibold text-slate-900">{p.units_sold}</span>
-                    <span className="block text-[11px] text-slate-500">{p.buyers_count} buyer{p.buyers_count === 1 ? '' : 's'}</span>
+                    <span className="font-semibold">{p.units_sold}</span>
+                    <span className="block text-[11px] text-pink-800/70">{p.buyers_count} buyer{p.buyers_count === 1 ? '' : 's'}</span>
                   </td>
-                  <td className={`px-4 py-3 text-right font-semibold ${p.balance_qty === 0 ? 'text-rose-600' : p.balance_qty < 10 ? 'text-amber-600' : 'text-slate-900'}`}>
+                  <td className={`px-4 py-3 text-right font-semibold ${p.balance_qty === 0 ? 'text-rose-600' : ''}`}>
                     {p.balance_qty}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">{money(p.revenue)}</td>
-                  <td className={`px-4 py-3 text-right font-bold ${p.profit === null ? 'text-slate-400' : p.profit < 0 ? 'text-rose-600' : p.profit > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  <td className="px-4 py-3 text-right">{money(p.revenue)}</td>
+                  <td className={`px-4 py-3 text-right font-bold ${p.profit === null ? 'text-pink-800/50' : p.profit < 0 ? 'text-rose-600' : p.profit > 0 ? 'text-emerald-600' : ''}`}>
                     {money(p.profit)}
                     {p.margin_pct !== null && <span className="block text-[11px] font-medium">{p.margin_pct}%</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge map={SPEED_BADGE} value={p.speed} />
-                    {p.units_sold_30d > 0 && <span className="block text-[11px] text-slate-500 mt-0.5">{p.units_sold_30d} in 30 days</span>}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-600">{p.last_sale_at ? formatDate(p.last_sale_at) : '—'}</td>
-                  <td className="px-2 py-3 text-slate-400"><ChevronRight className="h-4 w-4" /></td>
+                  <td className="px-2 py-3 text-pink-300"><ChevronRight className="h-4 w-4" /></td>
                 </tr>
               ))}
             </tbody>
