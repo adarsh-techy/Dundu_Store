@@ -84,7 +84,7 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   setEmail('superadmin@gmail.com');
-                  setPassword('123456');
+                  setPassword('12345678');
                   toast.success('Super Admin credentials filled');
                 }}
                 className="shrink-0 bg-pink-600 hover:bg-pink-700 active:bg-pink-800 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer flex items-center gap-1"
