@@ -4,13 +4,14 @@ import {
   Plus, Pencil, Trash2, Eye, EyeOff, ImageIcon,
   ChevronUp, ChevronDown, Search, X, RefreshCw,
   ExternalLink, Tag, CheckCircle2, Smartphone,
-  ChevronLeft, ChevronRight, Upload, Link2, AlertCircle
+  ChevronLeft, ChevronRight, Upload, Link2, AlertCircle, Crop
 } from 'lucide-react';
 import { bannerApi, categoryApi } from '../../../api';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Modal from '../../../components/ui/Modal';
 import Spinner from '../../../components/ui/Spinner';
+import ImageCropperModal from '../../../components/ui/ImageCropperModal';
 import toast from 'react-hot-toast';
 
 const PRESET_COLORS = [
@@ -52,6 +53,9 @@ export default function Banners() {
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [fileInfo, setFileInfo] = useState(null);
+  // Picked files go through the 16:6 cropper; cropSource keeps the original so it can be re-cropped.
+  const [cropSource, setCropSource] = useState(null); // { src, name }
+  const [cropperOpen, setCropperOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -80,6 +84,7 @@ export default function Banners() {
     setPreviewUrl('');
     setImageUrlInput('');
     setFileInfo(null);
+    setCropSource(null);
     setUploadMode('file');
     setShowModal(true);
   };
@@ -101,22 +106,34 @@ export default function Banners() {
     setImageUrlInput(banner.image_url || '');
     setFileInfo(banner.image_url ? { name: 'Active Banner Artwork', size: null } : null);
     setUploadMode(banner.image_url && banner.image_url.startsWith('http') ? 'url' : 'file');
+    setCropSource(null);
     setSelectedBannerId(banner.id);
     setShowModal(true);
   };
 
+  // The server accepts JPEG, PNG and WebP only.
   const handleFileSelect = (file) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please choose a valid image file (PNG, JPG, WEBP, GIF)');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Please choose a JPG, PNG or WEBP image');
       return;
     }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSource({ src: reader.result, name: file.name });
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCropComplete = (file, url) => {
     setImage(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrl(url);
     setImageUrlInput('');
     setFileInfo({
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + ' KB',
+      name: cropSource?.name || file.name,
+      size: (file.size / 1024).toFixed(1) + ' KB · cropped 16:6',
     });
   };
 
@@ -137,6 +154,7 @@ export default function Banners() {
     setPreviewUrl('');
     setImageUrlInput('');
     setFileInfo(null);
+    setCropSource(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -992,7 +1010,7 @@ export default function Banners() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={(e) => handleFileSelect(e.target.files?.[0])}
                 className="hidden"
               />
@@ -1044,6 +1062,17 @@ export default function Banners() {
 
                     {/* Action Overlay Controls */}
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                      {cropSource && image && (
+                        <button
+                          type="button"
+                          onClick={() => setCropperOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/95 text-slate-800 hover:bg-white hover:text-indigo-600 px-2.5 py-1 rounded-lg shadow-xs border border-slate-200/80 backdrop-blur-xs cursor-pointer transition-colors"
+                          title="Adjust the crop"
+                        >
+                          <Crop className="w-3 h-3" />
+                          <span>Crop</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -1251,6 +1280,21 @@ export default function Banners() {
           </form>
         </Modal>
       )}
+
+      <ImageCropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropSource?.src}
+        aspectRatio={16 / 6}
+        allowRatioSwitch={false}
+        previewType="banner"
+        itemName={form.title}
+        subtitle={form.subtitle}
+        badgeText={form.badge_active ? form.badge_text : ''}
+        badgeColor={form.badge_color}
+        fileNamePrefix="banner"
+        onClose={() => setCropperOpen(false)}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 }

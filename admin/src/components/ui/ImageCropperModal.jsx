@@ -25,16 +25,25 @@ const ASPECT_RATIOS = [
 ];
 
 const RATIO_NAMES = [
-  [3 / 4, '3:4 Portrait'], [1, '1:1 Square'], [4 / 5, '4:5 Mobile'], [4 / 3, '4:3 Landscape'], [16 / 9, '16:9 Wide'],
+  [3 / 4, '3:4 Portrait'], [1, '1:1 Square'], [4 / 5, '4:5 Mobile'], [4 / 3, '4:3 Landscape'], [16 / 9, '16:9 Wide'], [16 / 6, '16:6 Banner'],
 ];
 const ratioName = (r) => RATIO_NAMES.find(([v]) => Math.abs(v - r) < 0.01)?.[1] || `${Math.round(r * 100) / 100}:1`;
 
-// Largest crop box that fits the modal: at most 340px tall and 440px wide (less on phones).
-const fitBox = (ratio) => {
-  const maxW = Math.min(440, (typeof window !== 'undefined' ? window.innerWidth : 1024) - 72);
+const viewportW = () => (typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+// Largest crop box that fits the modal: at most 340px tall and `maxWidth` wide (less on phones).
+const fitBox = (ratio, maxWidth = 440) => {
+  const maxW = Math.min(maxWidth, viewportW() - 72);
   const height = Math.min(340, maxW / ratio);
   return { width: Math.round(height * ratio), height: Math.round(height) };
 };
+
+// Hero banners are stored at 16:6 and shown with object-cover (centred) in three places.
+// The narrower two trim the sides, so the crop frame marks what they keep.
+const BANNER_SAFE_ZONES = [
+  { ratio: 2, label: 'App' },
+  { ratio: 4 / 2.6, label: 'Web phone' },
+];
 
 export default function ImageCropperModal({
   isOpen,
@@ -42,8 +51,11 @@ export default function ImageCropperModal({
   aspectRatio = 3 / 4, // 3:4 default for fashion products
   allowRatioSwitch = true,
   title,
-  previewType = 'product', // 'product' | 'category' | 'combo'
+  previewType = 'product', // 'product' | 'category' | 'combo' | 'banner'
   itemName = '',
+  subtitle = '', // banner only
+  badgeText = '', // banner only
+  badgeColor = '#E91E8C', // banner only
   price = 999,
   originalPrice = null,
   fileNamePrefix,
@@ -71,7 +83,8 @@ export default function ImageCropperModal({
 
   // Fixed container dimensions for the interactive crop workspace
   // Height is constrained to ~340px for comfortable modal layout
-  const { width: boxWidth, height: boxHeight } = fitBox(selectedRatio || 3 / 4);
+  const isBanner = previewType === 'banner';
+  const { width: boxWidth, height: boxHeight } = fitBox(selectedRatio || 3 / 4, isBanner ? 820 : 440);
 
   const resolvedPreviewType = previewType || (selectedRatio !== 1 ? 'product' : 'category');
   const modalTitle = title || (
@@ -79,7 +92,9 @@ export default function ImageCropperModal({
       ? 'Crop & Position Category Image'
       : resolvedPreviewType === 'combo'
         ? 'Crop & Position Combo Cover'
-        : 'Crop & Position Product Image'
+        : resolvedPreviewType === 'banner'
+          ? 'Crop & Position Hero Banner'
+          : 'Crop & Position Product Image'
   );
 
   // Base scale calculation so image cleanly covers or fits the frame
@@ -250,7 +265,9 @@ export default function ImageCropperModal({
           ? 'category'
           : resolvedPreviewType === 'combo'
             ? 'combo'
-            : 'product'
+            : resolvedPreviewType === 'banner'
+              ? 'banner'
+              : 'product'
       );
       const croppedFile = new File([blob], `cropped_${prefix}_${Date.now()}.jpg`, {
         type: 'image/jpeg',
@@ -267,11 +284,59 @@ export default function ImageCropperModal({
   const previewScaleFactor = previewBoxWidth / boxWidth;
 
   const displayProductName = itemName || 'Premium Oversized Cotton T-Shirt';
-  const displayPrice = Number(price) > 0 ? Number(price).toLocaleString('en-IN') : '999';
+  const displayPrice = Number(price) > 0 ? Number(price).toLocaleString('en-IN') : '—'; // no made-up price
   // Show a struck-through price / discount only when the caller passed a real higher price.
   const hasOriginal = Number(originalPrice) > Number(price);
   const displayOriginalPrice = hasOriginal ? Number(originalPrice).toLocaleString('en-IN') : null;
   const discountPct = hasOriginal ? Math.round((1 - Number(price) / Number(originalPrice)) * 100) : 0;
+
+  // The crop frame redrawn at `frameW` px wide (same offset/zoom/rotation, scaled).
+  const framedImage = (frameW) => {
+    const f = frameW / boxWidth;
+    return naturalSize.width > 0 && (
+      <img
+        src={imageSrc}
+        alt=""
+        className="max-w-none select-none pointer-events-none"
+        style={{
+          position: 'absolute', left: '50%', top: '50%',
+          width: `${naturalSize.width}px`, height: `${naturalSize.height}px`,
+          transform: `translate(-50%, -50%) translate(${offset.x * f}px, ${offset.y * f}px) rotate(${rotation}deg) scale(${zoom * coverScale * f})`,
+          transformOrigin: 'center center',
+        }}
+      />
+    );
+  };
+
+  // A banner placement: a viewW×viewH window showing the centre of the full 16:6 frame.
+  // White behind the image, like the saved canvas, so zoomed-out edges preview truthfully.
+  const bannerView = (viewW, viewH, variant) => {
+    const frameW = viewH * (selectedRatio || 16 / 6);
+    return (
+      <div className="relative overflow-hidden rounded-xl bg-white shadow-md" style={{ width: viewW, height: viewH }}>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 overflow-hidden" style={{ width: frameW, height: viewH }}>
+          {framedImage(frameW)}
+        </div>
+        {variant === 'web' ? (
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/20 to-transparent flex flex-col justify-center px-[6%] max-w-[75%]">
+            {itemName && <p className="text-white font-bold leading-tight drop-shadow truncate" style={{ fontSize: Math.max(9, viewH * 0.11) }}>{itemName}</p>}
+            {subtitle && <p className="text-white/85 truncate mt-0.5" style={{ fontSize: Math.max(7, viewH * 0.06) }}>{subtitle}</p>}
+          </div>
+        ) : (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-2.5 pb-2 pt-6">
+            {itemName && <p className="text-white text-[10px] font-bold truncate">{itemName}</p>}
+            {subtitle && <p className="text-white/80 text-[8px] truncate">{subtitle}</p>}
+          </div>
+        )}
+        {badgeText && (
+          <span className="absolute top-1.5 right-1.5 text-[8px] font-bold text-white px-1.5 py-0.5 rounded-full shadow" style={{ backgroundColor: badgeColor }}>
+            {badgeText}
+          </span>
+        )}
+      </div>
+    );
+  };
+  const bannerDesktopW = Math.min(480, viewportW() - 110);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-3 sm:p-4 backdrop-blur-md overflow-y-auto">
@@ -313,7 +378,7 @@ export default function ImageCropperModal({
         <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-h-[80vh] overflow-y-auto">
           
           {/* ── LEFT: Crop & Positioning Workspace (7 cols) ────────────── */}
-          <div className="lg:col-span-7 flex flex-col items-center">
+          <div className={`${isBanner ? 'lg:col-span-12' : 'lg:col-span-7'} flex flex-col items-center`}>
             
             {/* Top Aspect Ratio Switcher (if enabled) */}
             {allowRatioSwitch && resolvedPreviewType === 'product' && (
@@ -401,6 +466,17 @@ export default function ImageCropperModal({
                   <div className="border border-white/10" />
                   <div className="border border-white/10" />
                 </div>
+
+                {/* Banner: what the narrower placements keep (they trim the sides) */}
+                {isBanner && BANNER_SAFE_ZONES.map((z) => (
+                  <div
+                    key={z.label}
+                    className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 pointer-events-none border-x-2 border-dashed border-amber-300/90"
+                    style={{ width: Math.min(boxWidth, boxHeight * z.ratio) }}
+                  >
+                    <span className="absolute top-1 left-1 text-[9px] font-bold text-amber-200 bg-black/60 px-1.5 py-0.5 rounded">{z.label}</span>
+                  </div>
+                ))}
 
                 {/* Subtle Center Target */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40">
@@ -497,7 +573,7 @@ export default function ImageCropperModal({
           </div>
 
           {/* ── RIGHT: Crystal Clear Live Preview (5 cols) ───────────────── */}
-          <div className="lg:col-span-5 flex flex-col bg-neutral-50 dark:bg-neutral-950 p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 h-full">
+          <div className={`${isBanner ? 'lg:col-span-12' : 'lg:col-span-5'} flex flex-col bg-neutral-50 dark:bg-neutral-950 p-4 sm:p-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 h-full`}>
             
             {/* Preview Section Header */}
             <div className="flex items-center justify-between mb-3.5">
@@ -509,7 +585,7 @@ export default function ImageCropperModal({
               </div>
               
               {/* Preview Tabs: Customer Card vs Raw Cut */}
-              {resolvedPreviewType !== 'category' && (
+              {resolvedPreviewType !== 'category' && !isBanner && (
                 <div className="flex bg-neutral-200 dark:bg-neutral-800 p-0.5 rounded-lg text-[10px] font-bold">
                   <button
                     type="button"
@@ -538,7 +614,28 @@ export default function ImageCropperModal({
             </div>
 
             {/* PREVIEW CONTENT BASED ON TYPE */}
-            {resolvedPreviewType === 'category' ? (
+            {isBanner ? (
+              /* BANNER PREVIEW — the three real placements */
+              <div className="flex flex-col items-center gap-4 py-1">
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">🖥️ Website · desktop (full 16:6)</span>
+                  {bannerView(bannerDesktopW, Math.round(bannerDesktopW / (selectedRatio || 16 / 6)), 'web')}
+                </div>
+                <div className="flex flex-wrap items-end justify-center gap-5">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">📱 Website · phone</span>
+                    {bannerView(170, Math.round(170 / (4 / 2.6)), 'web')}
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">📲 Mobile app</span>
+                    {bannerView(210, 105, 'app')}
+                  </div>
+                </div>
+                <p className="text-[11px] text-neutral-500 text-center max-w-md">
+                  Phones show only the middle of the banner — keep faces and text inside the dashed guides.
+                </p>
+              </div>
+            ) : resolvedPreviewType === 'category' ? (
               /* CATEGORY PREVIEW */
               <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-2">
                 

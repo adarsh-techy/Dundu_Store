@@ -215,6 +215,15 @@ Responsive audit: Playwright script that loads every route at widths 320→1920,
 
 ## 9. Changelog (newest first)
 
+### 2026-09-29 — Hero banner crop & preview
+- Banners (`admin/src/pages/marketing/banners/Banners.jsx`): picking/dropping a file opens `ImageCropperModal` with `previewType="banner"` at 16:6 (output 1200×450 JPEG); a **Crop** button re-crops from the original. Accept list is JPEG/PNG/WebP (GIF was offered but the server rejects it). URL-mode images are not cropped.
+- Cropper `banner` mode: full-width 16:6 frame (up to 820px), dashed guides for what the narrower placements keep (App 2:1, Web phone 4:2.6 — both object-cover centred), and a preview of the three real placements (web desktop 16:6, web phone, mobile app) with title/subtitle/badge. New props `subtitle`, `badgeText`, `badgeColor`.
+
+### 2026-09-29 — Combo image cropper fixes (`components/ui/ImageCropperModal.jsx`)
+- Create/Edit Combo now passes `previewType="combo"`, `allowRatioSwitch={false}`, name and real bundle/regular prices. Before, it defaulted to product mode: title "Crop & Position Product Image", "4:5 Mobile" label on a 4:3 crop, ratio buttons that dropped the 4:3 frame, and a fake product card preview.
+- Cropper: ratio labels for any ratio (`ratioName`, incl. 4:3 Landscape); crop box fits the modal (≤340px tall, ≤440px wide, narrower on phones — a 4:3 box used to be 453px and overflowed on mobile); wheel-zoom uses a native non-passive listener (React's `onWheel` is passive, so the modal scrolled while zooming); no invented prices — struck price/discount only when a real higher price is passed, "₹—" when no price; combo mode also gets the Store Card / Exact Crop tabs.
+- Web/mobile combo cards are 4:3, so the 1200×900 output matches.
+
 ### 2026-09-29 — Chart size console warning fixed
 - New `admin/src/components/ui/ResponsiveChart.jsx` wraps Recharts `ResponsiveContainer` with `initialDimension` 1×1. Recharts 3 otherwise renders once at -1×-1 before measuring and logs "The width(-1) and height(-1) of chart should be greater than 0" on every chart mount. All 6 admin charts (Dashboard, Finance, Sales Report, Marketing Control, Product Detail, Stock Check detail) now use it — **use `ResponsiveChart` for new charts, not `ResponsiveContainer` directly.**
 
