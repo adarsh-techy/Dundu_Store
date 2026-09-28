@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dundu",
-    "slug": "dundu",
+    "slug": "workadarsh",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +22,9 @@
       "package": "com.dundu.store",
       "versionCode": 1,
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -36,6 +38,12 @@
         }
       ]
     ],
-    "scheme": "dundu"
+    "scheme": "dundu",
+    "extra": {
+      "eas": {
+        "projectId": "d74fde9d-45e1-4e95-bdbc-92b970b73158"
+      }
+    },
+    "owner": "workadarshs-team"
   }
 }
